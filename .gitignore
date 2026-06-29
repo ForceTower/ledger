@@ -30,6 +30,7 @@ DerivedData/
 *.xcscmblueprint
 *.xccheckout
 .swiftpm/
+.build/
 Pods/
 Carthage/Build/
 

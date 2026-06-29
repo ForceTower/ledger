@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CAFECAFE0000000000000003 /* LedgerKit in Frameworks */ = {isa = PBXBuildFile; productRef = CAFECAFE0000000000000002 /* LedgerKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		6C5116682FF3311E00EC4CB4 /* Ledger.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ledger.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CAFECAFE0000000000000004 /* LedgerKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LedgerKit; path = LedgerKit; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -23,6 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CAFECAFE0000000000000003 /* LedgerKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -33,6 +39,7 @@
 			isa = PBXGroup;
 			children = (
 				6C51166A2FF3311E00EC4CB4 /* Ledger */,
+				CAFECAFE0000000000000004 /* LedgerKit */,
 				6C5116692FF3311E00EC4CB4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -65,6 +72,7 @@
 			);
 			name = Ledger;
 			packageProductDependencies = (
+				CAFECAFE0000000000000002 /* LedgerKit */,
 			);
 			productName = Ledger;
 			productReference = 6C5116682FF3311E00EC4CB4 /* Ledger.app */;
@@ -94,6 +102,9 @@
 			);
 			mainGroup = 6C51165F2FF3311E00EC4CB4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CAFECAFE0000000000000001 /* XCLocalSwiftPackageReference "LedgerKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6C5116692FF3311E00EC4CB4 /* Products */;
 			projectDirPath = "";
@@ -272,8 +283,9 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -304,8 +316,9 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -332,6 +345,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		CAFECAFE0000000000000001 /* XCLocalSwiftPackageReference "LedgerKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = LedgerKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CAFECAFE0000000000000002 /* LedgerKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LedgerKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6C5116602FF3311E00EC4CB4 /* Project object */;
 }

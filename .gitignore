@@ -1,0 +1,53 @@
+# ---------- OS / editors ----------
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# ---------- Node / Bun (TypeScript) ----------
+node_modules/
+dist/
+coverage/
+.cache/
+*.tsbuildinfo
+
+# Env files (keep examples)
+.env
+.env.*
+!.env.example
+
+# ---------- iOS / Xcode / Swift ----------
+xcuserdata/
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+.swiftpm/
+Pods/
+Carthage/Build/
+
+# license-plist build outputs (regenerated on every build)
+apps/ios/**/Resources/Licenses/
+
+# ---------- Docker / infra ----------
+*.pid
+
+# ---------- Data ----------
+# Real purchase data never lives in this public repo — it lives in Postgres.
+# Only the anonymized fixture set under data/sample/ is tracked.
+/data/private/
+
+# ---------- Misc ----------
+tmp/
+.temp/
+
+claude_scripts/
+claude_design_ref/
+.claude/*.local.json

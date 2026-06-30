@@ -70,7 +70,7 @@ struct InsightsView: View {
             }
             .chartYAxis(.hidden)
             .chartXAxis {
-                AxisMarks { _ in AxisValueLabel() }
+                AxisMarks { _ in AxisValueLabel(anchor: .top) }
             }
             .frame(height: 120)
             .padding(.top, 16)

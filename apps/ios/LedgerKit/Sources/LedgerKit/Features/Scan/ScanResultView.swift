@@ -81,7 +81,7 @@ private struct SuccessResultView: View {
                 Label("Salva · há instantes", systemImage: "checkmark.circle.fill")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(resultGreen)
-                    .padding(.top, 12)
+                    .padding(.top, 24)
 
                 storeCard
                 CategoryBreakdownCard(purchase: purchase)
@@ -374,7 +374,7 @@ private struct WarningResultView: View {
                 .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.appSeparator, lineWidth: 0.5))
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
+            .padding(.top, 24)
         }
         .scrollIndicators(.hidden)
         .safeAreaInset(edge: .bottom) {

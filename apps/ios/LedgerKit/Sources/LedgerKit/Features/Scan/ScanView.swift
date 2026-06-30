@@ -144,33 +144,24 @@ private struct ScanReticle: View {
             CornerBrackets()
                 .stroke(detecting ? green : .white, style: StrokeStyle(lineWidth: 4, lineCap: .round))
 
-            if !detecting {
-                Rectangle()
-                    .fill(LinearGradient(colors: [.clear, Color.appAccent, .clear], startPoint: .leading, endPoint: .trailing))
-                    .frame(height: 3)
-                    .shadow(color: Color.appAccent, radius: 8)
-                    .offset(y: scanLineOffset)
-                    .padding(.horizontal, 12)
-                    .onAppear {
-                        withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-                            scanLineOffset = 100
-                        }
-                    }
-            }
+            // Scan line and ripple stay mounted and animate continuously; only
+            // their visibility toggles with `detecting`, so the loop never has to
+            // restart (which is why it used to freeze after the sheet closed).
+            Rectangle()
+                .fill(LinearGradient(colors: [.clear, Color.appAccent, .clear], startPoint: .leading, endPoint: .trailing))
+                .frame(height: 3)
+                .shadow(color: Color.appAccent, radius: 8)
+                .padding(.horizontal, 12)
+                .offset(y: scanLineOffset)
+                .opacity(detecting ? 0 : 1)
+
+            RoundedRectangle(cornerRadius: 36, style: .continuous)
+                .stroke(green, lineWidth: 2)
+                .padding(-10)
+                .scaleEffect(rippleExpanded ? 1.4 : 0.8)
+                .opacity(detecting ? (rippleExpanded ? 0 : 0.55) : 0)
 
             if detecting {
-                RoundedRectangle(cornerRadius: 36, style: .continuous)
-                    .stroke(green, lineWidth: 2)
-                    .padding(-10)
-                    .scaleEffect(rippleExpanded ? 1.4 : 0.8)
-                    .opacity(rippleExpanded ? 0 : 0.55)
-                    .onAppear {
-                        rippleExpanded = false
-                        withAnimation(.easeOut(duration: 1).repeatForever(autoreverses: false)) {
-                            rippleExpanded = true
-                        }
-                    }
-
                 Image(systemName: "checkmark")
                     .font(.system(size: 34, weight: .bold))
                     .foregroundStyle(.white)
@@ -178,6 +169,14 @@ private struct ScanReticle: View {
                     .background(Circle().fill(green))
                     .shadow(color: green.opacity(0.5), radius: 14, y: 8)
                     .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                scanLineOffset = 100
+            }
+            withAnimation(.easeOut(duration: 1).repeatForever(autoreverses: false)) {
+                rippleExpanded = true
             }
         }
     }

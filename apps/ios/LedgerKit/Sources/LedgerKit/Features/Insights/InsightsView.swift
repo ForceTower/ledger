@@ -33,12 +33,10 @@ struct InsightsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text("Insights").font(.largeTitle.weight(.bold))
-                    ComingSoonBadge()
-                    Spacer()
-                }
-                .padding(.top, 8)
+                Text("Insights")
+                    .font(.largeTitle.weight(.bold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
 
                 spendingCard
                 breakdownCard

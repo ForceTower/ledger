@@ -9,12 +9,9 @@ struct AskView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text("Perguntar").font(.largeTitle.weight(.bold))
-                    ComingSoonBadge()
-                    Spacer()
-                }
-                .padding(.bottom, 4)
+                Text("Perguntar")
+                    .font(.largeTitle.weight(.bold))
+                    .padding(.bottom, 4)
 
                 assistantBubble(
                     "Oi! Posso responder sobre suas compras — gastos, categorias, comparações entre meses."
@@ -24,7 +21,6 @@ struct AskView: View {
                     suggestion("Quanto gastei em carnes?")
                     suggestion("Março vs. fevereiro")
                 }
-                .padding(.leading, 39)
 
                 userBubble("Quanto gastei em carnes esse mês?")
 

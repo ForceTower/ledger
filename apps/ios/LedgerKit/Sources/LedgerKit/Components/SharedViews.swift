@@ -54,18 +54,6 @@ struct StoreAvatar: View {
     }
 }
 
-/// The "Em breve" badge used on not-yet-built tabs.
-struct ComingSoonBadge: View {
-    var body: some View {
-        Text("Em breve")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(Color.appAccent)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 3)
-            .background(Color.appAccentTint, in: Capsule())
-    }
-}
-
 /// Uppercase caption header used inside custom cards.
 struct CardSectionHeader: View {
     let title: String

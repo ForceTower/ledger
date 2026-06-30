@@ -12,7 +12,7 @@ struct AppView: View {
 
     var body: some View {
         TabView(selection: tabBinding) {
-            ScanView(store: store.scope(state: \.scan, action: \.scan))
+            ScanView(store: store.scope(state: \.scan, action: \.scan), isActive: store.tab == .scan)
                 .tabItem { Label("Escanear", systemImage: "qrcode.viewfinder") }
                 .tag(AppFeature.Tab.scan)
 

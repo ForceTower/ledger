@@ -7,6 +7,7 @@ import SwiftUI
 /// there is no camera. The result arrives as a sheet.
 struct ScanView: View {
     let store: StoreOf<ScanFeature>
+    var isActive = true
 
     private var detecting: Bool { store.phase == .detecting }
 
@@ -14,8 +15,9 @@ struct ScanView: View {
         ZStack {
             #if canImport(UIKit)
             if store.cameraAvailable && store.cameraAuthorized {
-                CameraPreview(
-                    armed: store.phase == .idle,
+                LiveScannerView(
+                    isActive: isActive,
+                    idle: store.phase == .idle,
                     flashOn: store.flashOn,
                     onCode: { store.send(.codeScanned($0)) }
                 )

@@ -481,3 +481,48 @@ private struct ScanAgainButton: View {
         .background(Color.appElevated)
     }
 }
+
+// MARK: - Previews
+
+@MainActor
+private func scanResultStore(phase: ScanFeature.State.Phase) -> StoreOf<ScanFeature> {
+    var state = ScanFeature.State()
+    state.phase = phase
+    return Store(initialState: state) { ScanFeature() }
+}
+
+#Preview("Salva") {
+    ScanResultView(
+        store: scanResultStore(
+            phase: .result(ScanResponse(status: .saved, purchase: MockData.atacadao, warnings: []))
+        )
+    )
+}
+
+#Preview("Duplicada") {
+    ScanResultView(
+        store: scanResultStore(
+            phase: .result(ScanResponse(status: .duplicate, purchase: MockData.atacadao, warnings: []))
+        )
+    )
+}
+
+#Preview("Aviso") {
+    ScanResultView(
+        store: scanResultStore(
+            phase: .result(ScanResponse(
+                status: .saved,
+                purchase: MockData.atacadao,
+                warnings: ["A soma dos itens não bate com o total"]
+            ))
+        )
+    )
+}
+
+#Preview("Erro") {
+    ScanResultView(store: scanResultStore(phase: .failure(.expired)))
+}
+
+#Preview("Processando") {
+    ScanResultView(store: scanResultStore(phase: .processing))
+}

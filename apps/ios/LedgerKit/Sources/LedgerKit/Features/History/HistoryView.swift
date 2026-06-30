@@ -83,6 +83,10 @@ struct HistoryView: View {
     }
 }
 
+#Preview {
+    HistoryView(store: Store(initialState: HistoryFeature.State()) { HistoryFeature() })
+}
+
 private struct PurchaseRow: View {
     let summary: PurchaseSummary
 

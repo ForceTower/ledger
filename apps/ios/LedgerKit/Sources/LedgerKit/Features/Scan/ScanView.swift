@@ -97,6 +97,10 @@ struct ScanView: View {
     }
 }
 
+#Preview {
+    ScanView(store: Store(initialState: ScanFeature.State()) { ScanFeature() })
+}
+
 /// Dim camera surface stand-in: layered gradients with a faint accent glow.
 private struct ScanBackground: View {
     var body: some View {

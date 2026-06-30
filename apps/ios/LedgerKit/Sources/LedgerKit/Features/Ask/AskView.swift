@@ -125,3 +125,7 @@ struct AskView: View {
         .background(.bar)
     }
 }
+
+#Preview {
+    AskView(store: Store(initialState: AskFeature.State()) { AskFeature() })
+}

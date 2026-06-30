@@ -125,3 +125,13 @@ struct PurchaseDetailView: View {
         .font(.subheadline)
     }
 }
+
+#Preview {
+    NavigationStack {
+        PurchaseDetailView(
+            store: Store(initialState: PurchaseDetailFeature.State(summary: MockData.summaries[0])) {
+                PurchaseDetailFeature()
+            }
+        )
+    }
+}

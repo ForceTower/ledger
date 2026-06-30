@@ -104,3 +104,7 @@ struct InsightsView: View {
         .card()
     }
 }
+
+#Preview {
+    InsightsView(store: Store(initialState: InsightsFeature.State()) { InsightsFeature() })
+}

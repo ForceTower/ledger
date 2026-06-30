@@ -5,21 +5,13 @@ import SwiftUI
 struct SettingsView: View {
     let store: StoreOf<SettingsFeature>
 
-    private var serverBinding: Binding<String> {
-        Binding(get: { store.serverAddress }, set: { store.send(.serverAddressChanged($0)) })
-    }
-
-    private var tokenBinding: Binding<String> {
-        Binding(get: { store.apiToken }, set: { store.send(.apiTokenChanged($0)) })
-    }
-
-    private var cameraBinding: Binding<Bool> {
-        Binding(get: { store.cameraAuthorized }, set: { store.send(.cameraToggled($0)) })
-    }
-
-    private var themeBinding: Binding<AppTheme> {
-        Binding(get: { store.theme }, set: { store.send(.themeChanged($0)) })
-    }
+    // Bind controls straight to the shared storage (not through the presentation
+    // store), so a text field committing as the sheet dismisses can't deliver a
+    // presentation action to an absent destination.
+    private var serverBinding: Binding<String> { Binding(store.state.$serverAddress) }
+    private var tokenBinding: Binding<String> { Binding(store.state.$apiToken) }
+    private var cameraBinding: Binding<Bool> { Binding(store.state.$cameraAuthorized) }
+    private var themeBinding: Binding<AppTheme> { Binding(store.state.$theme) }
 
     var body: some View {
         NavigationStack {

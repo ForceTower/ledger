@@ -7,33 +7,33 @@ struct AskView: View {
     let store: StoreOf<AskFeature>
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    assistantBubble(
-                        "Oi! Posso responder sobre suas compras — gastos, categorias, comparações entre meses."
-                    )
-
-                    HStack(spacing: 8) {
-                        suggestion("Quanto gastei em carnes?")
-                        suggestion("Março vs. fevereiro")
-                    }
-                    .padding(.leading, 39)
-
-                    userBubble("Quanto gastei em carnes esse mês?")
-
-                    answerBubble
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text("Perguntar").font(.largeTitle.weight(.bold))
+                    ComingSoonBadge()
+                    Spacer()
                 }
-                .padding(16)
+                .padding(.bottom, 4)
+
+                assistantBubble(
+                    "Oi! Posso responder sobre suas compras — gastos, categorias, comparações entre meses."
+                )
+
+                HStack(spacing: 8) {
+                    suggestion("Quanto gastei em carnes?")
+                    suggestion("Março vs. fevereiro")
+                }
+                .padding(.leading, 39)
+
+                userBubble("Quanto gastei em carnes esse mês?")
+
+                answerBubble
             }
-            .background(Color.appBackground)
-            .navigationTitle("Perguntar")
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) { ComingSoonBadge() }
-            }
-            .safeAreaInset(edge: .bottom) { composer }
+            .padding(16)
         }
+        .background(Color.appBackground)
+        .safeAreaInset(edge: .bottom) { composer }
     }
 
     private var avatar: some View {

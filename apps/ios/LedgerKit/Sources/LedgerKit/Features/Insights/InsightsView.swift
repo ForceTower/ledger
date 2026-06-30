@@ -31,20 +31,21 @@ struct InsightsView: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 14) {
-                    spendingCard
-                    breakdownCard
+        ScrollView {
+            VStack(spacing: 14) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text("Insights").font(.largeTitle.weight(.bold))
+                    ComingSoonBadge()
+                    Spacer()
                 }
-                .padding(16)
+                .padding(.top, 8)
+
+                spendingCard
+                breakdownCard
             }
-            .background(Color.appBackground)
-            .navigationTitle("Insights")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) { ComingSoonBadge() }
-            }
+            .padding(16)
         }
+        .background(Color.appBackground)
     }
 
     private var spendingCard: some View {

@@ -28,10 +28,6 @@ struct SettingsFeature {
 
     enum Action: Equatable {
         case doneTapped
-        case serverAddressChanged(String)
-        case apiTokenChanged(String)
-        case themeChanged(AppTheme)
-        case cameraToggled(Bool)
         case testConnectionTapped
         case connectionResult(ConnectionInfo?)
     }
@@ -45,22 +41,6 @@ struct SettingsFeature {
             switch action {
             case .doneTapped:
                 return .run { _ in await dismiss() }
-
-            case let .serverAddressChanged(value):
-                state.$serverAddress.withLock { $0 = value }
-                return .none
-
-            case let .apiTokenChanged(value):
-                state.$apiToken.withLock { $0 = value }
-                return .none
-
-            case let .themeChanged(theme):
-                state.$theme.withLock { $0 = theme }
-                return .none
-
-            case let .cameraToggled(allowed):
-                state.$cameraAuthorized.withLock { $0 = allowed }
-                return .none
 
             case .testConnectionTapped:
                 guard state.connection != .testing else { return .none }

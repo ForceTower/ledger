@@ -9,17 +9,24 @@ import Testing
 
 @MainActor
 struct ScanFeatureTests {
+    /// A SEFAZ NFC-e QR payload: `?p=` + a 44-digit access key + the `|2|1|1|hash` tail.
+    nonisolated private static let validURL =
+        "http://nfe.sefaz.ba.gov.br/.../NFCEC_consulta_chave_acesso.aspx?p=12345678901234567890123456789012345678901234|2|1|1|A1B2C3"
+
     @Test
-    func tappingTheViewfinderDetectsThenSavesAResult() async {
+    func scanningAValidCodeDetectsThenSavesAResult() async {
         let response = ScanResponse(status: .saved, purchase: MockData.atacadao, warnings: [])
         let store = TestStore(initialState: ScanFeature.State()) {
             ScanFeature()
         } withDependencies: {
             $0.continuousClock = ImmediateClock()
-            $0.apiClient.scan = { _ in response }
+            $0.apiClient.scan = { url in
+                #expect(url == Self.validURL) // the decoded URL flows through unchanged
+                return response
+            }
         }
 
-        await store.send(.scanTapped) { $0.phase = .detecting }
+        await store.send(.codeScanned(Self.validURL)) { $0.phase = .detecting }
         await store.receive(\.detected) { $0.phase = .processing }
         await store.receive(\.scanResponse) { $0.phase = .result(response) }
 
@@ -35,9 +42,48 @@ struct ScanFeatureTests {
             $0.apiClient.scan = { _ in throw ScanFailure.expired }
         }
 
-        await store.send(.scanTapped) { $0.phase = .detecting }
+        await store.send(.codeScanned(Self.validURL)) { $0.phase = .detecting }
         await store.receive(\.detected) { $0.phase = .processing }
         await store.receive(\.scanResponse) { $0.phase = .failure(.expired) }
+    }
+
+    @Test
+    func aNonNFCeCodeShowsInvalidQR() async {
+        let store = TestStore(initialState: ScanFeature.State()) { ScanFeature() }
+        await store.send(.codeScanned("https://example.com")) { $0.phase = .failure(.invalidQR) }
+    }
+
+    @Test
+    func aCodeScannedWhileBusyIsIgnored() async {
+        var state = ScanFeature.State()
+        state.phase = .processing
+        let store = TestStore(initialState: state) { ScanFeature() }
+        await store.send(.codeScanned(Self.validURL)) // guarded: no state change, no effect
+    }
+
+    @Test
+    func onAppearMarksCameraUnavailable() async {
+        let store = TestStore(initialState: ScanFeature.State()) {
+            ScanFeature()
+        } withDependencies: {
+            $0.cameraClient.isAvailable = { false }
+        }
+        await store.send(.onAppear) { $0.cameraAvailable = false }
+    }
+
+    @Test
+    func onAppearRequestsAccessWhenUndetermined() async {
+        let store = TestStore(initialState: ScanFeature.State()) {
+            ScanFeature()
+        } withDependencies: {
+            $0.cameraClient.authorizationStatus = { .notDetermined }
+            $0.cameraClient.requestAccess = { false }
+        }
+        store.exhaustivity = .off(showSkippedAssertions: false)
+
+        await store.send(.onAppear)
+        await store.receive(\.cameraAuthorizationResponse)
+        #expect(store.state.cameraAuthorized == false)
     }
 
     @Test

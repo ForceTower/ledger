@@ -10,7 +10,6 @@ struct SettingsView: View {
     // presentation action to an absent destination.
     private var serverBinding: Binding<String> { Binding(store.state.$serverAddress) }
     private var tokenBinding: Binding<String> { Binding(store.state.$apiToken) }
-    private var cameraBinding: Binding<Bool> { Binding(store.state.$cameraAuthorized) }
     private var themeBinding: Binding<AppTheme> { Binding(store.state.$theme) }
 
     var body: some View {
@@ -52,10 +51,7 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Toggle(isOn: cameraBinding) {
-                        Label("Câmera", systemImage: "camera.fill")
-                    }
-                    .tint(.green)
+                    cameraStatusRow
                     Picker(selection: themeBinding) {
                         ForEach(AppTheme.allCases, id: \.self) { theme in
                             Text(theme.label).tag(theme)
@@ -79,9 +75,37 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Ajustes")
+            .task { store.send(.onAppear) }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Concluído") { store.send(.doneTapped) }.fontWeight(.semibold)
+                }
+            }
+        }
+    }
+
+    /// Read-only camera authorization status. Real permission is owned by iOS,
+    /// so when it's denied the row becomes a button that opens the Settings app.
+    @ViewBuilder
+    private var cameraStatusRow: some View {
+        if store.cameraAuthorized {
+            LabeledContent {
+                Text("Autorizada").foregroundStyle(.secondary)
+            } label: {
+                Label("Câmera", systemImage: "camera.fill")
+            }
+        } else {
+            Button { store.send(.openCameraSettingsTapped) } label: {
+                LabeledContent {
+                    HStack(spacing: 6) {
+                        Text("Negada").foregroundStyle(.orange)
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                } label: {
+                    Label("Câmera", systemImage: "camera.fill")
+                        .foregroundStyle(.primary)
                 }
             }
         }

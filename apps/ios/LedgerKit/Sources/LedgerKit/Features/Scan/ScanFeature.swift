@@ -1,9 +1,13 @@
 import ComposableArchitecture
 import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
 
-/// The capture flow: a viewfinder that, on tap, runs detecting → processing →
-/// result. The result is a bottom sheet with four outcomes (saved, duplicate,
-/// warning, error). Camera authorization is shared with Settings.
+/// The capture flow: the live camera auto-detects an NFC-e QR, then runs
+/// detecting → processing → result. The result is a bottom sheet with four
+/// outcomes (saved, duplicate, warning, error). Camera authorization is shared
+/// with Settings.
 @Reducer
 struct ScanFeature {
     @ObservableState
@@ -11,6 +15,7 @@ struct ScanFeature {
         var phase: Phase = .idle
         var flashOn = false
         var itemsExpanded = false
+        var cameraAvailable = true
         @Shared(.inMemory("cameraAuthorized")) var cameraAuthorized = true
 
         enum Phase: Equatable {
@@ -31,8 +36,10 @@ struct ScanFeature {
     }
 
     enum Action: Equatable {
-        case scanTapped
-        case detected
+        case onAppear
+        case cameraAuthorizationResponse(Bool)
+        case codeScanned(String)
+        case detected(String)
         case scanResponse(Result<ScanResponse, ScanFailure>)
         case flashTapped
         case toggleItems
@@ -40,6 +47,7 @@ struct ScanFeature {
         case sheetDismissed
         case choosePhotoTapped
         case settingsTapped
+        case openSystemSettings
         case showDuplicateInHistory
         case delegate(Delegate)
 
@@ -50,28 +58,57 @@ struct ScanFeature {
     }
 
     @Dependency(\.apiClient) var apiClient
+    @Dependency(\.cameraClient) var cameraClient
     @Dependency(\.continuousClock) var clock
+    @Dependency(\.openURL) var openURL
 
     private enum CancelID { case scan }
+
+    /// A valid NFC-e QR carries `?p=` or `&p=` followed by exactly the 44-digit
+    /// access key (the backend bar). We hand the full URL through unchanged.
+    static func nfceURL(from raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.firstMatch(of: /[?&]p=[0-9]{44}(?:[^0-9]|$)/) != nil ? trimmed : nil
+    }
 
     var body: some ReducerOf<Self> {
         Reduce { state, action in
             switch action {
-            case .scanTapped:
-                guard state.cameraAuthorized, state.phase == .idle else { return .none }
+            case .onAppear:
+                state.cameraAvailable = cameraClient.isAvailable()
+                guard state.cameraAvailable else { return .none }
+                return .run { send in
+                    let granted: Bool
+                    switch cameraClient.authorizationStatus() {
+                    case .authorized: granted = true
+                    case .notDetermined: granted = await cameraClient.requestAccess()
+                    case .denied, .restricted: granted = false
+                    }
+                    await send(.cameraAuthorizationResponse(granted))
+                }
+
+            case let .cameraAuthorizationResponse(granted):
+                state.$cameraAuthorized.withLock { $0 = granted }
+                return .none
+
+            case let .codeScanned(code):
+                guard state.phase == .idle else { return .none }
+                guard let url = Self.nfceURL(from: code) else {
+                    state.phase = .failure(.invalidQR)
+                    return .none
+                }
                 state.phase = .detecting
                 return .run { send in
-                    try await clock.sleep(for: .seconds(0.85))
-                    await send(.detected)
+                    try await clock.sleep(for: .seconds(0.6))
+                    await send(.detected(url))
                 }
                 .cancellable(id: CancelID.scan)
 
-            case .detected:
+            case let .detected(url):
                 state.phase = .processing
                 return .run { send in
                     do {
-                        try await clock.sleep(for: .seconds(1.7))
-                        let response = try await apiClient.scan("mock://nfce")
+                        let response = try await apiClient.scan(url)
                         await send(.scanResponse(.success(response)))
                     } catch let failure as ScanFailure {
                         await send(.scanResponse(.failure(failure)))
@@ -110,6 +147,13 @@ struct ScanFeature {
 
             case .settingsTapped:
                 return .send(.delegate(.openSettings))
+
+            case .openSystemSettings:
+                return .run { _ in
+                    #if canImport(UIKit)
+                    await openURL(URL(string: UIApplication.openSettingsURLString)!)
+                    #endif
+                }
 
             case .showDuplicateInHistory:
                 return .send(.delegate(.showHistory))

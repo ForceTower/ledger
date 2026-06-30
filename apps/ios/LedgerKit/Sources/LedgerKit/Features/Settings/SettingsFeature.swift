@@ -1,4 +1,7 @@
 import ComposableArchitecture
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// App settings: the server endpoint + token (the seam to flip from mock to the
 /// real client), a connection probe, camera permission, and theme. Server/token
@@ -22,23 +25,32 @@ struct SettingsFeature {
         var cameraHint: String {
             cameraAuthorized
                 ? "O scanner usa a câmera apenas para ler o QR code."
-                : "Acesso negado — o scanner não funciona até liberar a câmera."
+                : "Acesso negado — toque para abrir os Ajustes e liberar a câmera."
         }
     }
 
     enum Action: Equatable {
+        case onAppear
         case doneTapped
         case testConnectionTapped
         case connectionResult(ConnectionInfo?)
+        case openCameraSettingsTapped
     }
 
     @Dependency(\.apiClient) var apiClient
+    @Dependency(\.cameraClient) var cameraClient
     @Dependency(\.continuousClock) var clock
     @Dependency(\.dismiss) var dismiss
+    @Dependency(\.openURL) var openURL
 
     var body: some ReducerOf<Self> {
         Reduce { state, action in
             switch action {
+            case .onAppear:
+                let authorized = cameraClient.authorizationStatus().isAuthorized
+                state.$cameraAuthorized.withLock { $0 = authorized }
+                return .none
+
             case .doneTapped:
                 return .run { _ in await dismiss() }
 
@@ -54,6 +66,13 @@ struct SettingsFeature {
             case let .connectionResult(info):
                 state.connection = info.map(State.Connection.ok) ?? .failed
                 return .none
+
+            case .openCameraSettingsTapped:
+                return .run { _ in
+                    #if canImport(UIKit)
+                    await openURL(URL(string: UIApplication.openSettingsURLString)!)
+                    #endif
+                }
             }
         }
     }

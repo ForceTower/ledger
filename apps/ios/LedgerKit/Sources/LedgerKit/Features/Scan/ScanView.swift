@@ -1,9 +1,10 @@
 import ComposableArchitecture
 import SwiftUI
 
-/// The scanner tab: a full-bleed camera surface with a viewfinder you tap to
-/// scan, plus flash and settings controls. Falls back to a permission screen
-/// when the camera is blocked. The result arrives as a sheet.
+/// The scanner tab: a full-bleed live camera feed with a viewfinder that
+/// auto-detects an NFC-e QR, plus flash and settings controls. Falls back to a
+/// permission screen when the camera is blocked, or an unavailable screen when
+/// there is no camera. The result arrives as a sheet.
 struct ScanView: View {
     let store: StoreOf<ScanFeature>
 
@@ -11,13 +12,25 @@ struct ScanView: View {
 
     var body: some View {
         ZStack {
+            #if canImport(UIKit)
+            if store.cameraAvailable && store.cameraAuthorized {
+                CameraPreview(
+                    armed: store.phase == .idle,
+                    flashOn: store.flashOn,
+                    onCode: { store.send(.codeScanned($0)) }
+                )
+                .ignoresSafeArea()
+            } else {
+                ScanBackground()
+                    .ignoresSafeArea()
+            }
+            #else
             ScanBackground()
                 .ignoresSafeArea()
+            #endif
 
             ScanReticle(detecting: detecting)
                 .frame(width: 236, height: 236)
-                .contentShape(Rectangle())
-                .onTapGesture { store.send(.scanTapped) }
 
             VStack(spacing: 0) {
                 HStack {
@@ -60,12 +73,17 @@ struct ScanView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
 
-            if !store.cameraAuthorized {
-                PermissionDeniedView { store.send(.settingsTapped) }
+            if !store.cameraAvailable {
+                CameraUnavailableView()
+                    .transition(.opacity)
+            } else if !store.cameraAuthorized {
+                PermissionDeniedView { store.send(.openSystemSettings) }
                     .transition(.opacity)
             }
         }
+        .task { store.send(.onAppear) }
         .animation(.easeInOut(duration: 0.3), value: store.cameraAuthorized)
+        .animation(.easeInOut(duration: 0.3), value: store.cameraAvailable)
         .animation(.easeInOut(duration: 0.25), value: detecting)
         .sheet(
             isPresented: Binding(
@@ -260,6 +278,38 @@ private struct PermissionDeniedView: View {
                     .font(.callout)
                     .foregroundStyle(.white.opacity(0.6))
                     .padding(.top, 16)
+            }
+            .padding(.horizontal, 40)
+        }
+    }
+}
+
+/// Shown when the device has no camera (e.g. the Simulator).
+private struct CameraUnavailableView: View {
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [Color(hex: 0x0E1114), Color(hex: 0x08090B)], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                Image(systemName: "camera.metering.none")
+                    .font(.system(size: 34))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .frame(width: 84, height: 84)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 23, style: .continuous))
+                    .padding(.bottom, 22)
+
+                Text("Câmera indisponível")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+
+                Text("Não encontramos uma câmera neste dispositivo. Abra a Caderneta no seu iPhone para escanear as notas.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.62))
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 8)
+                    .frame(maxWidth: 300)
             }
             .padding(.horizontal, 40)
         }

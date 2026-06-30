@@ -1,25 +1,35 @@
+import { fetchReceipt, NfceError, validateNfceUrl } from "@ledger/nfce";
 import type { ScanResult } from "@ledger/shared-types";
 import type { CacheClient } from "../cache";
 import type { LedgerDb } from "../db";
-import { LedgerError } from "../error";
-
-const ACCESS_KEY_IN_URL = /[?&]p=\d{44}/;
+import { ledgerErrorFromNfce } from "../error";
+import { useLog } from "../logger";
 
 export class ScanService {
   // `cache` is for a Redis lock around the write (the slug sequence must be computed serially).
   constructor(private readonly deps: { db: LedgerDb; cache: CacheClient; sefazBaseUrl: string }) {}
 
   async scan(url: string): Promise<ScanResult> {
-    if (!ACCESS_KEY_IN_URL.test(url)) {
-      throw new LedgerError(400, "QR URL is missing the 44-digit access key", "invalid_url");
+    try {
+      const link = validateNfceUrl(url);
+      const fetched = await fetchReceipt(link);
+      useLog()
+        .withMetadata({
+          accessKey: link.accessKey,
+          uf: link.portal.uf,
+          simpleLen: fetched.simpleHtml.length,
+          fullLen: fetched.fullHtml.length,
+        })
+        .info("Fetched NFC-e receipt HTML");
+    } catch (error) {
+      if (error instanceof NfceError) throw ledgerErrorFromNfce(error);
+      throw error;
     }
 
-    // TODO: the real flow —
-    //   1. fetch the simplified + detailed receipt via @ledger/nfce (deps.sefazBaseUrl)
-    //   2. parse + categorize into a structured purchase
-    //   3. upsert store, products, purchase (dedup on access_key), items, payments in a transaction
-    //   4. return { status: "saved" | "duplicate", purchase: summary, warnings }
-    // Until then, return contract-shaped mock data so clients can build against a running server.
+    // TODO (next increment): parse + categorize the fetched HTML, then upsert store, products,
+    //   purchase (dedup on access_key), items, payments in a transaction, and return the real
+    //   summary. Until then, return contract-shaped mock data so clients can build against a
+    //   running server.
     return MOCK_SCAN_RESULT;
   }
 }

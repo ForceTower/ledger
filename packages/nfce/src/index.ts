@@ -1,8 +1,13 @@
 import type { Category, PurchaseSource } from "@ledger/shared-types";
 
 export { categorize } from "./categorize";
+export { NfceError } from "./errors";
+export type { NfceErrorCode } from "./errors";
 export { fetchReceipt } from "./fetch";
+export type { FetchOptions } from "./fetch";
 export { parseReceipt } from "./parse";
+export { SEFAZ_PORTALS, validateNfceUrl } from "./sefaz";
+export type { NfceLink, SefazPortal } from "./sefaz";
 
 // The structured output of the parser. The API maps this to the DB and the wire contract.
 export interface ParsedItem {

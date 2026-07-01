@@ -29,7 +29,8 @@
     "**/.output/**/*",
     "**/build/**/*",
     "**/dist/**/*",
-    "**/node_modules/**/*"
+    "**/node_modules/**/*",
+    "**/tests/fixtures/**/*"
   ],
   "overrides": [
     {

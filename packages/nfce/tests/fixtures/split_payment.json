@@ -1,0 +1,313 @@
+{
+  "source": "nfce",
+  "date": "2026-06-27",
+  "time": "10:53:29",
+  "store": {
+    "name": "HIPERMERCADO DEMO LTDA",
+    "legalName": "HIPERMERCADO DEMO LTDA",
+    "cnpj": "55.666.777/0001-09",
+    "address": "Rua das Palmeiras, 50, Bairro Novo, Cidade Exemplo, BA"
+  },
+  "receipt": {
+    "number": 88824,
+    "series": 515,
+    "accessKey": "29260355666777000109650010000000030000000048"
+  },
+  "items": [
+    {
+      "seq": 1,
+      "description": "KIWI",
+      "code": "AR001788",
+      "barcode": null,
+      "quantity": 0.975,
+      "unit": "KG9",
+      "unitPrice": 29.9,
+      "total": 29.15,
+      "category": "produce"
+    },
+    {
+      "seq": 2,
+      "description": "CARA PAULISTA",
+      "code": "AR001917",
+      "barcode": null,
+      "quantity": 0.625,
+      "unit": "KG9",
+      "unitPrice": 14.9,
+      "total": 9.31,
+      "category": "produce"
+    },
+    {
+      "seq": 3,
+      "description": "MACA NAC.GALA",
+      "code": "AR001825",
+      "barcode": null,
+      "quantity": 1.115,
+      "unit": "KG9",
+      "unitPrice": 9.9,
+      "total": 11.04,
+      "category": "produce"
+    },
+    {
+      "seq": 4,
+      "description": "ABACAXI",
+      "code": "AR001078",
+      "barcode": null,
+      "quantity": 2,
+      "unit": "UND1",
+      "unitPrice": 7.45,
+      "total": 14.9,
+      "category": "produce"
+    },
+    {
+      "seq": 5,
+      "description": "LEITE FERM ACTIVIA",
+      "code": "AR080759",
+      "barcode": "7891025123224",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 19.6,
+      "total": 19.6,
+      "category": "dairy_deli"
+    },
+    {
+      "seq": 6,
+      "description": "BEB.LACTEA DANONE",
+      "code": "AR072829",
+      "barcode": "7891025121626",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 8.49,
+      "total": 8.49,
+      "category": "dairy_deli"
+    },
+    {
+      "seq": 7,
+      "description": "ABOBORA JAP/CABOTIA",
+      "code": "AR001894",
+      "barcode": null,
+      "quantity": 0.912,
+      "unit": "KG9",
+      "unitPrice": 5.99,
+      "total": 5.46,
+      "category": "produce"
+    },
+    {
+      "seq": 8,
+      "description": "TA PRONTO WICKBOLD",
+      "code": "AR069474",
+      "barcode": "7896066303185",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 11.99,
+      "total": 11.99,
+      "category": "bakery"
+    },
+    {
+      "seq": 9,
+      "description": "PULLMAN RAP 10",
+      "code": "AR076090",
+      "barcode": "7896002363792",
+      "quantity": 1,
+      "unit": "EMB9",
+      "unitPrice": 11.9,
+      "total": 11.9,
+      "category": "bakery"
+    },
+    {
+      "seq": 10,
+      "description": "QJO.MINAS PAD DAVACA",
+      "code": "AR090949",
+      "barcode": null,
+      "quantity": 0.524,
+      "unit": "KG9",
+      "unitPrice": 59.9,
+      "total": 31.39,
+      "category": "dairy_deli"
+    },
+    {
+      "seq": 11,
+      "description": "CREME QJO.M.TIROLEZ",
+      "code": "AR088533",
+      "barcode": "7896030521614",
+      "quantity": 2,
+      "unit": "UND9",
+      "unitPrice": 6.49,
+      "total": 12.98,
+      "category": "dairy_deli"
+    },
+    {
+      "seq": 12,
+      "description": "RF.REQUEIJAO NESTLE",
+      "code": "AR059072",
+      "barcode": "7891000084649",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 4.99,
+      "total": 4.99,
+      "category": "dairy_deli"
+    },
+    {
+      "seq": 13,
+      "description": "PAO FORMA LIMIAR",
+      "code": "AR019549",
+      "barcode": "7898253580201",
+      "quantity": 2,
+      "unit": "PCT1",
+      "unitPrice": 5.99,
+      "total": 11.98,
+      "category": "bakery"
+    },
+    {
+      "seq": 14,
+      "description": "ALFACE AMERICANA",
+      "code": "AR004739",
+      "barcode": null,
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 7.49,
+      "total": 7.49,
+      "category": "produce"
+    },
+    {
+      "seq": 15,
+      "description": "PAO INTEGRAL LIMIAR",
+      "code": "AR045789",
+      "barcode": "7898253588832",
+      "quantity": 1,
+      "unit": "CXA1",
+      "unitPrice": 6.99,
+      "total": 6.99,
+      "category": "bakery"
+    },
+    {
+      "seq": 16,
+      "description": "CHUCHU",
+      "code": "AR001923",
+      "barcode": null,
+      "quantity": 2.135,
+      "unit": "KG9",
+      "unitPrice": 5.99,
+      "total": 12.79,
+      "category": "produce"
+    },
+    {
+      "seq": 17,
+      "description": "PIMENTA DEDO DE MOCA",
+      "code": "AR033184",
+      "barcode": null,
+      "quantity": 0.04,
+      "unit": "KG9",
+      "unitPrice": 29.9,
+      "total": 1.2,
+      "category": "produce"
+    },
+    {
+      "seq": 18,
+      "description": "CURRY KITANO",
+      "code": "AR072894",
+      "barcode": "7891095604777",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 10.39,
+      "total": 10.39,
+      "category": "grocery"
+    },
+    {
+      "seq": 19,
+      "description": "SACOLA INSTITUCIONAL",
+      "code": "AR049069",
+      "barcode": "7899739501871",
+      "quantity": 2,
+      "unit": "UND9",
+      "unitPrice": 0.3,
+      "total": 0.6,
+      "category": "household"
+    },
+    {
+      "seq": 20,
+      "description": "LEITE COCO SOCOCO",
+      "code": "AR037369",
+      "barcode": "7896004401416",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 25.9,
+      "total": 25.9,
+      "category": "grocery"
+    },
+    {
+      "seq": 21,
+      "description": "SUCO AURORA I.UVA",
+      "code": "AR016891",
+      "barcode": "7891141019838",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 17.9,
+      "total": 17.9,
+      "category": "beverages"
+    },
+    {
+      "seq": 22,
+      "description": "MILHO VERDE QUERO",
+      "code": "AR065823",
+      "barcode": "7896102500608",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 4.18,
+      "total": 4.18,
+      "category": "grocery"
+    },
+    {
+      "seq": 23,
+      "description": "LUVA SANRO PLUS P",
+      "code": "AR008302",
+      "barcode": "7896243101719",
+      "quantity": 1,
+      "unit": "PAR9",
+      "unitPrice": 8.9,
+      "total": 8.9,
+      "category": "household"
+    },
+    {
+      "seq": 24,
+      "description": "LIMP.CIF.CREMOSO",
+      "code": "AR080091",
+      "barcode": "7891150022003",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 9.9,
+      "total": 9.9,
+      "category": "cleaning"
+    },
+    {
+      "seq": 25,
+      "description": "PORTA FRIOS COZA",
+      "code": "AR001598",
+      "barcode": "7900161003342",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 29.9,
+      "total": 29.9,
+      "category": "household"
+    }
+  ],
+  "totals": {
+    "itemCount": 25,
+    "gross": 319.32,
+    "discount": 7.06,
+    "totalPaid": 312.26
+  },
+  "payments": [
+    {
+      "code": 10,
+      "method": "Vale Alimentação",
+      "amount": 216
+    },
+    {
+      "code": 4,
+      "method": "Cartão de Débito",
+      "amount": 96.26
+    }
+  ],
+  "taxesTotal": 89.8,
+  "warnings": []
+}

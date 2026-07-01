@@ -1,0 +1,45 @@
+{
+  "source": "nfce",
+  "date": "2026-04-24",
+  "time": "12:06:39",
+  "store": {
+    "name": "ATACADO EXEMPLO SA",
+    "legalName": "ATACADO EXEMPLO SA",
+    "cnpj": "77.888.999/0001-63",
+    "address": "Rodovia Br 000, Km 5, Distrito, Cidade Exemplo, BA"
+  },
+  "receipt": {
+    "number": 593852,
+    "series": 15,
+    "accessKey": "29260477888999000163650010000000020000000031"
+  },
+  "items": [
+    {
+      "seq": 1,
+      "description": "AM DOWNY 1,5L GTS150",
+      "code": "1216107",
+      "barcode": "7500435251471",
+      "quantity": 1,
+      "unit": "Am",
+      "unitPrice": 34.19,
+      "total": 34.19,
+      "category": "cleaning"
+    }
+  ],
+  "totals": {
+    "itemCount": 1,
+    "gross": 34.19,
+    "discount": 0,
+    "totalPaid": 34.19
+  },
+  "payments": [
+    {
+      "code": 1,
+      "method": "Dinheiro",
+      "amount": 100,
+      "change": 65.81
+    }
+  ],
+  "taxesTotal": 0,
+  "warnings": []
+}

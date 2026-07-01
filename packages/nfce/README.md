@@ -13,8 +13,9 @@ const receipt = parseReceipt(simpleHtml, fullHtml); // ParsedReceipt
 ## Status: port in progress
 
 This is a TypeScript port of the prototype's Python pipeline (`fetch_nfce.py`, `parse_nfce.py`,
-`categorize.py`). `fetch` and `parse` are stubs with the porting notes inline; `categorize` has a
-representative starter ruleset. See `docs/architecture.md` (section _packages/nfce — the port_).
+`categorize.py`). `fetch`, `parse`, and `categorize` (full ruleset) are implemented; what remains is
+the API/DB ingestion that consumes `ParsedReceipt`. See `docs/architecture.md` (section
+_packages/nfce — the port_).
 
 ## Equivalence testing
 

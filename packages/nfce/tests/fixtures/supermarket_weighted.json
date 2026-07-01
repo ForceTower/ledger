@@ -1,0 +1,231 @@
+{
+  "source": "nfce",
+  "date": "2026-03-25",
+  "time": "14:53:59",
+  "store": {
+    "name": "SUPERMERCADO MODELO LTDA",
+    "legalName": "SUPERMERCADO MODELO LTDA",
+    "cnpj": "11.222.333/0001-81",
+    "address": "Avenida Central, 1000, Centro, Cidade Exemplo, BA"
+  },
+  "receipt": {
+    "number": 118442,
+    "series": 505,
+    "accessKey": "29260311222333000181650010001184420000000017"
+  },
+  "items": [
+    {
+      "seq": 1,
+      "description": "SCO PLAST.ZIP P.",
+      "code": "AR070033",
+      "barcode": "7896300501094",
+      "quantity": 2,
+      "unit": "UND9",
+      "unitPrice": 6.5,
+      "total": 13,
+      "category": "household"
+    },
+    {
+      "seq": 2,
+      "description": "SCO PLAST.ZIP G",
+      "code": "AR070032",
+      "barcode": "7896300500431",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 10.9,
+      "total": 10.9,
+      "category": "household"
+    },
+    {
+      "seq": 3,
+      "description": "SACOLA INSTITUCIONAL",
+      "code": "AR088047",
+      "barcode": "7899739513416",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 0.25,
+      "total": 0.25,
+      "category": "household"
+    },
+    {
+      "seq": 4,
+      "description": "PULLMAN RAP 10",
+      "code": "AR076088",
+      "barcode": "7896002364546",
+      "quantity": 2,
+      "unit": "EMB9",
+      "unitPrice": 9.9,
+      "total": 19.8,
+      "category": "bakery"
+    },
+    {
+      "seq": 5,
+      "description": "LEITE FERM ACTIVIA",
+      "code": "AR080759",
+      "barcode": "7891025123224",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 19.9,
+      "total": 19.9,
+      "category": "dairy_deli"
+    },
+    {
+      "seq": 6,
+      "description": "BARRA CEREAIS NUTRY",
+      "code": "AR053998",
+      "barcode": "7891331008369",
+      "quantity": 1,
+      "unit": "DPL3",
+      "unitPrice": 30.96,
+      "total": 30.96,
+      "category": "snacks_sweets"
+    },
+    {
+      "seq": 7,
+      "description": "BISC.L.MALTADO",
+      "code": "AR089631",
+      "barcode": "7896024761811",
+      "quantity": 6,
+      "unit": "UND9",
+      "unitPrice": 4.99,
+      "total": 29.94,
+      "category": "snacks_sweets"
+    },
+    {
+      "seq": 8,
+      "description": "FERM.FLEISCHMANN",
+      "code": "AR078756",
+      "barcode": "7898409950827",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 3.09,
+      "total": 3.09,
+      "category": "grocery"
+    },
+    {
+      "seq": 9,
+      "description": "TORRADA VISCONTI",
+      "code": "AR060576",
+      "barcode": "7891962052571",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 5.99,
+      "total": 5.99,
+      "category": "bakery"
+    },
+    {
+      "seq": 10,
+      "description": "MARG.QUALY",
+      "code": "AR046135",
+      "barcode": "7893000079298",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 20.45,
+      "total": 20.45,
+      "category": "dairy_deli"
+    },
+    {
+      "seq": 11,
+      "description": "ABOBORA JAP/CABOTIA",
+      "code": "AR001894",
+      "barcode": null,
+      "quantity": 0.816,
+      "unit": "KG9",
+      "unitPrice": 6.45,
+      "total": 5.26,
+      "category": "produce"
+    },
+    {
+      "seq": 12,
+      "description": "QJO PARMESAO BURITI",
+      "code": "AR062845",
+      "barcode": null,
+      "quantity": 0.184,
+      "unit": "KG9",
+      "unitPrice": 89,
+      "total": 16.38,
+      "category": "dairy_deli"
+    },
+    {
+      "seq": 13,
+      "description": "BOV.PALETA S/OSSO RE",
+      "code": "AR085708",
+      "barcode": null,
+      "quantity": 1.254,
+      "unit": "KG9",
+      "unitPrice": 39.9,
+      "total": 50.03,
+      "category": "meat"
+    },
+    {
+      "seq": 14,
+      "description": "BOV.MIOLO ALCATRA RE",
+      "code": "AR085376",
+      "barcode": null,
+      "quantity": 1.588,
+      "unit": "KG9",
+      "unitPrice": 39.9,
+      "total": 63.36,
+      "category": "meat"
+    },
+    {
+      "seq": 15,
+      "description": "GOIABA BRANCA TROPIC",
+      "code": "AR001773",
+      "barcode": null,
+      "quantity": 0.59,
+      "unit": "KG9",
+      "unitPrice": 29.9,
+      "total": 17.64,
+      "category": "produce"
+    },
+    {
+      "seq": 16,
+      "description": "JERKEED B.DIANTEIRO",
+      "code": "AR086770",
+      "barcode": null,
+      "quantity": 0.978,
+      "unit": "KG9",
+      "unitPrice": 46.9,
+      "total": 45.87,
+      "category": "meat"
+    },
+    {
+      "seq": 17,
+      "description": "CHA 3CORACOES MEDIT.",
+      "code": "AR077124",
+      "barcode": "7896045104741",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 24.9,
+      "total": 24.9,
+      "category": "beverages"
+    },
+    {
+      "seq": 18,
+      "description": "CHOC.GAROTO CAJU",
+      "code": "AR082080",
+      "barcode": "7891008124170",
+      "quantity": 1,
+      "unit": "UND9",
+      "unitPrice": 6.99,
+      "total": 6.99,
+      "category": "snacks_sweets"
+    }
+  ],
+  "totals": {
+    "itemCount": 18,
+    "gross": 384.71,
+    "discount": 3.6,
+    "totalPaid": 381.11
+  },
+  "payments": [
+    {
+      "code": 10,
+      "method": "Vale Alimentação",
+      "amount": 381.11
+    }
+  ],
+  "taxesTotal": 91.6,
+  "warnings": []
+}

@@ -8,7 +8,17 @@
   // - singleQuote: false (double quotes)
   // - arrowParens: "always"
   // - endOfLine: "lf"
-  "ignorePatterns": [".claude/**/*", ".codex/**/*", ".vscode/**/*", "**/.output/**/*"],
+  // tests/fixtures hold captured wire-format payloads (e.g. raw SEFAZ HTML); formatting them would
+  // rewrite the bytes the parser is meant to handle verbatim. Xcode owns the *.xcassets JSON and
+  // rewrites it in its own style. Both are left untouched.
+  "ignorePatterns": [
+    ".claude/**/*",
+    ".codex/**/*",
+    ".vscode/**/*",
+    "**/.output/**/*",
+    "**/tests/fixtures/**/*",
+    "**/*.xcassets/**/*",
+  ],
   "overrides": [
     {
       "files": ["apps/api/**/*", "packages/nfce/**/*"],

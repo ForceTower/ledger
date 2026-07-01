@@ -72,6 +72,14 @@ interface Purchase {
   taxesTotal: number | null;
 }
 
+interface PurchasePage {
+  items: Purchase[];
+  page: number; // 1-based
+  pageSize: number; // fixed: 5
+  total: number; // purchases matching the filters, across all pages
+  hasMore: boolean;
+}
+
 interface PricePoint {
   date: string;
   store: string;
@@ -130,9 +138,14 @@ Genuine failures use the failure envelope with an `errorCode`:
 | `unavailable`  | 502  | SEFAZ unreachable or returned no products               |
 | `parse_failed` | 422  | fetched the page but could not parse it                 |
 
-### `GET /purchases?from=&to=&store=`
+### `GET /purchases?page=&from=&to=&store=`
 
-`data: PurchaseSummary[]`, newest first. All query params optional.
+The history feed. `data: PurchasePage` — **full** `Purchase` objects (same shape as
+`GET /purchases/:id`), newest first, 5 per page. The app pages through this to mirror the whole
+dataset into its local database for offline use (drives the "Histórico" list and its detail screen).
+
+All query params optional. `page` is 1-based (default 1); a page past the end returns empty `items`.
+`from`/`to` are `YYYY-MM-DD` (inclusive); `store` matches the store's display name exactly.
 
 ### `GET /purchases/:id`
 

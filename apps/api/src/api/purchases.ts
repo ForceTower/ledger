@@ -1,10 +1,13 @@
 import { z } from "zod";
 import { createHono, errStatus, ok, zValidator } from "./index";
 
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD");
+
 const listQuery = z.object({
-  from: z.string().optional(),
-  to: z.string().optional(),
-  store: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+  store: z.string().min(1).optional(),
 });
 
 const idParam = z.object({ id: z.string() });

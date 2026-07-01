@@ -73,6 +73,16 @@ export interface Purchase {
   taxesTotal: number | null;
 }
 
+export interface PurchasePage {
+  items: Purchase[];
+  /** 1-based. */
+  page: number;
+  pageSize: number;
+  /** Purchases matching the filters, across all pages. */
+  total: number;
+  hasMore: boolean;
+}
+
 export interface PricePoint {
   date: string;
   store: string;

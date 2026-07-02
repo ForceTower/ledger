@@ -31,6 +31,28 @@ struct ScanFeatureTests {
         await store.receive(\.scanResponse) { $0.phase = .result(response) }
 
         await store.send(.scanAgainTapped) { $0.phase = .idle }
+        await store.finish()
+    }
+
+    @Test
+    func aSavedScanLandsInTheLocalMirror() async throws {
+        let db = DatabaseClient.inMemory()
+        let response = ScanResponse(status: .saved, purchase: MockData.atacadao, warnings: [])
+        let store = TestStore(initialState: ScanFeature.State()) {
+            ScanFeature()
+        } withDependencies: {
+            $0.continuousClock = ImmediateClock()
+            $0.databaseClient = db
+            $0.apiClient.scan = { _ in response }
+        }
+
+        await store.send(.codeScanned(Self.validURL)) { $0.phase = .detecting }
+        await store.receive(\.detected) { $0.phase = .processing }
+        await store.receive(\.scanResponse) { $0.phase = .result(response) }
+        await store.finish()
+
+        let mirrored = try await db.purchase(MockData.atacadao.id)
+        #expect(mirrored == MockData.atacadao)
     }
 
     @Test
@@ -97,18 +119,96 @@ struct ScanFeatureTests {
 @MainActor
 struct HistoryFeatureTests {
     @Test
-    func loadsPurchasesOnAppear() async {
+    func firstAppearanceServesTheMirrorThenSyncsTheFeed() async {
         let store = TestStore(initialState: HistoryFeature.State()) {
             HistoryFeature()
         } withDependencies: {
-            $0.apiClient.loadPurchases = { MockData.summaries }
+            $0.databaseClient = .inMemory()
+            $0.apiClient.loadPurchases = { page in
+                PurchasePage(
+                    items: MockData.purchases,
+                    page: page,
+                    pageSize: 5,
+                    total: MockData.purchases.count,
+                    hasMore: false
+                )
+            }
         }
 
-        await store.send(.onAppear) { $0.isLoading = true }
-        await store.receive(\.purchasesLoaded) {
+        await store.send(.onAppear) {
+            $0.didStartInitialSync = true
+            $0.isSyncing = true
+        }
+        // The (still empty) mirror answers first; sync then fills it and re-reads.
+        await store.receive(\.localLoaded) { $0.didLoad = true }
+        await store.receive(\.localLoaded) { $0.summaries = MockData.summaries }
+        await store.receive(\.syncFinished) { $0.isSyncing = false }
+    }
+
+    @Test
+    func syncPagesThroughTheWholeFeed() async {
+        var state = HistoryFeature.State()
+        state.didStartInitialSync = true
+        state.didLoad = true
+        let store = TestStore(initialState: state) {
+            HistoryFeature()
+        } withDependencies: {
+            $0.databaseClient = .inMemory()
+            $0.apiClient.loadPurchases = { page in
+                switch page {
+                case 1: PurchasePage(items: [MockData.atacadao], page: 1, pageSize: 1, total: 2, hasMore: true)
+                default: PurchasePage(items: [MockData.carrefour], page: 2, pageSize: 1, total: 2, hasMore: false)
+                }
+            }
+        }
+
+        await store.send(.refresh) { $0.isSyncing = true }
+        await store.receive(\.localLoaded) {
+            $0.summaries = [MockData.atacadao.summary, MockData.carrefour.summary]
+        }
+        await store.receive(\.syncFinished) { $0.isSyncing = false }
+    }
+
+    @Test
+    func aFailedSyncKeepsWhatTheMirrorHolds() async throws {
+        struct Offline: Error {}
+        let db = DatabaseClient.inMemory()
+        try await db.save(MockData.purchases)
+        let store = TestStore(initialState: HistoryFeature.State()) {
+            HistoryFeature()
+        } withDependencies: {
+            $0.databaseClient = db
+            $0.apiClient.loadPurchases = { _ in throw Offline() }
+        }
+
+        await store.send(.onAppear) {
+            $0.didStartInitialSync = true
+            $0.isSyncing = true
+        }
+        await store.receive(\.localLoaded) {
             $0.summaries = MockData.summaries
-            $0.isLoading = false
             $0.didLoad = true
+        }
+        await store.receive(\.syncFinished) { $0.isSyncing = false }
+    }
+
+    @Test
+    func searchMatchesItemDescriptionsFromTheMirror() async throws {
+        let db = DatabaseClient.inMemory()
+        try await db.save(MockData.purchases)
+        let store = TestStore(initialState: HistoryFeature.State()) {
+            HistoryFeature()
+        } withDependencies: {
+            $0.databaseClient = db
+        }
+
+        // "bacon" appears only in an Atacadão item, never in a store name.
+        await store.send(.searchChanged("bacon")) { $0.searchText = "bacon" }
+        await store.receive(\.searchResults) { $0.searchResults = [MockData.atacadao.summary] }
+
+        await store.send(.searchChanged("")) {
+            $0.searchText = ""
+            $0.searchResults = nil
         }
     }
 
@@ -120,6 +220,67 @@ struct HistoryFeatureTests {
 
         await store.send(.purchaseTapped(summary)) {
             $0.detail = PurchaseDetailFeature.State(summary: summary)
+        }
+    }
+}
+
+@MainActor
+struct PurchaseDetailFeatureTests {
+    @Test
+    func detailComesFromTheMirrorWithoutTouchingTheAPI() async throws {
+        struct Offline: Error {}
+        let db = DatabaseClient.inMemory()
+        try await db.save([MockData.atacadao])
+        let store = TestStore(initialState: PurchaseDetailFeature.State(summary: MockData.atacadao.summary)) {
+            PurchaseDetailFeature()
+        } withDependencies: {
+            $0.databaseClient = db
+            $0.apiClient.loadPurchase = { _ in throw Offline() }
+        }
+
+        await store.send(.onAppear) { $0.isLoading = true }
+        // Equality against the original proves the record graph round-trips
+        // losslessly through the mirror.
+        await store.receive(\.purchaseLoaded) {
+            $0.purchase = MockData.atacadao
+            $0.isLoading = false
+        }
+    }
+
+    @Test
+    func aMirrorMissFallsBackToTheAPIAndBackfills() async throws {
+        let db = DatabaseClient.inMemory()
+        let store = TestStore(initialState: PurchaseDetailFeature.State(summary: MockData.assai.summary)) {
+            PurchaseDetailFeature()
+        } withDependencies: {
+            $0.databaseClient = db
+            $0.apiClient.loadPurchase = { MockData.purchase(id: $0) }
+        }
+
+        await store.send(.onAppear) { $0.isLoading = true }
+        await store.receive(\.purchaseLoaded) {
+            $0.purchase = MockData.assai
+            $0.isLoading = false
+        }
+
+        let backfilled = try await db.purchase(MockData.assai.id)
+        #expect(backfilled == MockData.assai)
+    }
+
+    @Test
+    func offlineWithoutAMirrorHitShowsTheFailureState() async {
+        struct Offline: Error {}
+        let store = TestStore(initialState: PurchaseDetailFeature.State(summary: MockData.assai.summary)) {
+            PurchaseDetailFeature()
+        } withDependencies: {
+            $0.databaseClient = .inMemory()
+            $0.apiClient.loadPurchase = { _ in throw Offline() }
+        }
+
+        await store.send(.onAppear) { $0.isLoading = true }
+        await store.receive(\.loadFailed) {
+            $0.isLoading = false
+            $0.loadFailed = true
         }
     }
 }

@@ -59,6 +59,7 @@ struct ScanFeature {
 
     @Dependency(\.apiClient) var apiClient
     @Dependency(\.cameraClient) var cameraClient
+    @Dependency(\.databaseClient) var databaseClient
     @Dependency(\.continuousClock) var clock
     @Dependency(\.openURL) var openURL
 
@@ -122,7 +123,9 @@ struct ScanFeature {
 
             case let .scanResponse(.success(response)):
                 state.phase = .result(response)
-                return .none
+                // Mirror the purchase locally right away so History shows it
+                // even offline. Best effort: History re-syncs from the server.
+                return .run { _ in try? await databaseClient.save([response.purchase]) }
 
             case let .scanResponse(.failure(failure)):
                 state.phase = .failure(failure)

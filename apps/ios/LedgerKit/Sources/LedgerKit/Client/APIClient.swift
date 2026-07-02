@@ -7,7 +7,7 @@ import Foundation
 /// reading the server URL + bearer token configured in Settings.
 struct APIClient: Sendable {
     var scan: @Sendable (_ url: String) async throws -> ScanResponse
-    var loadPurchases: @Sendable () async throws -> [PurchaseSummary]
+    var loadPurchases: @Sendable (_ page: Int) async throws -> PurchasePage
     var loadPurchase: @Sendable (_ id: String) async throws -> Purchase
     var testConnection: @Sendable () async throws -> ConnectionInfo
 }
@@ -36,7 +36,15 @@ extension APIClient {
         let state = MockState()
         return APIClient(
             scan: { _ in try await state.nextScan() },
-            loadPurchases: { MockData.summaries },
+            loadPurchases: { page in
+                PurchasePage(
+                    items: page == 1 ? MockData.purchases : [],
+                    page: page,
+                    pageSize: 5,
+                    total: MockData.purchases.count,
+                    hasMore: false
+                )
+            },
             loadPurchase: { MockData.purchase(id: $0) },
             testConnection: { try await state.nextConnection() }
         )

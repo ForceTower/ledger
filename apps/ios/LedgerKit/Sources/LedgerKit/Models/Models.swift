@@ -72,6 +72,16 @@ public struct Purchase: Codable, Equatable, Sendable, Identifiable {
     }
 }
 
+/// One page of the history feed (`GET /purchases`) — full purchases, newest
+/// first, which the app writes into its local mirror for offline use.
+public struct PurchasePage: Codable, Equatable, Sendable {
+    public var items: [Purchase]
+    public var page: Int
+    public var pageSize: Int
+    public var total: Int
+    public var hasMore: Bool
+}
+
 public struct PurchaseSummary: Codable, Equatable, Sendable, Identifiable {
     public var id: String
     public var store: String
@@ -87,5 +97,21 @@ public struct PurchaseSummary: Codable, Equatable, Sendable, Identifiable {
             (category: key, count: value)
         }
         return segments.sorted { $0.category.sortIndex < $1.category.sortIndex }
+    }
+}
+
+extension Purchase {
+    /// The list-row projection of a full purchase, derived locally so the
+    /// History list can be served straight from the mirror.
+    var summary: PurchaseSummary {
+        PurchaseSummary(
+            id: id,
+            store: store.name,
+            date: date,
+            time: time,
+            totalPaid: totals.totalPaid,
+            itemCount: totals.itemCount,
+            categories: items.reduce(into: [:]) { counts, item in counts[item.category, default: 0] += 1 }
+        )
     }
 }

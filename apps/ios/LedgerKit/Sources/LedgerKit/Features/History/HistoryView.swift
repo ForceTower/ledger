@@ -52,15 +52,13 @@ struct HistoryView: View {
             .navigationTitle("Histórico")
             .searchable(text: searchBinding, prompt: "Buscar loja ou item")
             .refreshable { await store.send(.refresh).finish() }
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button { store.send(.refresh) } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                }
-            }
             .overlay {
-                if store.isEmpty {
+                if store.isInitialLoading {
+                    ProgressView()
+                        .controlSize(.large)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.appBackground)
+                } else if store.isEmpty {
                     EmptyHistoryView { store.send(.scanFirstTapped) }
                 }
             }

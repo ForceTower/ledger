@@ -23,6 +23,13 @@ struct PurchaseDetailView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
+            } else if store.loadFailed {
+                ContentUnavailableView(
+                    "Detalhes indisponíveis",
+                    systemImage: "wifi.slash",
+                    description: Text("Conecte-se ao servidor para carregar esta compra.")
+                )
+                .frame(maxWidth: .infinity, minHeight: 320)
             } else {
                 ProgressView()
                     .controlSize(.large)

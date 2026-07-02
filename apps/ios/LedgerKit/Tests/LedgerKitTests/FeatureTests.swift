@@ -224,6 +224,37 @@ struct HistoryFeatureTests {
     }
 }
 
+struct PurchaseMirrorTests {
+    @Test
+    func monthlySpendingAggregatesTheMirrorsMonth() async throws {
+        let db = DatabaseClient.inMemory()
+        try await db.save(MockData.purchases)
+
+        let march = try await withDependencies {
+            $0.databaseClient = db
+        } operation: {
+            try await PurchaseMirror.monthlySpending(containing: Format.date(fromISO: "2026-03-15")!)
+        }
+
+        #expect(march.total == 208.75 + 156.40 + 92.15)
+        #expect(march.purchaseCount == 3)
+        #expect(march.monthName == "março")
+        #expect(march.monthLabel == "Março 2026")
+    }
+
+    @Test
+    func monthlySpendingIsZeroForAMonthWithoutPurchases() async throws {
+        let empty = try await withDependencies {
+            $0.databaseClient = .inMemory()
+        } operation: {
+            try await PurchaseMirror.monthlySpending(containing: Format.date(fromISO: "2026-07-02")!)
+        }
+
+        #expect(empty.total == 0)
+        #expect(empty.purchaseCount == 0)
+    }
+}
+
 @MainActor
 struct PurchaseDetailFeatureTests {
     @Test

@@ -2,7 +2,7 @@ import Foundation
 
 /// Brazilian-Portuguese, BRL formatting for user-facing copy. Identifiers stay
 /// English; only the rendered strings are localized to the owner's locale.
-enum Format {
+public enum Format {
     private static let locale = Locale(identifier: "pt_BR")
 
     private static let currency: NumberFormatter = {
@@ -14,12 +14,12 @@ enum Format {
     }()
 
     /// `1234.5` → `R$ 1.234,50`.
-    static func brl(_ value: Double) -> String {
+    public static func brl(_ value: Double) -> String {
         currency.string(from: value as NSNumber) ?? "R$ 0,00"
     }
 
     /// Parses a `YYYY-MM-DD` wire date into a `Date` at noon UTC (date-only).
-    static func date(fromISO iso: String) -> Date? {
+    public static func date(fromISO iso: String) -> Date? {
         isoDateParser.date(from: iso)
     }
 
@@ -59,7 +59,7 @@ enum Format {
     }()
 
     /// `2026-03-26` → `26 mar`.
-    static func dayMonth(fromISO iso: String) -> String {
+    public static func dayMonth(fromISO iso: String) -> String {
         guard let date = date(fromISO: iso) else { return iso }
         return dayMonthFormatter.string(from: date)
     }
@@ -79,7 +79,7 @@ enum Format {
     }
 
     /// `2026-03-26` → `26 mar 2026`.
-    static func dayMonthYear(_ iso: String) -> String {
+    public static func dayMonthYear(_ iso: String) -> String {
         guard let date = date(fromISO: iso) else { return iso }
         return dayMonthYearFormatter.string(from: date)
     }

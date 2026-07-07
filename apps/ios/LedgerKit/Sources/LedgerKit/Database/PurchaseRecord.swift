@@ -1,13 +1,8 @@
-import Foundation
-import SwiftData
+import GRDB
 
-/// SwiftData mirror of the backend's purchase tables (`purchases`,
-/// `purchase_items`, `payments`) flattened to the wire shape, so History and
-/// its detail render fully offline. The backend's `slug` is the sync key:
-/// re-saving a purchase replaces the records carrying the same slug.
-@Model
-final class PurchaseRecord {
-    @Attribute(.unique) var slug: String
+struct PurchaseRecord: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "purchases"
+    var slug: String
     var date: String
     var time: String
     var source: String
@@ -23,12 +18,9 @@ final class PurchaseRecord {
     var discount: Double
     var totalPaid: Double
     var taxesTotal: Double?
+}
 
-    @Relationship(deleteRule: .cascade, inverse: \PurchaseItemRecord.purchase)
-    var items: [PurchaseItemRecord] = []
-    @Relationship(deleteRule: .cascade, inverse: \PaymentRecord.purchase)
-    var payments: [PaymentRecord] = []
-
+extension PurchaseRecord {
     init(_ purchase: Purchase) {
         slug = purchase.id
         date = purchase.date
@@ -47,21 +39,8 @@ final class PurchaseRecord {
         totalPaid = purchase.totals.totalPaid
         taxesTotal = purchase.taxesTotal
     }
-}
 
-extension PurchaseRecord {
-    /// Children are attached only after the root is in the context — SwiftData
-    /// wants both ends of a relationship inserted.
-    @discardableResult
-    static func insert(_ purchase: Purchase, into context: ModelContext) -> PurchaseRecord {
-        let record = PurchaseRecord(purchase)
-        context.insert(record)
-        record.items = purchase.items.map(PurchaseItemRecord.init)
-        record.payments = purchase.payments.enumerated().map { PaymentRecord(seq: $0.offset, $0.element) }
-        return record
-    }
-
-    var purchase: Purchase {
+    func purchase(items: [PurchaseItem], payments: [Payment]) -> Purchase {
         Purchase(
             id: slug,
             date: date,
@@ -69,19 +48,18 @@ extension PurchaseRecord {
             source: Purchase.Source(rawValue: source) ?? .nfce,
             store: StoreInfo(name: storeName, legalName: storeLegalName, cnpj: storeCnpj, address: storeAddress),
             receipt: receiptAccessKey.map { Receipt(number: receiptNumber, series: receiptSeries, accessKey: $0) },
-            items: items.sorted { $0.seq < $1.seq }.map(\.item),
+            items: items,
             totals: Totals(itemCount: itemCount, gross: gross, discount: discount, totalPaid: totalPaid),
-            payments: payments.sorted { $0.seq < $1.seq }.map(\.payment),
+            payments: payments,
             taxesTotal: taxesTotal
         )
     }
 }
 
-@Model
-final class PurchaseItemRecord {
-    var purchase: PurchaseRecord?
+struct PurchaseItemRecord: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "purchaseItems"
+    var purchaseSlug: String
     var seq: Int
-    /// `description` is reserved by SwiftData's Core Data underpinnings.
     var itemDescription: String
     var code: String
     var barcode: String?
@@ -89,11 +67,12 @@ final class PurchaseItemRecord {
     var unit: String
     var unitPrice: Double
     var total: Double
-    /// Stored as the raw slug so records written by a newer server (with
-    /// categories this build doesn't know) still load — they read as `.other`.
     var category: String
+}
 
-    init(_ item: PurchaseItem) {
+extension PurchaseItemRecord {
+    init(purchaseSlug: String, _ item: PurchaseItem) {
+        self.purchaseSlug = purchaseSlug
         seq = item.seq
         itemDescription = item.description
         code = item.code
@@ -120,17 +99,19 @@ final class PurchaseItemRecord {
     }
 }
 
-@Model
-final class PaymentRecord {
-    var purchase: PurchaseRecord?
-    /// Position in the wire array — SwiftData to-many collections are unordered.
+struct PaymentRecord: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "payments"
+    var purchaseSlug: String
     var seq: Int
     var code: Int?
     var method: String
     var amount: Double
     var change: Double?
+}
 
-    init(seq: Int, _ payment: Payment) {
+extension PaymentRecord {
+    init(purchaseSlug: String, seq: Int, _ payment: Payment) {
+        self.purchaseSlug = purchaseSlug
         self.seq = seq
         code = payment.code
         method = payment.method

@@ -50,7 +50,7 @@ export async function getEnv(): Promise<LedgerEnv> {
   const db = makeDb(vars.DATABASE_URL);
   const cache = createCacheClient(vars.REDIS_URL);
   const purchase = new PurchaseService({ db });
-  const scan = new ScanService({ db, cache, sefazBaseUrl: vars.SEFAZ_BASE_URL });
+  const scan = new ScanService({ db, cache, purchase, sefazBaseUrl: vars.SEFAZ_BASE_URL });
   const notifications = new NotificationService({ db, serviceAccountBase64: vars.FIREBASE_SERVICE_ACCOUNT_BASE64 });
 
   cached = {

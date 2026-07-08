@@ -1,16 +1,20 @@
 import type { ParsedItem, ParsedReceipt } from "@ledger/nfce";
-import type { Category, ScanPurchase, ScanResult } from "@ledger/shared-types";
 import type { Transaction } from "kysely";
-import { jsonArrayFrom } from "kysely/helpers/postgres";
 import type { LedgerDb } from "../db";
 import type { Database } from "../db/schema";
 
 type Trx = Transaction<Database>;
 
+export interface IngestResult {
+  status: "saved" | "duplicate";
+  slug: string;
+  warnings: string[];
+}
+
 /**
  * Persist a parsed receipt: upsert the store (by CNPJ) and products (by barcode), then insert the
  * purchase with its items and payments in one transaction. The NFC-e access key is the dedup key —
- * rescanning a stored receipt returns its summary with status "duplicate".
+ * rescanning a stored receipt returns its slug with status "duplicate".
  *
  * The slug sequence is read-then-insert, so callers must serialize invocations (the scan flow holds
  * a Redis lock); the unique constraints on slug/access_key backstop a lost lock.
@@ -19,10 +23,10 @@ export async function saveParsedReceipt(
   db: LedgerDb,
   parsed: ParsedReceipt,
   opts: { sourceHtml: string },
-): Promise<ScanResult> {
+): Promise<IngestResult> {
   return await db.transaction().execute(async (trx) => {
-    const existing = await findByAccessKey(trx, parsed.receipt.accessKey);
-    if (existing) return { status: "duplicate", purchase: existing, warnings: parsed.warnings };
+    const existing = await findSlugByAccessKey(trx, parsed.receipt.accessKey);
+    if (existing) return { status: "duplicate", slug: existing, warnings: parsed.warnings };
 
     const store = await resolveStore(trx, parsed.store);
     const slug = await nextSlug(trx, parsed.date, slugifyStore(store.name));
@@ -86,59 +90,13 @@ export async function saveParsedReceipt(
         .execute();
     }
 
-    return {
-      status: "saved",
-      purchase: {
-        id: slug,
-        store: store.name,
-        date: parsed.date,
-        time: parsed.time,
-        totalPaid: parsed.totals.totalPaid,
-        itemCount: parsed.totals.itemCount,
-        ...itemsSummary(parsed.items),
-      },
-      warnings: parsed.warnings,
-    };
+    return { status: "saved", slug, warnings: parsed.warnings };
   });
 }
 
-async function findByAccessKey(trx: Trx, accessKey: string): Promise<ScanPurchase | null> {
-  const row = await trx
-    .selectFrom("purchases")
-    .leftJoin("stores", "stores.id", "purchases.storeId")
-    .select((eb) => [
-      "purchases.slug",
-      "purchases.date",
-      "purchases.time",
-      "purchases.paidTotal",
-      "purchases.itemCount",
-      "stores.name as storeName",
-      jsonArrayFrom(
-        eb
-          .selectFrom("purchaseItems")
-          .select([
-            "purchaseItems.description",
-            "purchaseItems.quantity",
-            "purchaseItems.total",
-            "purchaseItems.category",
-          ])
-          .whereRef("purchaseItems.purchaseId", "=", "purchases.id")
-          .orderBy("purchaseItems.seq"),
-      ).as("items"),
-    ])
-    .where("purchases.accessKey", "=", accessKey)
-    .executeTakeFirst();
-
-  if (!row) return null;
-  return {
-    id: row.slug,
-    store: row.storeName ?? "",
-    date: row.date,
-    time: row.time ?? "",
-    totalPaid: row.paidTotal,
-    itemCount: row.itemCount,
-    ...itemsSummary(row.items),
-  };
+async function findSlugByAccessKey(trx: Trx, accessKey: string): Promise<string | null> {
+  const row = await trx.selectFrom("purchases").select("slug").where("accessKey", "=", accessKey).executeTakeFirst();
+  return row?.slug ?? null;
 }
 
 /**
@@ -212,26 +170,4 @@ function slugifyStore(name: string): string {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
   return slug || "store";
-}
-
-interface SummaryItem {
-  description: string;
-  quantity: number;
-  total: number;
-  category: Category;
-}
-
-// The contract leaves the preview size open; the app shows a snippet, so send the 3 biggest items.
-const PREVIEW_COUNT = 3;
-
-function itemsSummary(items: SummaryItem[]): Pick<ScanPurchase, "categories" | "itemsPreview"> {
-  const categories: Partial<Record<Category, number>> = {};
-  for (const item of items) {
-    categories[item.category] = (categories[item.category] ?? 0) + 1;
-  }
-  const itemsPreview = [...items]
-    .sort((a, b) => b.total - a.total)
-    .slice(0, PREVIEW_COUNT)
-    .map(({ description, quantity, total }) => ({ description, quantity, total }));
-  return { categories, itemsPreview };
 }

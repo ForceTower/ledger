@@ -97,6 +97,21 @@ export interface DonationsTable {
   createdAt: Generated<Date>;
 }
 
+export type ScanRequestStatus = "saved" | "duplicate" | "failed";
+
+/** Audit trail of every `POST /scan`: the raw QR URL and how processing it went. */
+export interface ScanRequestsTable {
+  id: Generated<string>;
+  url: string;
+  status: ScanRequestStatus;
+  errorCode: string | null;
+  errorMessage: string | null;
+  purchaseSlug: string | null;
+  warnings: unknown;
+  durationMs: number;
+  createdAt: Generated<Date>;
+}
+
 export interface DeviceTokensTable {
   id: Generated<string>;
   token: string;
@@ -113,5 +128,6 @@ export interface Database {
   payments: PaymentsTable;
   trips: TripsTable;
   donations: DonationsTable;
+  scanRequests: ScanRequestsTable;
   deviceTokens: DeviceTokensTable;
 }

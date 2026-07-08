@@ -38,13 +38,10 @@ export interface PurchaseSummary {
   categories: Partial<Record<Category, number>>;
 }
 
-export interface ScanPurchase extends PurchaseSummary {
-  itemsPreview: { description: string; quantity: number; total: number }[];
-}
-
 export interface ScanResult {
   status: "saved" | "duplicate";
-  purchase: ScanPurchase;
+  /** The full purchase (same shape as `GET /purchases/:id`), so clients can render and mirror it. */
+  purchase: Purchase;
   warnings: string[];
 }
 

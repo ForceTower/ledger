@@ -103,6 +103,10 @@ Liveness. `200` with `data: "ledger API"`. No auth.
 Body: `{ "url": string }` — the full scanned NFC-e QR string (`…?p=<44-digit-key>|2|1|1|<hash>`).
 The hash is required; the app sends the whole scanned payload.
 
+Every attempt — success or failure — is recorded server-side in the `scan_requests` table (the raw
+scanned URL, the outcome, and the error when it failed), so the owner can audit what was scanned
+and why a link failed.
+
 Outcomes are normal results, not errors:
 
 ```jsonc
@@ -112,16 +116,19 @@ Outcomes are normal results, not errors:
   "message": "Purchase saved.",
   "data": {
     "status": "saved", // "saved" | "duplicate"
+    // the full Purchase (same shape as GET /purchases/:id), so the app can render
+    // the result sheet and mirror it into the local store without a second request
     "purchase": {
-      // PurchaseSummary + itemsPreview
       "id": "2026-03-26_atacadao_01",
-      "store": "Atacadão",
       "date": "2026-03-26",
       "time": "14:44:08",
-      "totalPaid": 208.75,
-      "itemCount": 10,
-      "categories": { "meat": 4, "grocery": 6 },
-      "itemsPreview": [{ "description": "Bacon Fatiado Seara", "quantity": 1.0, "total": 23.9 }],
+      "source": "nfce",
+      "store": { "name": "Atacadão", "legalName": "…", "cnpj": "…", "address": "…" },
+      "receipt": { "number": 123456, "series": 1, "accessKey": "2926…44" },
+      "items": [{ "seq": 1, "description": "Bacon Fatiado Seara", "...": "…" }],
+      "totals": { "itemCount": 10, "gross": 210.75, "discount": 2.0, "totalPaid": 208.75 },
+      "payments": [{ "code": 3, "method": "Cartão de Crédito", "amount": 208.75 }],
+      "taxesTotal": 34.02,
     },
     "warnings": [], // non-empty = saved but validation flagged something
   },

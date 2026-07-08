@@ -52,6 +52,9 @@ unit_price, total, category`. Unique `(purchase_id, seq)`.
 - **payments** — `id, purchase_id, code, method, amount, change`.
 - **trips** — `id, date (unique), legs jsonb, created_at`. Transport costs to the store.
 - **donations** — `id, date, source_purchase_slug, entries jsonb, total, created_at`. Donated items.
+- **scan_requests** — `id, url, status, error_code, error_message, purchase_slug, warnings jsonb,
+duration_ms, created_at`. Audit trail of every `POST /scan`: the raw scanned QR URL and how
+  processing it went (`saved`/`duplicate`/`failed` + the error when it failed).
 - **device_tokens** — `id, token (unique), platform, created_at, last_seen_at`. FCM push tokens.
 
 Extensions: `pg_trgm` for fuzzy product/description matching. `gen_random_uuid()` for PKs.

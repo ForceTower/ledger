@@ -8,8 +8,9 @@ services:
       POSTGRES_USER: ledger
       POSTGRES_PASSWORD: ledger
       POSTGRES_DB: ledger
+    # Host ports are offset (5433/6380) because other local stacks own the defaults.
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -23,7 +24,7 @@ services:
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -31,6 +32,18 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://ledger:ledger@postgres:5432/ledger
+    command: ["bun", "run", "scripts/migrate.ts", "up"]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   api:
     build:
@@ -49,6 +62,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   postgres_data:

@@ -1,8 +1,5 @@
 import ComposableArchitecture
 
-/// Root feature. Owns the selected tab and the app-wide Settings sheet, and
-/// composes the four tab features. Cross-feature navigation (open Settings, jump
-/// to a tab) arrives as child `delegate` actions and is resolved here.
 @Reducer
 struct AppFeature {
     @ObservableState

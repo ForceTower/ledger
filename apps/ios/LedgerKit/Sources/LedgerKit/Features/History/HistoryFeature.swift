@@ -1,17 +1,11 @@
 import ComposableArchitecture
 import Foundation
 
-/// The purchases list — grouped by month, searchable, pull-to-refresh — with a
-/// native push to a purchase detail. Rows come from the local mirror, so the
-/// list renders instantly and works offline; a sync effect pages the server
-/// feed (`GET /purchases`) into the mirror and re-reads it.
 @Reducer
 struct HistoryFeature {
     @ObservableState
     struct State: Equatable {
         var summaries: [PurchaseSummary] = []
-        /// Mirror matches (store *and* item text) for the current search; nil
-        /// while the query is empty or the first lookup is still in flight.
         var searchResults: [PurchaseSummary]?
         var isSyncing = false
         var didLoad = false
@@ -22,7 +16,6 @@ struct HistoryFeature {
         var filtered: [PurchaseSummary] {
             guard !searchText.isEmpty else { return summaries }
             if let searchResults { return searchResults }
-            // Provisional store-name match until the mirror lookup lands.
             let query = searchText.lowercased()
             return summaries.filter { $0.store.lowercased().contains(query) }
         }
@@ -42,7 +35,6 @@ struct HistoryFeature {
                 .sorted { $0.id > $1.id }
         }
 
-        /// "R$ 457,30 em março · 3 notas" — the latest month's spend and total count.
         var summaryLine: String? {
             guard let latest = sections.first else { return nil }
             let month = Format.monthName(fromISO: latest.purchases[0].date)
@@ -51,8 +43,6 @@ struct HistoryFeature {
 
         var isEmpty: Bool { didLoad && !isSyncing && summaries.isEmpty }
 
-        /// Nothing local to show yet — either the first mirror read or the
-        /// very first server sync is still running.
         var isInitialLoading: Bool { !didLoad || (summaries.isEmpty && isSyncing) }
     }
 
@@ -80,8 +70,7 @@ struct HistoryFeature {
         }
     }
 
-    @Dependency(\.apiClient) var apiClient
-    @Dependency(\.databaseClient) var databaseClient
+    @Dependency(\.purchasesRepository) var purchasesRepository
 
     private enum CancelID { case sync, search }
 
@@ -89,8 +78,6 @@ struct HistoryFeature {
         Reduce { state, action in
             switch action {
             case .onAppear:
-                // Re-read the mirror on every appearance (a scan may have just
-                // landed a purchase); hit the server only on the first one.
                 guard !state.didStartInitialSync else { return loadLocal() }
                 state.didStartInitialSync = true
                 state.isSyncing = true
@@ -117,9 +104,8 @@ struct HistoryFeature {
                     return .cancel(id: CancelID.search)
                 }
                 return .run { send in
-                    await send(.searchResults(try await databaseClient.search(text)))
+                    await send(.searchResults(try await purchasesRepository.search(query: text)))
                 } catch: { _, _ in
-                    // Keep whatever is on screen; the provisional filter stands.
                 }
                 .cancellable(id: CancelID.search, cancelInFlight: true)
 
@@ -143,25 +129,16 @@ struct HistoryFeature {
 
     private func loadLocal() -> Effect<Action> {
         .run { send in
-            await send(.localLoaded(try await databaseClient.summaries()))
+            await send(.localLoaded(try await purchasesRepository.summaries()))
         } catch: { _, send in
             await send(.localLoaded([]))
         }
     }
 
-    /// Pages the whole server feed into the mirror, then re-reads it. Failing
-    /// is silent by design: whatever the mirror already holds keeps the tab
-    /// fully usable offline.
     private func sync() -> Effect<Action> {
         .run { send in
-            var page = 1
-            while true {
-                let result = try await apiClient.loadPurchases(page)
-                try await databaseClient.save(result.items)
-                guard result.hasMore else { break }
-                page += 1
-            }
-            await send(.localLoaded(try await databaseClient.summaries()))
+            try await purchasesRepository.refresh()
+            await send(.localLoaded(try await purchasesRepository.summaries()))
             await send(.syncFinished)
         } catch: { _, send in
             await send(.syncFinished)

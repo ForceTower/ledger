@@ -1,8 +1,6 @@
 import ComposableArchitecture
 import SwiftUI
 
-/// A single purchase, pushed from History — store info, totals, and items
-/// grouped by category.
 struct PurchaseDetailView: View {
     let store: StoreOf<PurchaseDetailFeature>
 

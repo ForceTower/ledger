@@ -1,9 +1,5 @@
 import Foundation
 
-/// Wire types mirroring `packages/shared-types` / `docs/api-contract.md`. All
-/// fields are English; money is a plain number (BRL), dates are `YYYY-MM-DD`,
-/// times `HH:MM:SS`.
-
 public struct StoreInfo: Codable, Equatable, Sendable {
     public var name: String
     public var legalName: String?
@@ -61,8 +57,6 @@ public struct Purchase: Codable, Equatable, Sendable, Identifiable {
     public var payments: [Payment]
     public var taxesTotal: Double?
 
-    /// Items grouped by category, in canonical category order, each group sorted
-    /// by descending value — drives the detail screen's sectioned list.
     var itemsByCategory: [(category: Category, items: [PurchaseItem])] {
         let grouped: [Category: [PurchaseItem]] = Dictionary(grouping: items, by: { $0.category })
         let groups: [(category: Category, items: [PurchaseItem])] = grouped.map { key, value in
@@ -72,8 +66,6 @@ public struct Purchase: Codable, Equatable, Sendable, Identifiable {
     }
 }
 
-/// One page of the history feed (`GET /purchases`) — full purchases, newest
-/// first, which the app writes into its local mirror for offline use.
 public struct PurchasePage: Codable, Equatable, Sendable {
     public var items: [Purchase]
     public var page: Int
@@ -91,7 +83,6 @@ public struct PurchaseSummary: Codable, Equatable, Sendable, Identifiable {
     public var itemCount: Int
     public var categories: [Category: Int]
 
-    /// Proportion-bar segments in canonical category order.
     var categorySegments: [(category: Category, count: Int)] {
         let segments: [(category: Category, count: Int)] = categories.map { key, value in
             (category: key, count: value)
@@ -101,8 +92,6 @@ public struct PurchaseSummary: Codable, Equatable, Sendable, Identifiable {
 }
 
 extension Purchase {
-    /// The list-row projection of a full purchase, derived locally so the
-    /// History list can be served straight from the mirror.
     var summary: PurchaseSummary {
         PurchaseSummary(
             id: id,

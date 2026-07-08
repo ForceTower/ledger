@@ -1,8 +1,5 @@
 import Foundation
 
-/// Anonymized sample data driving the mock client and SwiftUI previews — the
-/// same shapes the real API returns, so the whole app runs before the backend
-/// is live. No real purchase data ever lives here.
 enum MockData {
     static let atacadao = Purchase(
         id: "2026-03-26_atacadao_01",
@@ -117,7 +114,6 @@ enum MockData {
         taxesTotal: 47.35
     )
 
-    /// Newest first, like the `GET /purchases` feed.
     static let purchases = [atacadao, assai, paoDeAcucar, carrefour]
 
     static let summaries = purchases.map(\.summary)

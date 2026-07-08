@@ -3,15 +3,12 @@ import ComposableArchitecture
 import UIKit
 #endif
 
-/// App settings: the server endpoint + token (the seam to flip from mock to the
-/// real client), a connection probe, camera permission, and theme. Server/token
-/// and theme persist; camera authorization is shared live with the scanner.
 @Reducer
 struct SettingsFeature {
     @ObservableState
     struct State: Equatable {
-        @Shared(.appStorage("serverAddress")) var serverAddress = "nfce.meucasa.app"
-        @Shared(.inMemory("apiToken")) var apiToken = "" // production: Keychain
+        @Shared(.serverAddress) var serverAddress
+        @Shared(.apiToken) var apiToken
         @Shared(.inMemory("cameraAuthorized")) var cameraAuthorized = true
         @Shared(.appStorage("theme")) var theme: AppTheme = .system
         var connection: Connection = .idle
@@ -37,7 +34,7 @@ struct SettingsFeature {
         case openCameraSettingsTapped
     }
 
-    @Dependency(\.apiClient) var apiClient
+    @Dependency(\.serverClient) var serverClient
     @Dependency(\.cameraClient) var cameraClient
     @Dependency(\.continuousClock) var clock
     @Dependency(\.dismiss) var dismiss
@@ -59,7 +56,7 @@ struct SettingsFeature {
                 state.connection = .testing
                 return .run { send in
                     try await clock.sleep(for: .seconds(1.4))
-                    let info = try? await apiClient.testConnection()
+                    let info = try? await serverClient.testConnection()
                     await send(.connectionResult(info))
                 }
 

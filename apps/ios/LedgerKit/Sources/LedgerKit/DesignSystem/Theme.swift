@@ -4,10 +4,6 @@ import SwiftUI
 import UIKit
 #endif
 
-/// Color tokens ported from the Caderneta design. The accent is teal; greys and
-/// backgrounds reuse the platform's semantic colors so light/dark and dynamic
-/// type come for free. Category and accent colors carry explicit light/dark
-/// variants to match the design.
 extension Color {
     init(hex: UInt32, alpha: Double = 1) {
         self.init(
@@ -18,7 +14,6 @@ extension Color {
         )
     }
 
-    /// A color that resolves to `light` or `dark` based on the current trait.
     static func adaptive(light: Color, dark: Color) -> Color {
         #if canImport(UIKit)
         let l = UIColor(light)

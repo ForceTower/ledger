@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// A horizontal proportion bar split by category color — the recurring "where
-/// the money went" glyph on history rows and the result sheet.
 struct CategoryProportionBar: View {
     let segments: [(color: Color, weight: Double)]
     var height: CGFloat = 3
@@ -36,7 +34,6 @@ extension PurchaseSummary {
     }
 }
 
-/// Circular store badge with the store's initial, tinted by its top category.
 struct StoreAvatar: View {
     let name: String
     var tint: Color = .appAccent
@@ -54,7 +51,6 @@ struct StoreAvatar: View {
     }
 }
 
-/// Uppercase caption header used inside custom cards.
 struct CardSectionHeader: View {
     let title: String
     var trailing: String?
@@ -80,7 +76,6 @@ struct CardSectionHeader: View {
     }
 }
 
-/// Small rounded chip used for metadata (date, payment method, item count).
 struct InfoChip<Content: View>: View {
     @ViewBuilder var content: Content
 
@@ -94,12 +89,10 @@ struct InfoChip<Content: View>: View {
 }
 
 extension View {
-    /// Wraps content in an elevated rounded card matching the design surfaces.
     func card(cornerRadius: CGFloat = 18) -> some View {
         background(Color.appElevated, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 
-    /// Inset-grouped list on iOS; the closest available style elsewhere.
     func insetGroupedListStyle() -> some View {
         #if os(iOS)
         listStyle(.insetGrouped)
@@ -109,7 +102,6 @@ extension View {
     }
 }
 
-/// Counts up to `value` on appear, like the prototype's animated total.
 struct CountUpText: View {
     let value: Double
     var font: Font = .system(size: 36, weight: .bold)

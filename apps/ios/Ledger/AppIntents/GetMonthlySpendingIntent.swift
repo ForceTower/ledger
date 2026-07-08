@@ -2,9 +2,6 @@ import AppIntents
 import Foundation
 import LedgerKit
 
-/// "Quanto gastei esse mês?" — answered from the local mirror, so it works
-/// offline and without opening the app. Returns the total as a value, which is
-/// what lets Shortcuts automations chain it (compare, notify, log…).
 struct GetMonthlySpendingIntent: AppIntent {
     static let title: LocalizedStringResource = "Gastos do mês"
     static let description = IntentDescription(

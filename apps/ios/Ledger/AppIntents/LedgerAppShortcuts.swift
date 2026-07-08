@@ -1,7 +1,5 @@
 import AppIntents
 
-/// Registers the Siri phrases at install time — no user setup needed. Phrases
-/// must contain the application name; the rest is the owner's natural wording.
 struct LedgerAppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(

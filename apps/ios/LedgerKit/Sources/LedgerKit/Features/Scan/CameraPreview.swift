@@ -3,17 +3,11 @@ import AVFoundation
 import SwiftUI
 import UIKit
 
-/// A `UIView` whose backing layer *is* the camera preview, so it resizes
-/// automatically with no manual frame math.
 final class CameraPreviewView: UIView {
     override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
     var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
 }
 
-/// Owns the capture graph and its lifecycle independently of the SwiftUI view
-/// update cycle, so the session can be released the moment the Scan tab is
-/// deselected or the app backgrounds (a `TabView` keeps the tab mounted, so a
-/// representable's `dismantleUIView` would not fire on a tab switch).
 @MainActor
 final class CameraSessionController: NSObject, AVCaptureMetadataOutputObjectsDelegate {
     var onCode: (String) -> Void = { _ in }
@@ -21,9 +15,6 @@ final class CameraSessionController: NSObject, AVCaptureMetadataOutputObjectsDel
     private var torchOn = false
     private var wantsRunning = false
 
-    // The capture graph is non-Sendable; it is only ever touched on `sessionQueue`
-    // (the lone exception is assigning the preview layer's session on the main
-    // thread, once). That confinement is what makes `nonisolated(unsafe)` sound.
     private let sessionQueue = DispatchQueue(label: "dev.forcetower.ledger.camera.session")
     nonisolated(unsafe) private let session = AVCaptureSession()
     nonisolated(unsafe) private var device: AVCaptureDevice?
@@ -47,7 +38,7 @@ final class CameraSessionController: NSObject, AVCaptureMetadataOutputObjectsDel
     func stop() {
         guard wantsRunning else { return }
         wantsRunning = false
-        torchOn = false // stopping the session kills the torch; allow re-apply on resume
+        torchOn = false
         sessionQueue.async { [self] in
             if session.isRunning { session.stopRunning() }
         }
@@ -68,8 +59,6 @@ final class CameraSessionController: NSObject, AVCaptureMetadataOutputObjectsDel
         }
     }
 
-    /// Runs on `sessionQueue`. `nonisolated` so it can legally touch the
-    /// non-Sendable graph off the main actor.
     nonisolated private func configure() {
         guard session.inputs.isEmpty else { return }
         session.beginConfiguration()
@@ -86,16 +75,11 @@ final class CameraSessionController: NSObject, AVCaptureMetadataOutputObjectsDel
         let metadata = AVCaptureMetadataOutput()
         guard session.canAddOutput(metadata) else { return }
         session.addOutput(metadata)
-        // `self` is a @MainActor class (hence Sendable); delivering on `.main`
-        // lets the callback read MainActor state via `assumeIsolated`.
         metadata.setMetadataObjectsDelegate(self, queue: .main)
         metadata.metadataObjectTypes =
             metadata.availableMetadataObjectTypes.contains(.qr) ? [.qr] : []
     }
 
-    /// The delegate protocol is `nonisolated`; a `@MainActor` conformer satisfies
-    /// it only by marking this `nonisolated`. The delegate queue is `.main`, so
-    /// `assumeIsolated` is sound and we can touch `armed`/`onCode` synchronously.
     nonisolated func metadataOutput(
         _ output: AVCaptureMetadataOutput,
         didOutput metadataObjects: [AVMetadataObject],
@@ -115,7 +99,6 @@ final class CameraSessionController: NSObject, AVCaptureMetadataOutputObjectsDel
     }
 }
 
-/// Renders the controller's live preview. Lifecycle is driven by `LiveScannerView`.
 struct CameraPreviewLayerView: UIViewRepresentable {
     let controller: CameraSessionController
 
@@ -128,9 +111,6 @@ struct CameraPreviewLayerView: UIViewRepresentable {
     func updateUIView(_ uiView: CameraPreviewView, context: Context) {}
 }
 
-/// The live QR scanner. Runs the camera only while `isActive` (the Scan tab is
-/// selected) and the app is in the foreground; leaving the tab or backgrounding
-/// releases the camera. Emits the decoded string once per "armed" cycle.
 struct LiveScannerView: View {
     var isActive: Bool
     var idle: Bool

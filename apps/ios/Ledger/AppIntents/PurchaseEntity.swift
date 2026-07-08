@@ -2,8 +2,6 @@ import AppIntents
 import CoreSpotlight
 import LedgerKit
 
-/// A mirrored purchase as the system sees it — Siri, Spotlight, and Shortcuts
-/// automations all work with these entities.
 struct PurchaseEntity: AppEntity, IndexedEntity {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Compra")
     static let defaultQuery = PurchaseEntityQuery()
@@ -22,7 +20,6 @@ struct PurchaseEntity: AppEntity, IndexedEntity {
     @Property(title: "Itens")
     var itemCount: Int
 
-    /// `"26 mar 2026 · R$ 208,75"`, reused by the display and index entries.
     let subtitle: String
 
     init(summary: PurchaseSummary) {

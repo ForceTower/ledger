@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Wire-level category slugs (English, per `docs/api-contract.md`). Display
-/// labels are Brazilian Portuguese — the owner's locale — and each carries the
-/// accent color from the Caderneta design.
 public enum Category: String, Codable, CaseIterable, Equatable, Sendable, Identifiable {
     case produce
     case meat
@@ -56,6 +53,5 @@ public enum Category: String, Codable, CaseIterable, Equatable, Sendable, Identi
         }
     }
 
-    /// Canonical display order so proportion bars and legends stay consistent.
     var sortIndex: Int { Category.allCases.firstIndex(of: self) ?? 0 }
 }

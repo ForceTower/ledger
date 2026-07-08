@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// A flow layout that wraps its subviews onto new lines — used for category
-/// legends and chip rows.
 struct WrapLayout: Layout {
     var spacing: CGFloat = 8
     var lineSpacing: CGFloat = 8

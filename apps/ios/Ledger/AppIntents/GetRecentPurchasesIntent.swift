@@ -1,9 +1,6 @@
 import AppIntents
 import LedgerKit
 
-/// "Quais foram minhas compras?" / "Onde eu comprei?" — the latest mirrored
-/// purchases, spoken with store, value, and day. Returns the entities so
-/// Shortcuts automations can iterate over them.
 struct GetRecentPurchasesIntent: AppIntent {
     static let title: LocalizedStringResource = "Últimas compras"
     static let description = IntentDescription(

@@ -1,10 +1,6 @@
 import ComposableArchitecture
 import SwiftUI
 
-/// The scanner tab: a full-bleed live camera feed with a viewfinder that
-/// auto-detects an NFC-e QR, plus flash and settings controls. Falls back to a
-/// permission screen when the camera is blocked, or an unavailable screen when
-/// there is no camera. The result arrives as a sheet.
 struct ScanView: View {
     let store: StoreOf<ScanFeature>
     var isActive = true
@@ -121,7 +117,6 @@ struct ScanView: View {
     ScanView(store: Store(initialState: ScanFeature.State()) { ScanFeature() })
 }
 
-/// Dim camera surface stand-in: layered gradients with a faint accent glow.
 private struct ScanBackground: View {
     var body: some View {
         ZStack {
@@ -149,8 +144,6 @@ private struct ScanBackground: View {
     }
 }
 
-/// The viewfinder: rounded corner brackets, an animated scan line at rest, and a
-/// green confirmation (ripple + check) while detecting.
 private struct ScanReticle: View {
     let detecting: Bool
 
@@ -168,9 +161,6 @@ private struct ScanReticle: View {
             CornerBrackets()
                 .stroke(detecting ? green : .white, style: StrokeStyle(lineWidth: 4, lineCap: .round))
 
-            // Scan line and ripple stay mounted and animate continuously; only
-            // their visibility toggles with `detecting`, so the loop never has to
-            // restart (which is why it used to freeze after the sheet closed).
             Rectangle()
                 .fill(LinearGradient(colors: [.clear, Color.appAccent, .clear], startPoint: .leading, endPoint: .trailing))
                 .frame(height: 3)
@@ -206,29 +196,24 @@ private struct ScanReticle: View {
     }
 }
 
-/// Four rounded L-shaped corner brackets framing the viewfinder.
 private struct CornerBrackets: Shape {
     var length: CGFloat = 42
     var radius: CGFloat = 16
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        // Top-left
         path.move(to: CGPoint(x: rect.minX, y: rect.minY + length))
         path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + radius))
         path.addQuadCurve(to: CGPoint(x: rect.minX + radius, y: rect.minY), control: CGPoint(x: rect.minX, y: rect.minY))
         path.addLine(to: CGPoint(x: rect.minX + length, y: rect.minY))
-        // Top-right
         path.move(to: CGPoint(x: rect.maxX - length, y: rect.minY))
         path.addLine(to: CGPoint(x: rect.maxX - radius, y: rect.minY))
         path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + radius), control: CGPoint(x: rect.maxX, y: rect.minY))
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + length))
-        // Bottom-right
         path.move(to: CGPoint(x: rect.maxX, y: rect.maxY - length))
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - radius))
         path.addQuadCurve(to: CGPoint(x: rect.maxX - radius, y: rect.maxY), control: CGPoint(x: rect.maxX, y: rect.maxY))
         path.addLine(to: CGPoint(x: rect.maxX - length, y: rect.maxY))
-        // Bottom-left
         path.move(to: CGPoint(x: rect.minX + length, y: rect.maxY))
         path.addLine(to: CGPoint(x: rect.minX + radius, y: rect.maxY))
         path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - radius), control: CGPoint(x: rect.minX, y: rect.maxY))
@@ -237,7 +222,6 @@ private struct CornerBrackets: Shape {
     }
 }
 
-/// Full-screen camera-blocked state.
 private struct PermissionDeniedView: View {
     let openSettings: () -> Void
 
@@ -286,7 +270,6 @@ private struct PermissionDeniedView: View {
     }
 }
 
-/// Shown when the device has no camera (e.g. the Simulator).
 private struct CameraUnavailableView: View {
     var body: some View {
         ZStack {

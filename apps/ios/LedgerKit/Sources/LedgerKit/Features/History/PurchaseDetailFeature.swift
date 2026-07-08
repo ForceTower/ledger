@@ -1,9 +1,5 @@
 import ComposableArchitecture
 
-/// A single purchase, pushed from History. The summary renders the header
-/// immediately; the full purchase comes from the local mirror (so details open
-/// offline), falling back to the API — and back-filling the mirror — only when
-/// the mirror doesn't have it yet.
 @Reducer
 struct PurchaseDetailFeature {
     @ObservableState
@@ -22,8 +18,7 @@ struct PurchaseDetailFeature {
         case loadFailed
     }
 
-    @Dependency(\.apiClient) var apiClient
-    @Dependency(\.databaseClient) var databaseClient
+    @Dependency(\.purchasesRepository) var purchasesRepository
 
     var body: some ReducerOf<Self> {
         Reduce { state, action in
@@ -33,13 +28,11 @@ struct PurchaseDetailFeature {
                 state.isLoading = true
                 state.loadFailed = false
                 return .run { [id = state.summary.id] send in
-                    if let local = try await databaseClient.purchase(id) {
-                        await send(.purchaseLoaded(local))
-                        return
+                    if let purchase = try await purchasesRepository.purchase(id: id) {
+                        await send(.purchaseLoaded(purchase))
+                    } else {
+                        await send(.loadFailed)
                     }
-                    let fetched = try await apiClient.loadPurchase(id)
-                    try await databaseClient.save([fetched])
-                    await send(.purchaseLoaded(fetched))
                 } catch: { _, send in
                     await send(.loadFailed)
                 }

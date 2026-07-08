@@ -1,8 +1,6 @@
 import ComposableArchitecture
 import SwiftUI
 
-/// Ask — a "Em breve" preview of natural-language Q&A over the dataset. Static
-/// transcript with a (disabled) composer pinned above the tab bar.
 struct AskView: View {
     let store: StoreOf<AskFeature>
 

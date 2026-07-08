@@ -5,8 +5,6 @@ private let resultGreen = Color(hex: 0x28A745)
 private let resultBlue = Color(hex: 0x2F7BE5)
 private let resultOrange = Color(hex: 0xF08C00)
 
-/// The scan result sheet. Switches on the scan phase: a processing placeholder,
-/// then one of saved / duplicate / warning / error.
 struct ScanResultView: View {
     let store: StoreOf<ScanFeature>
 
@@ -178,7 +176,6 @@ private struct CategoryBreakdownCard: View {
     }
 }
 
-/// Category legend that wraps to new lines as needed (native Layout).
 private struct FlowChips: View {
     let segments: [(category: Category, count: Int)]
 

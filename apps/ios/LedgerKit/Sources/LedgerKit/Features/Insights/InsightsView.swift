@@ -2,8 +2,6 @@ import Charts
 import ComposableArchitecture
 import SwiftUI
 
-/// Insights — a "Em breve" preview of the spending dashboard. Static figures for
-/// now; the monthly trend uses native Swift Charts.
 struct InsightsView: View {
     let store: StoreOf<InsightsFeature>
 

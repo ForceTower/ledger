@@ -39,8 +39,11 @@ All `bun` scripts run from the repo root.
 ## Development workflow (iOS)
 
 - SwiftUI, latest iOS. Native feel: Apple HIG, SF Pro, system materials, dynamic type, safe areas.
-- Build the app against the contract in `docs/api-contract.md`. A mock client lets the whole app
-  run before the backend is live; flip to the real client via Settings (server URL + bearer token).
+- Build the app against the contract in `docs/api-contract.md`. Layering follows Domain/Data
+  (repository interfaces in `Domain/Repositories`, live implementations in `Data/Repositories`
+  composing the generic `APIClient` transport + GRDB mirror); features depend only on repositories.
+  Previews run on repository `previewValue`s; the live client reads the server URL + bearer token
+  from Settings.
 - User-facing copy is Brazilian Portuguese; currency is BRL (`R$ 1.234,56`). Type/identifier names
   stay English.
 - If you make big iOS changes and we're on macOS, try to compile the app.

@@ -1,13 +1,9 @@
 import ComposableArchitecture
 import SwiftUI
 
-/// App settings, presented as a native grouped Form sheet.
 struct SettingsView: View {
     let store: StoreOf<SettingsFeature>
 
-    // Bind controls straight to the shared storage (not through the presentation
-    // store), so a text field committing as the sheet dismisses can't deliver a
-    // presentation action to an absent destination.
     private var serverBinding: Binding<String> { Binding(store.state.$serverAddress) }
     private var tokenBinding: Binding<String> { Binding(store.state.$apiToken) }
     private var themeBinding: Binding<AppTheme> { Binding(store.state.$theme) }
@@ -84,8 +80,6 @@ struct SettingsView: View {
         }
     }
 
-    /// Read-only camera authorization status. Real permission is owned by iOS,
-    /// so when it's denied the row becomes a button that opens the Settings app.
     @ViewBuilder
     private var cameraStatusRow: some View {
         if store.cameraAuthorized {

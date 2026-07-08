@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-struct PurchaseStore: Sendable {
+struct MirrorStore: Sendable {
     var writer: any DatabaseWriter
 
     func summaries() async throws -> [PurchaseSummary] {

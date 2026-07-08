@@ -1,17 +1,13 @@
 import Foundation
 
-/// Outcome of `POST /scan` — saved or duplicate, both carrying the purchase and
-/// any non-fatal validation warnings.
-public struct ScanResponse: Equatable, Sendable {
-    public enum Status: Equatable, Sendable { case saved, duplicate }
+public struct ScanResponse: Codable, Equatable, Sendable {
+    public enum Status: String, Codable, Equatable, Sendable { case saved, duplicate }
 
     public var status: Status
     public var purchase: Purchase
     public var warnings: [String]
 }
 
-/// Genuine `/scan` failures (the `errorCode` table in the API contract), with
-/// the Brazilian-Portuguese copy the result sheet renders.
 public enum ScanFailure: Error, Equatable, Sendable {
     case invalidQR
     case expired
@@ -53,7 +49,6 @@ public enum ScanFailure: Error, Equatable, Sendable {
     }
 }
 
-/// Result of a Settings "Testar conexão" probe (`GET /health`).
 public struct ConnectionInfo: Equatable, Sendable {
     public var serverVersion: String
     public var purchaseCount: Int

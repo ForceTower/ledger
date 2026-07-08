@@ -1,8 +1,6 @@
 import ComposableArchitecture
 import SwiftUI
 
-/// The purchases tab. A native grouped list, searchable and pull-to-refresh,
-/// pushing a detail through the navigation stack.
 struct HistoryView: View {
     @Bindable var store: StoreOf<HistoryFeature>
 

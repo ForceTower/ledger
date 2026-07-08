@@ -1,8 +1,6 @@
 import ComposableArchitecture
 import SwiftUI
 
-/// Native tab container composing the four feature tabs, with the app-wide
-/// Settings sheet and theme applied here.
 struct AppView: View {
     @Bindable var store: StoreOf<AppFeature>
 

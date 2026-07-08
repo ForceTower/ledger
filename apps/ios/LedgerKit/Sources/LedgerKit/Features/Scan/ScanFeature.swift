@@ -4,10 +4,6 @@ import Foundation
 import UIKit
 #endif
 
-/// The capture flow: the live camera auto-detects an NFC-e QR, then runs
-/// detecting → processing → result. The result is a bottom sheet with four
-/// outcomes (saved, duplicate, warning, error). Camera authorization is shared
-/// with Settings.
 @Reducer
 struct ScanFeature {
     @ObservableState
@@ -26,7 +22,6 @@ struct ScanFeature {
             case failure(ScanFailure)
         }
 
-        /// The result sheet is up for everything past detection.
         var isSheetPresented: Bool {
             switch phase {
             case .processing, .result, .failure: true
@@ -57,16 +52,13 @@ struct ScanFeature {
         }
     }
 
-    @Dependency(\.apiClient) var apiClient
+    @Dependency(\.scanRepository) var scanRepository
     @Dependency(\.cameraClient) var cameraClient
-    @Dependency(\.databaseClient) var databaseClient
     @Dependency(\.continuousClock) var clock
     @Dependency(\.openURL) var openURL
 
     private enum CancelID { case scan }
 
-    /// A valid NFC-e QR carries `?p=` or `&p=` followed by exactly the 44-digit
-    /// access key (the backend bar). We hand the full URL through unchanged.
     static func nfceURL(from raw: String) -> String? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.firstMatch(of: /[?&]p=[0-9]{44}(?:[^0-9]|$)/) != nil ? trimmed : nil
@@ -109,23 +101,18 @@ struct ScanFeature {
                 state.phase = .processing
                 return .run { send in
                     do {
-                        let response = try await apiClient.scan(url)
+                        let response = try await scanRepository.scan(url: url)
                         await send(.scanResponse(.success(response)))
                     } catch let failure as ScanFailure {
                         await send(.scanResponse(.failure(failure)))
-                    } catch is CancellationError {
-                        return
                     } catch {
-                        await send(.scanResponse(.failure(.parseFailed)))
                     }
                 }
                 .cancellable(id: CancelID.scan)
 
             case let .scanResponse(.success(response)):
                 state.phase = .result(response)
-                // Mirror the purchase locally right away so History shows it
-                // even offline. Best effort: History re-syncs from the server.
-                return .run { _ in try? await databaseClient.save([response.purchase]) }
+                return .none
 
             case let .scanResponse(.failure(failure)):
                 state.phase = .failure(failure)
@@ -145,7 +132,6 @@ struct ScanFeature {
                 return .cancel(id: CancelID.scan)
 
             case .choosePhotoTapped:
-                // Future: photo fallback → POST /scan-image. No-op for now.
                 return .none
 
             case .settingsTapped:

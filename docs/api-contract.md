@@ -96,7 +96,9 @@ Liveness. `200` with `data: "ledger API"`. No auth.
 
 ### `GET /health`
 
-`200` `{ ok: true, data: { db: true } }` when the DB is reachable; `503` otherwise.
+`200` `{ ok: true, data: { db: true, version: "0.1.0", purchaseCount: 23 } }` when the DB is
+reachable; `503` otherwise. Powers the Settings "test connection" probe (it also validates the
+token, since `/health` requires auth).
 
 ### `POST /scan`
 

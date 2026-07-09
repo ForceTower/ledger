@@ -49,6 +49,24 @@ public enum ScanFailure: Error, Equatable, Sendable {
     }
 }
 
+/// AI product identification from a photo. UI-only stub for now — see
+/// "Future (stub in UI only)" in docs/api-contract.md.
+public struct ProductGuess: Equatable, Sendable {
+    public struct Alternative: Equatable, Sendable, Identifiable {
+        public var name: String
+        public var unitPrice: Double
+
+        public var id: String { name }
+    }
+
+    public var name: String
+    public var detail: String
+    public var category: Category
+    public var unitPrice: Double
+    public var confidencePercent: Int
+    public var alternatives: [Alternative]
+}
+
 public struct ConnectionInfo: Equatable, Sendable {
     public var serverVersion: String
     public var purchaseCount: Int

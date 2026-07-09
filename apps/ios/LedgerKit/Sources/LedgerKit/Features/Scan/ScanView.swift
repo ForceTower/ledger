@@ -6,6 +6,17 @@ struct ScanView: View {
     var isActive = true
 
     private var detecting: Bool { store.phase == .detecting }
+    private var photoMode: Bool { store.scanMode == .photo }
+
+    private var hintTitle: String {
+        if photoMode { return detecting ? "Item reconhecido" : "Fotografe qualquer item" }
+        return detecting ? "Nota detectada" : "Aponte para o QR code da nota"
+    }
+
+    private var hintSubtitle: String {
+        if photoMode { return detecting ? "Identificando com IA…" : "A IA reconhece e adiciona ao histórico" }
+        return detecting ? "Buscando os itens…" : "Salvamos automaticamente ao detectar"
+    }
 
     var body: some View {
         ZStack {
@@ -13,7 +24,7 @@ struct ScanView: View {
             if store.cameraAvailable && store.cameraAuthorized {
                 LiveScannerView(
                     isActive: isActive,
-                    idle: store.phase == .idle,
+                    idle: store.phase == .idle && store.scanMode == .receipt,
                     flashOn: store.flashOn,
                     onCode: { store.send(.codeScanned($0)) }
                 )
@@ -27,7 +38,7 @@ struct ScanView: View {
                 .ignoresSafeArea()
             #endif
 
-            ScanReticle(detecting: detecting)
+            ScanReticle(detecting: detecting, showsScanline: !photoMode)
                 .frame(width: 236, height: 236)
 
             VStack(spacing: 0) {
@@ -43,7 +54,7 @@ struct ScanView: View {
                 Spacer()
 
                 VStack(spacing: 10) {
-                    Text(detecting ? "Nota detectada" : "Aponte para o QR code da nota")
+                    Text(hintTitle)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 20)
@@ -53,23 +64,33 @@ struct ScanView: View {
                                 detecting ? AnyShapeStyle(Color(hex: 0x28A745)) : AnyShapeStyle(.ultraThinMaterial)
                             )
                         }
-                    Text(detecting ? "Buscando os itens…" : "Salvamos automaticamente ao detectar")
+                    Text(hintSubtitle)
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(.white.opacity(0.6))
                 }
 
-                Button { store.send(.choosePhotoTapped) } label: {
-                    Label("Escolher foto", systemImage: "photo.on.rectangle")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 11)
-                        .background(.ultraThinMaterial, in: Capsule())
+                modeToggle
+                    .padding(.top, 24)
+
+                Group {
+                    if photoMode {
+                        captureRow
+                    } else {
+                        Button { store.send(.choosePhotoTapped) } label: {
+                            Label("Escolher foto", systemImage: "photo.on.rectangle")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 11)
+                                .background(.ultraThinMaterial, in: Capsule())
+                        }
+                    }
                 }
-                .padding(.top, 26)
+                .padding(.top, 20)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
+            .animation(.easeInOut(duration: 0.2), value: photoMode)
 
             if !store.cameraAvailable {
                 CameraUnavailableView()
@@ -92,6 +113,69 @@ struct ScanView: View {
             ScanResultView(store: store)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+    }
+
+    private var modeToggle: some View {
+        HStack(spacing: 3) {
+            modePill("Nota fiscal", mode: .receipt)
+            modePill("Foto", mode: .photo)
+        }
+        .padding(4)
+        .background(.black.opacity(0.34), in: Capsule())
+        .background(.ultraThinMaterial, in: Capsule())
+    }
+
+    private func modePill(_ title: String, mode: ScanMode) -> some View {
+        Button { store.send(.modeChanged(mode)) } label: {
+            Text(title)
+                .font(.footnote.weight(.bold))
+                .foregroundStyle(store.scanMode == mode ? Color.black : .white.opacity(0.72))
+                .padding(.horizontal, 15)
+                .padding(.vertical, 8)
+                .background {
+                    if store.scanMode == mode {
+                        Capsule().fill(.white).shadow(color: .black.opacity(0.22), radius: 4, y: 2)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var captureRow: some View {
+        ZStack {
+            Button { store.send(.shutterTapped) } label: {
+                Circle()
+                    .fill(.white)
+                    .frame(width: 58, height: 58)
+                    .overlay(Circle().strokeBorder(.black.opacity(0.06)))
+                    .padding(4)
+                    .overlay(Circle().strokeBorder(.white.opacity(0.95), lineWidth: 4))
+                    .shadow(color: .black.opacity(0.32), radius: 10, y: 3)
+            }
+            .buttonStyle(.plain)
+
+            HStack {
+                Button { store.send(.choosePhotoTapped) } label: {
+                    VStack(spacing: 5) {
+                        Image(systemName: "photo.on.rectangle")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 46, height: 46)
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .strokeBorder(.white.opacity(0.28))
+                            )
+                        Text("Galeria")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 18)
+                Spacer()
+            }
         }
     }
 
@@ -146,6 +230,7 @@ private struct ScanBackground: View {
 
 private struct ScanReticle: View {
     let detecting: Bool
+    var showsScanline = true
 
     @State private var scanLineOffset: CGFloat = -100
     @State private var rippleExpanded = false
@@ -167,7 +252,7 @@ private struct ScanReticle: View {
                 .shadow(color: Color.appAccent, radius: 8)
                 .padding(.horizontal, 12)
                 .offset(y: scanLineOffset)
-                .opacity(detecting ? 0 : 1)
+                .opacity(detecting || !showsScanline ? 0 : 1)
 
             RoundedRectangle(cornerRadius: 36, style: .continuous)
                 .stroke(green, lineWidth: 2)

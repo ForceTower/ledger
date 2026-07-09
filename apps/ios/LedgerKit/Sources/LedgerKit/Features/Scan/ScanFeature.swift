@@ -4,13 +4,20 @@ import Foundation
 import UIKit
 #endif
 
+enum ScanMode: Equatable, Sendable {
+    case receipt, photo
+}
+
 @Reducer
 struct ScanFeature {
     @ObservableState
     struct State: Equatable {
         var phase: Phase = .idle
+        var scanMode: ScanMode = .receipt
         var flashOn = false
         var itemsExpanded = false
+        var productQuantity = 1
+        var productSaved = false
         var cameraAvailable = true
         @Shared(.inMemory("cameraAuthorized")) var cameraAuthorized = true
 
@@ -19,12 +26,13 @@ struct ScanFeature {
             case detecting
             case processing
             case result(ScanResponse)
+            case product(ProductGuess)
             case failure(ScanFailure)
         }
 
         var isSheetPresented: Bool {
             switch phase {
-            case .processing, .result, .failure: true
+            case .processing, .result, .product, .failure: true
             case .idle, .detecting: false
             }
         }
@@ -36,6 +44,11 @@ struct ScanFeature {
         case codeScanned(String)
         case detected(String)
         case scanResponse(Result<ScanResponse, ScanFailure>)
+        case modeChanged(ScanMode)
+        case shutterTapped
+        case productIdentified(ProductGuess)
+        case productQuantityChanged(Int)
+        case addProductTapped
         case flashTapped
         case toggleItems
         case scanAgainTapped
@@ -43,7 +56,7 @@ struct ScanFeature {
         case choosePhotoTapped
         case settingsTapped
         case openSystemSettings
-        case showDuplicateInHistory
+        case showInHistoryTapped
         case delegate(Delegate)
 
         enum Delegate: Equatable {
@@ -85,7 +98,7 @@ struct ScanFeature {
                 return .none
 
             case let .codeScanned(code):
-                guard state.phase == .idle else { return .none }
+                guard state.phase == .idle, state.scanMode == .receipt else { return .none }
                 guard let url = Self.nfceURL(from: code) else {
                     state.phase = .failure(.invalidQR)
                     return .none
@@ -118,6 +131,35 @@ struct ScanFeature {
                 state.phase = .failure(failure)
                 return .none
 
+            case let .modeChanged(mode):
+                guard state.phase == .idle else { return .none }
+                state.scanMode = mode
+                return .none
+
+            case .shutterTapped:
+                guard state.phase == .idle, state.scanMode == .photo else { return .none }
+                state.phase = .processing
+                // Stubbed identification until POST /scan-image lands (api-contract "Future").
+                return .run { send in
+                    try await clock.sleep(for: .seconds(1.6))
+                    await send(.productIdentified(MockData.productGuess))
+                }
+                .cancellable(id: CancelID.scan)
+
+            case let .productIdentified(guess):
+                state.phase = .product(guess)
+                state.productQuantity = 1
+                state.productSaved = false
+                return .none
+
+            case let .productQuantityChanged(quantity):
+                state.productQuantity = max(1, quantity)
+                return .none
+
+            case .addProductTapped:
+                state.productSaved = true
+                return .none
+
             case .flashTapped:
                 state.flashOn.toggle()
                 return .none
@@ -129,6 +171,8 @@ struct ScanFeature {
             case .scanAgainTapped, .sheetDismissed:
                 state.phase = .idle
                 state.itemsExpanded = false
+                state.productQuantity = 1
+                state.productSaved = false
                 return .cancel(id: CancelID.scan)
 
             case .choosePhotoTapped:
@@ -144,8 +188,13 @@ struct ScanFeature {
                     #endif
                 }
 
-            case .showDuplicateInHistory:
-                return .send(.delegate(.showHistory))
+            case .showInHistoryTapped:
+                state.phase = .idle
+                state.productSaved = false
+                return .concatenate(
+                    .cancel(id: CancelID.scan),
+                    .send(.delegate(.showHistory))
+                )
 
             case .delegate:
                 return .none

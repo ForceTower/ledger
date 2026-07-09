@@ -114,6 +114,18 @@ enum MockData {
         taxesTotal: 47.35
     )
 
+    static let productGuess = ProductGuess(
+        name: "Mamão Formosa",
+        detail: "Fruta fresca · por unidade",
+        category: .produce,
+        unitPrice: 8.90,
+        confidencePercent: 96,
+        alternatives: [
+            ProductGuess.Alternative(name: "Mamão Papaya", unitPrice: 5.90),
+            ProductGuess.Alternative(name: "Melão Amarelo", unitPrice: 9.90),
+        ]
+    )
+
     static let purchases = [atacadao, assai, paoDeAcucar, carrefour]
 
     static let summaries = purchases.map(\.summary)

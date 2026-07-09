@@ -14,6 +14,14 @@ func envelope(_ value: some Encodable) throws -> Data {
     try JSONEncoder().encode(TestEnvelope(data: value))
 }
 
+func categorySpending(of purchases: [Purchase]) -> [LedgerKit.Category: Double] {
+    purchases.reduce(into: [:]) { totals, purchase in
+        for item in purchase.items {
+            totals[item.category, default: 0] += item.total
+        }
+    }
+}
+
 @MainActor
 struct ScanFeatureTests {
     nonisolated static let validURL =
@@ -180,6 +188,9 @@ struct HistoryFeatureTests {
         await store.receive(\.localLoaded) { $0.didLoad = true }
         await store.receive(\.localLoaded) { $0.summaries = MockData.summaries }
         await store.receive(\.syncFinished) { $0.isSyncing = false }
+        await store.receive(\.categorySpendingLoaded) {
+            $0.monthCategorySpending = categorySpending(of: [MockData.atacadao, MockData.assai, MockData.paoDeAcucar])
+        }
     }
 
     @Test
@@ -208,6 +219,9 @@ struct HistoryFeatureTests {
             $0.summaries = [MockData.atacadao.summary, MockData.carrefour.summary]
         }
         await store.receive(\.syncFinished) { $0.isSyncing = false }
+        await store.receive(\.categorySpendingLoaded) {
+            $0.monthCategorySpending = categorySpending(of: [MockData.atacadao])
+        }
     }
 
     @Test
@@ -231,6 +245,9 @@ struct HistoryFeatureTests {
             $0.didLoad = true
         }
         await store.receive(\.syncFinished) { $0.isSyncing = false }
+        await store.receive(\.categorySpendingLoaded) {
+            $0.monthCategorySpending = categorySpending(of: [MockData.atacadao, MockData.assai, MockData.paoDeAcucar])
+        }
     }
 
     @Test

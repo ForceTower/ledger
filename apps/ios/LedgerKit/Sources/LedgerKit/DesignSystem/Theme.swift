@@ -36,6 +36,35 @@ extension Color {
     static let appAccentForeground = Color.adaptive(light: .white, dark: Color(hex: 0x04302B))
 }
 
+// MARK: - Hero & gradients
+
+extension Color {
+    static let heroInk = Color(hex: 0xEAFBF8)
+    static let heroInkSecondary = Color(hex: 0xE8FBF8, alpha: 0.72)
+}
+
+enum AppGradient {
+    static let accent = LinearGradient(
+        colors: [
+            .adaptive(light: Color(hex: 0x17B3A5), dark: Color(hex: 0x39E3D3)),
+            .adaptive(light: Color(hex: 0x0C736B), dark: Color(hex: 0x18A99B)),
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    static let hero = RadialGradient(
+        stops: [
+            .init(color: .adaptive(light: Color(hex: 0x1BC3B3), dark: Color(hex: 0x12B7A8)), location: 0),
+            .init(color: .adaptive(light: Color(hex: 0x0E8E83), dark: Color(hex: 0x0B7E74)), location: 0.42),
+            .init(color: .adaptive(light: Color(hex: 0x075F58), dark: Color(hex: 0x053E3A)), location: 1),
+        ],
+        center: UnitPoint(x: 0.12, y: 0.08),
+        startRadius: 0,
+        endRadius: 460
+    )
+}
+
 // MARK: - Semantic surfaces
 
 extension Color {

@@ -64,7 +64,7 @@ struct SettingsView: View {
 
                 Section {
                 } footer: {
-                    Text("Caderneta 1.0 (12)")
+                    Text("Caderneta 2.0 (1)")
                         .font(.footnote.monospaced())
                         .frame(maxWidth: .infinity)
                         .multilineTextAlignment(.center)

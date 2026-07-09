@@ -91,6 +91,7 @@ struct InfoChip<Content: View>: View {
 extension View {
     func card(cornerRadius: CGFloat = 18) -> some View {
         background(Color.appElevated, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .shadow(color: .black.opacity(0.05), radius: 9, y: 3)
     }
 
     func insetGroupedListStyle() -> some View {
@@ -99,6 +100,24 @@ extension View {
         #else
         listStyle(.automatic)
         #endif
+    }
+}
+
+struct PrimaryButtonLabel: View {
+    let title: String
+
+    init(_ title: String) {
+        self.title = title
+    }
+
+    var body: some View {
+        Text(title)
+            .font(.headline)
+            .foregroundStyle(Color.appAccentForeground)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(AppGradient.accent, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .shadow(color: Color.appAccent.opacity(0.25), radius: 11, y: 4)
     }
 }
 

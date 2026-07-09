@@ -1,7 +1,7 @@
 import type { ParsedItem, ParsedReceipt } from "@ledger/nfce";
 import type { Transaction } from "kysely";
 import type { LedgerDb } from "../db";
-import type { Database } from "../db/schema";
+import type { Database } from "../db";
 
 type Trx = Transaction<Database>;
 

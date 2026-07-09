@@ -9,7 +9,7 @@
     "migrate": "bun run scripts/migrate.ts up",
     "migrate:down": "bun run scripts/migrate.ts down-latest",
     "migrate:status": "bun run scripts/migrate.ts status",
-    "db:codegen": "kysely-codegen --out-file src/db/schema.ts",
+    "db:codegen": "kysely-codegen",
     "import:legacy": "bun run scripts/import-legacy.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",

@@ -4,6 +4,7 @@ import { type LedgerDb, makeDb } from "./db";
 import { useLog } from "./logger";
 import { shutdownOtel } from "./otel";
 import { NotificationService } from "./service/notification";
+import { DEFAULT_PHOTO_PROMPT, PhotoScanService } from "./service/photo-scan";
 import { PurchaseService } from "./service/purchase";
 import { ScanService } from "./service/scan";
 
@@ -16,6 +17,11 @@ const envVarsSchema = z.object({
   SEFAZ_BASE_URL: z.string().default("http://nfe.sefaz.ba.gov.br/servicos/nfce/modulos/geral/"),
   // Optional: base64 Firebase service account JSON. When unset, push notifications are disabled.
   FIREBASE_SERVICE_ACCOUNT_BASE64: z.string().optional(),
+  // Photo scan (POST /scan/photo) runs the Claude CLI on the host.
+  CLAUDE_BIN: z.string().default("claude"),
+  CLAUDE_MODEL: z.string().default("claude-opus-4-8"),
+  CLAUDE_PHOTO_PROMPT: z.string().default(DEFAULT_PHOTO_PROMPT),
+  CLAUDE_TIMEOUT_MS: z.coerce.number().default(60_000),
 });
 
 export type EnvVars = z.infer<typeof envVarsSchema>;
@@ -26,6 +32,7 @@ export interface LedgerEnv {
   cache: CacheClient;
   service: {
     scan: ScanService;
+    photoScan: PhotoScanService;
     purchase: PurchaseService;
     notifications: NotificationService;
   };
@@ -51,13 +58,19 @@ export async function getEnv(): Promise<LedgerEnv> {
   const cache = createCacheClient(vars.REDIS_URL);
   const purchase = new PurchaseService({ db });
   const scan = new ScanService({ db, cache, purchase, sefazBaseUrl: vars.SEFAZ_BASE_URL });
+  const photoScan = new PhotoScanService({
+    bin: vars.CLAUDE_BIN,
+    model: vars.CLAUDE_MODEL,
+    prompt: vars.CLAUDE_PHOTO_PROMPT,
+    timeoutMs: vars.CLAUDE_TIMEOUT_MS,
+  });
   const notifications = new NotificationService({ db, serviceAccountBase64: vars.FIREBASE_SERVICE_ACCOUNT_BASE64 });
 
   cached = {
     vars,
     db,
     cache,
-    service: { scan, purchase, notifications },
+    service: { scan, photoScan, purchase, notifications },
     isDev: vars.NODE_ENV === "development",
     cleanup: async () => {
       await db.destroy();

@@ -1,0 +1,15 @@
+{
+  "camelCase": true,
+  "numericParser": "number",
+  "dateParser": "string",
+  "outFile": "src/db/schema.ts",
+  "overrides": {
+    "columns": {
+      "purchases.source": "\"nfce\" | \"manual\" | \"pix\"",
+      "purchase_items.category": "\"produce\" | \"meat\" | \"dairy_deli\" | \"bakery\" | \"grocery\" | \"beverages\" | \"snacks_sweets\" | \"frozen\" | \"cleaning\" | \"hygiene\" | \"pet\" | \"household\" | \"other\"",
+      "products.default_category": "\"produce\" | \"meat\" | \"dairy_deli\" | \"bakery\" | \"grocery\" | \"beverages\" | \"snacks_sweets\" | \"frozen\" | \"cleaning\" | \"hygiene\" | \"pet\" | \"household\" | \"other\" | null",
+      "scan_requests.status": "\"saved\" | \"duplicate\" | \"failed\"",
+      "transfers.transfer_type": "\"pix\""
+    }
+  }
+}

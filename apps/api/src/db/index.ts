@@ -1,6 +1,6 @@
 import { CamelCasePlugin, Kysely, PostgresDialect, sql } from "kysely";
 import pg from "pg";
-import type { Database } from "./schema";
+import type { DB as Database } from "./schema";
 
 // Postgres returns BIGINT (int8) and NUMERIC as strings by default. Our IDs are uuids and our money
 // values are small and well within Number.MAX_SAFE_INTEGER, so parse both as JS numbers for ergonomics.
@@ -19,6 +19,8 @@ export function makeDb(connectionString: string): LedgerDb {
     plugins: [new CamelCasePlugin()],
   });
 }
+
+export type ScanRequestStatus = "saved" | "duplicate" | "failed";
 
 export { sql };
 export type { Database };

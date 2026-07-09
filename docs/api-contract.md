@@ -63,7 +63,7 @@ interface Purchase {
   id: string; // slug
   date: string;
   time: string;
-  source: "nfce" | "manual";
+  source: "nfce" | "manual" | "pix";
   store: { name: string; legalName: string | null; cnpj: string | null; address: string | null };
   receipt: { number: number | null; series: number | null; accessKey: string } | null;
   items: PurchaseItem[];
@@ -85,6 +85,30 @@ interface PricePoint {
   store: string;
   unitPrice: number;
   purchaseId: string;
+}
+
+// A bank-transfer receipt (Pix comprovante) extracted by AI from a screenshot. Transfers
+// materialize into a regular Purchase (source: "pix") so they appear in the history feed;
+// the transfer row is kept as raw evidence and dedup anchor.
+interface Transfer {
+  transactionId: string; // the bank's end-to-end ID (e.g. "E1823…"); dedup key
+  type: "pix";
+  amount: number;
+  date: string;
+  time: string | null;
+  destination: {
+    name: string;
+    institution: string | null;
+    agency: string | null;
+    account: string | null;
+  };
+  origin: {
+    name: string;
+    institution: string | null;
+    agency: string | null;
+    account: string | null;
+  } | null;
+  purchaseId: string | null; // slug of the materialized purchase
 }
 ```
 
@@ -147,6 +171,56 @@ Genuine failures use the failure envelope with an `errorCode`:
 | `unavailable`  | 502  | SEFAZ unreachable or returned no products               |
 | `parse_failed` | 422  | fetched the page but could not parse it                 |
 
+### `POST /scan/photo`
+
+AI item identification: take a photo of any item and the server asks Claude (via the local `claude`
+CLI) to identify and categorize it. Body: `multipart/form-data` with an `image` field (JPEG, PNG, or
+WebP, ≤ 10 MB).
+
+Server configuration (env vars): `CLAUDE_BIN` (default `claude`), `CLAUDE_MODEL` (default
+`claude-opus-4-8`), `CLAUDE_PHOTO_PROMPT` (the identification instruction; the strict output format
+is always appended server-side), `CLAUDE_TIMEOUT_MS` (default `60000`).
+
+A rejection is a normal result, not an error — the AI declines when it cannot identify the item:
+
+```jsonc
+// 200 — identified
+{
+  "ok": true,
+  "message": "Item identified.",
+  "data": {
+    "status": "identified",
+    "item": {
+      "description": "Café Torrado e Moído 500g", // pt-BR, like a receipt line
+      "category": "grocery",
+      "confidence": 0.92, // 0..1
+    },
+    "comment": "Parece ser um pacote de café da marca Pilão.",
+  },
+  "error": null,
+}
+
+// 200 — rejected
+{
+  "ok": true,
+  "message": "Item rejected by the AI.",
+  "data": {
+    "status": "rejected",
+    "reason": "unclear_image", // "no_item" | "unclear_image" | "multiple_items" | "inappropriate"
+    "comment": "A foto está desfocada demais para identificar o produto.",
+  },
+  "error": null,
+}
+```
+
+Genuine failures use the failure envelope with an `errorCode`:
+
+| errorCode           | HTTP | meaning                                               |
+| ------------------- | ---- | ----------------------------------------------------- |
+| `invalid_image`     | 400  | missing `image` field, unsupported type, or bad size  |
+| `ai_unavailable`    | 502  | the `claude` CLI failed to run, errored, or timed out |
+| `ai_invalid_output` | 502  | the CLI ran but its output did not match the contract |
+
 ### `GET /purchases?page=&from=&to=&store=`
 
 The history feed. `data: PurchasePage` — **full** `Purchase` objects (same shape as
@@ -173,4 +247,7 @@ server has no Firebase credentials, push is disabled and registration is still a
 ### Future (stub in UI only)
 
 - `POST /scan-image` — multipart photo fallback (server decodes the QR, then `/scan`).
+- `POST /scan/transfer` — multipart Pix receipt screenshot → AI extraction → `Transfer` + a
+  materialized `Purchase` (source `"pix"`). Schema and types exist (`transfers` table, migration
+  004); the endpoint is not built yet.
 - `POST /ask` — natural-language question over the whole dataset (Anthropic API + SQL tools).

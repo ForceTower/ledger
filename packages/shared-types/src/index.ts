@@ -16,7 +16,7 @@ export type Category =
   | "household"
   | "other";
 
-export type PurchaseSource = "nfce" | "manual";
+export type PurchaseSource = "nfce" | "manual" | "pix";
 
 export interface ApiResponse<T> {
   ok: boolean;
@@ -86,3 +86,58 @@ export interface PricePoint {
   unitPrice: number;
   purchaseId: string;
 }
+
+export type TransferType = "pix";
+
+export interface TransferParty {
+  name: string;
+  institution: string | null;
+  agency: string | null;
+  account: string | null;
+}
+
+/** A bank-transfer receipt (Pix comprovante) extracted by AI from a screenshot/photo. */
+export interface Transfer {
+  /** The bank's end-to-end transaction ID (e.g. "E1823…"). Dedup key. */
+  transactionId: string;
+  type: TransferType;
+  amount: number;
+  date: string;
+  time: string | null;
+  destination: TransferParty;
+  origin: TransferParty | null;
+  /** Slug of the purchase this transfer materialized into; null if detached. */
+  purchaseId: string | null;
+}
+
+export type PhotoScanErrorCode = "invalid_image" | "ai_unavailable" | "ai_invalid_output";
+
+export type PhotoScanRejectionReason =
+  | "no_item"
+  | "unclear_image"
+  | "multiple_items"
+  | "inappropriate";
+
+export interface PhotoScanItem {
+  /** Item name as it would appear on a receipt line (pt-BR). */
+  description: string;
+  category: Category;
+  /** Model self-assessment, 0..1. */
+  confidence: number;
+}
+
+export interface PhotoScanIdentified {
+  status: "identified";
+  item: PhotoScanItem;
+  /** Free-form remark the AI wants to surface about the item (pt-BR). */
+  comment: string;
+}
+
+export interface PhotoScanRejected {
+  status: "rejected";
+  reason: PhotoScanRejectionReason;
+  /** Why the item could not be identified (pt-BR). */
+  comment: string;
+}
+
+export type PhotoScanResult = PhotoScanIdentified | PhotoScanRejected;

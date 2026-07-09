@@ -4,7 +4,7 @@ import type { ScanResult } from "@ledger/shared-types";
 import status from "http-status";
 import { type CacheClient, withLock } from "../cache";
 import type { LedgerDb } from "../db";
-import type { ScanRequestStatus } from "../db/schema";
+import type { ScanRequestStatus } from "../db";
 import { LedgerError, ledgerErrorFromNfce } from "../error";
 import { useLog } from "../logger";
 import { saveParsedReceipt } from "./ingest";

@@ -1,0 +1,79 @@
+name: build-api
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/**"
+      - "packages/**"
+      - "package.json"
+      - "bun.lock"
+      - "tsconfig.json"
+      - "apps/api/Dockerfile"
+      - ".github/workflows/build-api.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: build-api-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/forcetower/ledger-api
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Tell Portainer to re-pull the image and redeploy the stack, which re-runs
+      # the one-shot `migrate` service. The webhook URL comes from the ledger
+      # stack in Portainer (Stack -> Webhooks); store it as the PORTAINER_WEBHOOK_URL
+      # repo secret. No-ops if the secret is unset.
+      - name: Trigger Portainer redeploy
+        if: github.ref == 'refs/heads/main'
+        env:
+          WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK_URL }}
+        run: |
+          if [ -n "$WEBHOOK" ]; then
+            curl -fsS -X POST "$WEBHOOK"
+          else
+            echo "PORTAINER_WEBHOOK_URL not set; skipping redeploy trigger."
+          fi

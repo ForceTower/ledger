@@ -64,16 +64,21 @@ jobs:
           cache-to: type=gha,mode=max
 
       # Tell Portainer to re-pull the image and redeploy the stack, which re-runs
-      # the one-shot `migrate` service. The webhook URL comes from the ledger
-      # stack in Portainer (Stack -> Webhooks); store it as the PORTAINER_WEBHOOK_URL
-      # repo secret. No-ops if the secret is unset.
+      # the one-shot `migrate` service. The webhook URL comes from the ledger stack
+      # in Portainer (Stack -> Webhooks); Portainer sits behind Cloudflare Access, so
+      # we authenticate with a service token. Store all three as repo secrets. No-ops
+      # if the webhook secret is unset.
       - name: Trigger Portainer redeploy
         if: github.ref == 'refs/heads/main'
         env:
           WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK_URL }}
+          CF_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
-          if [ -n "$WEBHOOK" ]; then
-            curl -fsS -X POST "$WEBHOOK"
-          else
+          if [ -z "$WEBHOOK" ]; then
             echo "PORTAINER_WEBHOOK_URL not set; skipping redeploy trigger."
+            exit 0
           fi
+          curl -fsS -X POST "$WEBHOOK" \
+            -H "CF-Access-Client-Id: $CF_ID" \
+            -H "CF-Access-Client-Secret: $CF_SECRET"

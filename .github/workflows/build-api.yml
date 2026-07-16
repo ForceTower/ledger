@@ -79,6 +79,15 @@ jobs:
             echo "PORTAINER_WEBHOOK_URL not set; skipping redeploy trigger."
             exit 0
           fi
-          curl -fsS -X POST "$WEBHOOK" \
+          # Do NOT use `curl -f` alone: it treats a 302 (Cloudflare Access login
+          # redirect, i.e. a rejected service token) as success. Capture the code
+          # and fail on anything that is not 2xx.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$WEBHOOK" \
             -H "CF-Access-Client-Id: $CF_ID" \
-            -H "CF-Access-Client-Secret: $CF_SECRET"
+            -H "CF-Access-Client-Secret: $CF_SECRET")
+          echo "Portainer webhook responded HTTP $code"
+          case "$code" in
+            2*) echo "Redeploy triggered." ;;
+            30*) echo "::error::Redirect ($code) - Cloudflare Access rejected the service token. Ensure the Access app covering the webhook path has a Service Auth policy that includes this token."; exit 1 ;;
+            *)  echo "::error::Webhook failed (HTTP $code)."; exit 1 ;;
+          esac

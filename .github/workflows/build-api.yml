@@ -64,14 +64,15 @@ jobs:
           cache-to: type=gha,mode=max
 
       # Pin the built sha tag into the deploy repo so the redeploy picks it up; the
-      # commit doubles as a deploy log. Via the Contents API (not git push) so the
-      # commit is signed/verified and authored by the token owner. No-op if unset.
+      # commit doubles as a deploy log. Via the GraphQL createCommitOnBranch API so
+      # the commit is signed by GitHub (Verified) and authored by the token owner.
       - name: Pin image tag in deploy repo
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.HOMELAB_DEPLOY_PAT }}
           TAGS: ${{ steps.meta.outputs.tags }}
           REPO: ForceTower/homelab-pi
+          BRANCH: main
           FILE: services/ledger/docker-compose.yml
         run: |
           if [ -z "$GH_TOKEN" ]; then
@@ -80,19 +81,17 @@ jobs:
           fi
           tag=$(printf '%s\n' "$TAGS" | grep -oE 'sha-[0-9a-f]+' | head -1)
           if [ -z "$tag" ]; then echo "::error::metadata produced no sha- tag"; exit 1; fi
-          cur=$(gh api "repos/${REPO}/contents/${FILE}")
-          sha=$(printf '%s' "$cur" | jq -r .sha)
-          old=$(printf '%s' "$cur" | jq -r .content | base64 -d)
+          old=$(gh api "repos/${REPO}/contents/${FILE}?ref=${BRANCH}" --jq .content | base64 -d)
           new=$(printf '%s' "$old" | sed "s|${IMAGE}:[^[:space:]]*|${IMAGE}:${tag}|g")
           if [ "$old" = "$new" ]; then
             echo "deploy compose already at ${tag}; nothing to commit."
             exit 0
           fi
-          gh api -X PUT "repos/${REPO}/contents/${FILE}" \
-            -f message="deploy(ledger): ${tag}" \
-            -f content="$(printf '%s' "$new" | base64 -w0)" \
-            -f sha="$sha" >/dev/null
-          echo "Pinned ledger to ${tag} (Verified, via Contents API)."
+          oid=$(gh api "repos/${REPO}/commits/${BRANCH}" --jq .sha)
+          gh api graphql -f query='mutation($repo:String!,$branch:String!,$oid:GitObjectID!,$path:String!,$contents:Base64String!,$msg:String!){createCommitOnBranch(input:{branch:{repositoryNameWithOwner:$repo,branchName:$branch},message:{headline:$msg},expectedHeadOid:$oid,fileChanges:{additions:[{path:$path,contents:$contents}]}}){commit{oid}}}' \
+            -f repo="$REPO" -f branch="$BRANCH" -f oid="$oid" -f path="$FILE" \
+            -f contents="$(printf '%s\n' "$new" | base64 -w0)" -f msg="deploy(ledger): ${tag}" >/dev/null
+          echo "Pinned ledger to ${tag} (Verified, via createCommitOnBranch)."
 
       # Trigger the deploy webhook, retrying transient failures. No-op if unset.
       - name: Trigger redeploy webhook

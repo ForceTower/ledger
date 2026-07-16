@@ -98,11 +98,46 @@ const PHOTO_SCAN_JSON_SCHEMA = {
   ],
 };
 
-// `claude -p --output-format json` wraps the answer in a result envelope.
+// `claude -p --output-format json` wraps the answer in a result envelope. Unlike the
+// API, the CLI reports the dollar cost of the run directly (total_cost_usd).
 const claudeCliOutputSchema = z.object({
   result: z.string(),
   is_error: z.boolean().optional(),
+  total_cost_usd: z.number().optional(),
+  usage: z.object({ input_tokens: z.number().optional(), output_tokens: z.number().optional() }).optional(),
 });
+
+// USD per 1M tokens, keyed by model, for logging the cost of each API photo scan.
+// Cache reads bill at 0.1x input; 5-minute cache writes at 1.25x input.
+const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  "claude-haiku-4-5": { input: 1, output: 5 },
+  "claude-sonnet-5": { input: 3, output: 15 },
+  "claude-opus-4-8": { input: 5, output: 25 },
+};
+
+interface ScanUsage {
+  inputTokens: number;
+  outputTokens: number;
+  // Undefined when the model has no entry in MODEL_PRICING.
+  costUsd: number | undefined;
+}
+
+function apiUsage(model: string, usage: Anthropic.Usage): ScanUsage {
+  const price = MODEL_PRICING[model];
+  const cacheRead = usage.cache_read_input_tokens ?? 0;
+  const cacheWrite = usage.cache_creation_input_tokens ?? 0;
+  const costUsd = price
+    ? Math.round(
+        ((usage.input_tokens * price.input +
+          cacheRead * price.input * 0.1 +
+          cacheWrite * price.input * 1.25 +
+          usage.output_tokens * price.output) /
+          1_000_000) *
+          1e6,
+      ) / 1e6
+    : undefined;
+  return { inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, costUsd };
+}
 
 export interface PhotoScanConfig {
   /** When set, the Anthropic API is used; otherwise the Claude CLI (`bin`) is invoked on the host. */
@@ -132,16 +167,24 @@ export class PhotoScanService {
 
     const startedAt = Date.now();
     const transport = this.anthropic ? "api" : "cli";
-    const result = this.anthropic
+    const { result, usage } = this.anthropic
       ? await this.identifyViaApi(this.anthropic, image)
       : await this.identifyViaCli(image, extension);
     useLog()
-      .withMetadata({ status: result.status, durationMs: Date.now() - startedAt, model: this.config.model, transport })
+      .withMetadata({
+        status: result.status,
+        durationMs: Date.now() - startedAt,
+        model: this.config.model,
+        transport,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        costUsd: usage.costUsd,
+      })
       .info("Photo scan processed");
     return result;
   }
 
-  private async identifyViaApi(client: Anthropic, image: File): Promise<PhotoScanResult> {
+  private async identifyViaApi(client: Anthropic, image: File): Promise<{ result: PhotoScanResult; usage: ScanUsage }> {
     const mediaType = apiMediaTypeSchema.parse(image.type);
     const data = Buffer.from(await image.arrayBuffer()).toString("base64");
 
@@ -177,10 +220,10 @@ export class PhotoScanService {
         .error("Anthropic returned no usable photo scan output");
       throw new LedgerError(status.BAD_GATEWAY, "The AI returned an unexpected response", "ai_invalid_output");
     }
-    return this.parseModelJson(textBlock.text);
+    return { result: this.parseModelJson(textBlock.text), usage: apiUsage(this.config.model, message.usage) };
   }
 
-  private async identifyViaCli(image: File, extension: string): Promise<PhotoScanResult> {
+  private async identifyViaCli(image: File, extension: string): Promise<{ result: PhotoScanResult; usage: ScanUsage }> {
     const imagePath = join(tmpdir(), `ledger-photo-scan-${randomUUID()}.${extension}`);
     try {
       await Bun.write(imagePath, image);
@@ -255,7 +298,7 @@ export class PhotoScanService {
     }
   }
 
-  private parseCliResult(stdout: string): PhotoScanResult {
+  private parseCliResult(stdout: string): { result: PhotoScanResult; usage: ScanUsage } {
     const envelope = claudeCliOutputSchema.safeParse(safeJsonParse(stdout));
     if (!envelope.success || envelope.data.is_error) {
       useLog()
@@ -263,7 +306,12 @@ export class PhotoScanService {
         .error("Unexpected Claude CLI envelope");
       throw new LedgerError(status.BAD_GATEWAY, "The AI returned an unexpected response", "ai_invalid_output");
     }
-    return this.parseModelJson(envelope.data.result);
+    const usage: ScanUsage = {
+      inputTokens: envelope.data.usage?.input_tokens ?? 0,
+      outputTokens: envelope.data.usage?.output_tokens ?? 0,
+      costUsd: envelope.data.total_cost_usd,
+    };
+    return { result: this.parseModelJson(envelope.data.result), usage };
   }
 
   private parseModelJson(text: string): PhotoScanResult {

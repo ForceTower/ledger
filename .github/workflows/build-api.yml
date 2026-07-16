@@ -63,43 +63,39 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Pin the freshly-built sha tag into the homelab-pi compose and push it.
-      # This advances homelab-pi's HEAD, so the Portainer webhook below actually
-      # redeploys: Portainer's git-stack webhook no-ops when the tracked repo's
-      # commit is unchanged, and an image-only build never moves it otherwise.
-      # The commit doubles as a deploy log (rollback = git revert). No-ops if the
-      # deploy token is unset.
-      - name: Pin image tag in homelab-pi
+      # Pin the built sha tag into the deploy repo so the redeploy picks it up; the
+      # commit doubles as a deploy log. Via the Contents API (not git push) so the
+      # commit is signed/verified and authored by the token owner. No-op if unset.
+      - name: Pin image tag in deploy repo
         if: github.ref == 'refs/heads/main'
         env:
-          HOMELAB_PAT: ${{ secrets.HOMELAB_DEPLOY_PAT }}
+          GH_TOKEN: ${{ secrets.HOMELAB_DEPLOY_PAT }}
           TAGS: ${{ steps.meta.outputs.tags }}
+          REPO: ForceTower/homelab-pi
+          FILE: services/ledger/docker-compose.yml
         run: |
-          if [ -z "$HOMELAB_PAT" ]; then
+          if [ -z "$GH_TOKEN" ]; then
             echo "HOMELAB_DEPLOY_PAT not set; skipping image-tag pin."
             exit 0
           fi
           tag=$(printf '%s\n' "$TAGS" | grep -oE 'sha-[0-9a-f]+' | head -1)
           if [ -z "$tag" ]; then echo "::error::metadata produced no sha- tag"; exit 1; fi
-          git clone --depth 1 "https://x-access-token:${HOMELAB_PAT}@github.com/ForceTower/homelab-pi.git" hp
-          sed -i "s|${IMAGE}:[^[:space:]]*|${IMAGE}:${tag}|g" hp/services/ledger/docker-compose.yml
-          cd hp
-          git config user.name "ledger-ci"
-          git config user.email "ci@users.noreply.github.com"
-          if git diff --quiet; then
-            echo "homelab-pi compose already at ${tag}; nothing to commit."
-          else
-            git commit -am "deploy(ledger): ${tag}"
-            git push
-            echo "Pinned ledger to ${tag}."
+          cur=$(gh api "repos/${REPO}/contents/${FILE}")
+          sha=$(printf '%s' "$cur" | jq -r .sha)
+          old=$(printf '%s' "$cur" | jq -r .content | base64 -d)
+          new=$(printf '%s' "$old" | sed "s|${IMAGE}:[^[:space:]]*|${IMAGE}:${tag}|g")
+          if [ "$old" = "$new" ]; then
+            echo "deploy compose already at ${tag}; nothing to commit."
+            exit 0
           fi
+          gh api -X PUT "repos/${REPO}/contents/${FILE}" \
+            -f message="deploy(ledger): ${tag}" \
+            -f content="$(printf '%s' "$new" | base64 -w0)" \
+            -f sha="$sha" >/dev/null
+          echo "Pinned ledger to ${tag} (Verified, via Contents API)."
 
-      # Tell Portainer to re-pull the image and redeploy the stack, which re-runs
-      # the one-shot `migrate` service. The webhook URL comes from the ledger stack
-      # in Portainer (Stack -> Webhooks); Portainer sits behind Cloudflare Access, so
-      # we authenticate with a service token. Store all three as repo secrets. No-ops
-      # if the webhook secret is unset.
-      - name: Trigger Portainer redeploy
+      # Trigger the deploy webhook, retrying transient failures. No-op if unset.
+      - name: Trigger redeploy webhook
         if: github.ref == 'refs/heads/main'
         env:
           WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK_URL }}
@@ -110,15 +106,17 @@ jobs:
             echo "PORTAINER_WEBHOOK_URL not set; skipping redeploy trigger."
             exit 0
           fi
-          # Do NOT use `curl -f` alone: it treats a 302 (Cloudflare Access login
-          # redirect, i.e. a rejected service token) as success. Capture the code
-          # and fail on anything that is not 2xx.
-          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$WEBHOOK" \
-            -H "CF-Access-Client-Id: $CF_ID" \
-            -H "CF-Access-Client-Secret: $CF_SECRET")
-          echo "Portainer webhook responded HTTP $code"
-          case "$code" in
-            2*) echo "Redeploy triggered." ;;
-            30*) echo "::error::Redirect ($code) - Cloudflare Access rejected the service token. Ensure the Access app covering the webhook path has a Service Auth policy that includes this token."; exit 1 ;;
-            *)  echo "::error::Webhook failed (HTTP $code)."; exit 1 ;;
-          esac
+          # Retry transient failures; fail fast on a 3xx (rejected token, not a
+          # transient error). curl -f alone would treat a 3xx as success.
+          for attempt in 1 2 3 4 5; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$WEBHOOK" \
+              -H "CF-Access-Client-Id: $CF_ID" \
+              -H "CF-Access-Client-Secret: $CF_SECRET" || echo 000)
+            echo "Attempt ${attempt}: webhook HTTP ${code}"
+            case "$code" in
+              2*) echo "Redeploy triggered."; exit 0 ;;
+              30*) echo "::error::Redirect (${code}) - deploy token rejected by the gateway."; exit 1 ;;
+              *)  echo "transient (${code}); retrying in 15s..."; sleep 15 ;;
+            esac
+          done
+          echo "::error::webhook failed after 5 attempts."; exit 1

@@ -63,6 +63,37 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Pin the freshly-built sha tag into the homelab-pi compose and push it.
+      # This advances homelab-pi's HEAD, so the Portainer webhook below actually
+      # redeploys: Portainer's git-stack webhook no-ops when the tracked repo's
+      # commit is unchanged, and an image-only build never moves it otherwise.
+      # The commit doubles as a deploy log (rollback = git revert). No-ops if the
+      # deploy token is unset.
+      - name: Pin image tag in homelab-pi
+        if: github.ref == 'refs/heads/main'
+        env:
+          HOMELAB_PAT: ${{ secrets.HOMELAB_DEPLOY_PAT }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          if [ -z "$HOMELAB_PAT" ]; then
+            echo "HOMELAB_DEPLOY_PAT not set; skipping image-tag pin."
+            exit 0
+          fi
+          tag=$(printf '%s\n' "$TAGS" | grep -oE 'sha-[0-9a-f]+' | head -1)
+          if [ -z "$tag" ]; then echo "::error::metadata produced no sha- tag"; exit 1; fi
+          git clone --depth 1 "https://x-access-token:${HOMELAB_PAT}@github.com/ForceTower/homelab-pi.git" hp
+          sed -i "s|${IMAGE}:[^[:space:]]*|${IMAGE}:${tag}|g" hp/services/ledger/docker-compose.yml
+          cd hp
+          git config user.name "ledger-ci"
+          git config user.email "ci@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "homelab-pi compose already at ${tag}; nothing to commit."
+          else
+            git commit -am "deploy(ledger): ${tag}"
+            git push
+            echo "Pinned ledger to ${tag}."
+          fi
+
       # Tell Portainer to re-pull the image and redeploy the stack, which re-runs
       # the one-shot `migrate` service. The webhook URL comes from the ledger stack
       # in Portainer (Stack -> Webhooks); Portainer sits behind Cloudflare Access, so

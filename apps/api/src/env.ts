@@ -17,9 +17,11 @@ const envVarsSchema = z.object({
   SEFAZ_BASE_URL: z.string().default("http://nfe.sefaz.ba.gov.br/servicos/nfce/modulos/geral/"),
   // Optional: base64 Firebase service account JSON. When unset, push notifications are disabled.
   FIREBASE_SERVICE_ACCOUNT_BASE64: z.string().optional(),
-  // Photo scan (POST /scan/photo) runs the Claude CLI on the host.
+  // Photo scan (POST /scan/photo): when ANTHROPIC_API_KEY is set the Anthropic API is used;
+  // otherwise the Claude CLI (CLAUDE_BIN) is invoked on the host.
+  ANTHROPIC_API_KEY: z.string().optional(),
   CLAUDE_BIN: z.string().default("claude"),
-  CLAUDE_MODEL: z.string().default("claude-opus-4-8"),
+  CLAUDE_MODEL: z.string().default("claude-haiku-4-5"),
   CLAUDE_PHOTO_PROMPT: z.string().default(DEFAULT_PHOTO_PROMPT),
   CLAUDE_TIMEOUT_MS: z.coerce.number().default(60_000),
 });
@@ -59,6 +61,7 @@ export async function getEnv(): Promise<LedgerEnv> {
   const purchase = new PurchaseService({ db });
   const scan = new ScanService({ db, cache, purchase, sefazBaseUrl: vars.SEFAZ_BASE_URL });
   const photoScan = new PhotoScanService({
+    apiKey: vars.ANTHROPIC_API_KEY || undefined,
     bin: vars.CLAUDE_BIN,
     model: vars.CLAUDE_MODEL,
     prompt: vars.CLAUDE_PHOTO_PROMPT,

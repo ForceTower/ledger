@@ -17,6 +17,7 @@
     "lint:fix": "oxlint --fix src"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.111.0",
     "@hono/zod-validator": "^0.7.6",
     "@ledger/nfce": "workspace:*",
     "@ledger/shared-types": "workspace:*",

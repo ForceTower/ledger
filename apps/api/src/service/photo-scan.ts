@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import Anthropic from "@anthropic-ai/sdk";
 import type { PhotoScanResult } from "@ledger/shared-types";
 import status from "http-status";
 import { z } from "zod";
@@ -15,6 +16,8 @@ const IMAGE_EXTENSIONS: Record<string, string> = {
 };
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+const MAX_OUTPUT_TOKENS = 1024;
 
 export const DEFAULT_PHOTO_PROMPT =
   "Identify the single household/grocery item in the picture and map it to the expected fields, " +
@@ -38,6 +41,9 @@ const CATEGORIES = [
 
 const REJECTION_REASONS = ["no_item", "unclear_image", "multiple_items", "inappropriate"] as const;
 
+// Only the base64-source media types the Anthropic API accepts, narrowed from a validated image.type.
+const apiMediaTypeSchema = z.enum(["image/jpeg", "image/png", "image/webp"]);
+
 const identifiedSchema = z.object({
   status: z.literal("identified"),
   item: z.object({
@@ -56,6 +62,42 @@ const rejectedSchema = z.object({
 
 const photoScanResultSchema = z.discriminatedUnion("status", [identifiedSchema, rejectedSchema]);
 
+// JSON Schema mirror of photoScanResultSchema for the API's structured outputs. Structured outputs
+// forbids numeric/length constraints (min/max) and requires additionalProperties: false everywhere.
+const PHOTO_SCAN_JSON_SCHEMA = {
+  anyOf: [
+    {
+      type: "object",
+      properties: {
+        status: { type: "string", const: "identified" },
+        item: {
+          type: "object",
+          properties: {
+            description: { type: "string" },
+            category: { type: "string", enum: [...CATEGORIES] },
+            confidence: { type: "number" },
+          },
+          required: ["description", "category", "confidence"],
+          additionalProperties: false,
+        },
+        comment: { type: "string" },
+      },
+      required: ["status", "item", "comment"],
+      additionalProperties: false,
+    },
+    {
+      type: "object",
+      properties: {
+        status: { type: "string", const: "rejected" },
+        reason: { type: "string", enum: [...REJECTION_REASONS] },
+        comment: { type: "string" },
+      },
+      required: ["status", "reason", "comment"],
+      additionalProperties: false,
+    },
+  ],
+};
+
 // `claude -p --output-format json` wraps the answer in a result envelope.
 const claudeCliOutputSchema = z.object({
   result: z.string(),
@@ -63,6 +105,8 @@ const claudeCliOutputSchema = z.object({
 });
 
 export interface PhotoScanConfig {
+  /** When set, the Anthropic API is used; otherwise the Claude CLI (`bin`) is invoked on the host. */
+  apiKey: string | undefined;
   bin: string;
   model: string;
   prompt: string;
@@ -70,9 +114,13 @@ export interface PhotoScanConfig {
 }
 
 export class PhotoScanService {
-  constructor(private readonly config: PhotoScanConfig) {}
+  private readonly anthropic: Anthropic | undefined;
 
-  /** Identify the item in a photo by delegating to the Claude CLI. Rejections are results, not errors. */
+  constructor(private readonly config: PhotoScanConfig) {
+    this.anthropic = config.apiKey ? new Anthropic({ apiKey: config.apiKey }) : undefined;
+  }
+
+  /** Identify the item in a photo via the Anthropic API when configured, else the Claude CLI. Rejections are results, not errors. */
   async identify(image: File): Promise<PhotoScanResult> {
     const extension = IMAGE_EXTENSIONS[image.type];
     if (!extension) {
@@ -82,24 +130,73 @@ export class PhotoScanService {
       throw new LedgerError(status.BAD_REQUEST, "Image must be between 1 byte and 10 MB", "invalid_image");
     }
 
-    const imagePath = join(tmpdir(), `ledger-photo-scan-${randomUUID()}.${extension}`);
     const startedAt = Date.now();
+    const transport = this.anthropic ? "api" : "cli";
+    const result = this.anthropic
+      ? await this.identifyViaApi(this.anthropic, image)
+      : await this.identifyViaCli(image, extension);
+    useLog()
+      .withMetadata({ status: result.status, durationMs: Date.now() - startedAt, model: this.config.model, transport })
+      .info("Photo scan processed");
+    return result;
+  }
+
+  private async identifyViaApi(client: Anthropic, image: File): Promise<PhotoScanResult> {
+    const mediaType = apiMediaTypeSchema.parse(image.type);
+    const data = Buffer.from(await image.arrayBuffer()).toString("base64");
+
+    let message: Anthropic.Message;
+    try {
+      message = await client.messages.create(
+        {
+          model: this.config.model,
+          max_tokens: MAX_OUTPUT_TOKENS,
+          output_config: { format: { type: "json_schema", schema: PHOTO_SCAN_JSON_SCHEMA } },
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "image", source: { type: "base64", media_type: mediaType, data } },
+                { type: "text", text: this.buildInstructions() },
+              ],
+            },
+          ],
+        },
+        { timeout: this.config.timeoutMs },
+      );
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      useLog().withError(err).error("Anthropic photo scan request failed");
+      throw new LedgerError(status.BAD_GATEWAY, "The AI service is unavailable", "ai_unavailable");
+    }
+
+    const textBlock = message.content.find((block): block is Anthropic.TextBlock => block.type === "text");
+    if (message.stop_reason === "refusal" || textBlock === undefined) {
+      useLog()
+        .withMetadata({ stopReason: message.stop_reason })
+        .error("Anthropic returned no usable photo scan output");
+      throw new LedgerError(status.BAD_GATEWAY, "The AI returned an unexpected response", "ai_invalid_output");
+    }
+    return this.parseModelJson(textBlock.text);
+  }
+
+  private async identifyViaCli(image: File, extension: string): Promise<PhotoScanResult> {
+    const imagePath = join(tmpdir(), `ledger-photo-scan-${randomUUID()}.${extension}`);
     try {
       await Bun.write(imagePath, image);
-      const raw = await this.invokeClaude(imagePath);
-      const result = this.parseResult(raw);
-      useLog()
-        .withMetadata({ status: result.status, durationMs: Date.now() - startedAt, model: this.config.model })
-        .info("Photo scan processed");
-      return result;
+      const stdout = await this.invokeClaude(imagePath);
+      return this.parseCliResult(stdout);
     } finally {
       await unlink(imagePath).catch(() => {});
     }
   }
 
-  private buildPrompt(imagePath: string): string {
-    return [
-      `Read the image at ${imagePath}.`,
+  private buildInstructions(imagePath?: string): string {
+    const lines: string[] = [];
+    if (imagePath !== undefined) {
+      lines.push(`Read the image at ${imagePath}.`);
+    }
+    lines.push(
       this.config.prompt,
       "",
       `Valid categories: ${CATEGORIES.join(", ")}.`,
@@ -114,7 +211,8 @@ export class PhotoScanService {
       `  "comment":<string, pt-BR>}`,
       `- If you must refuse: {"status":"rejected","reason":<rejection reason>,"comment":<string explaining`,
       "  why, pt-BR>}",
-    ].join("\n");
+    );
+    return lines.join("\n");
   }
 
   private async invokeClaude(imagePath: string): Promise<string> {
@@ -122,7 +220,7 @@ export class PhotoScanService {
       [
         this.config.bin,
         "-p",
-        this.buildPrompt(imagePath),
+        this.buildInstructions(imagePath),
         "--model",
         this.config.model,
         "--output-format",
@@ -157,7 +255,7 @@ export class PhotoScanService {
     }
   }
 
-  private parseResult(stdout: string): PhotoScanResult {
+  private parseCliResult(stdout: string): PhotoScanResult {
     const envelope = claudeCliOutputSchema.safeParse(safeJsonParse(stdout));
     if (!envelope.success || envelope.data.is_error) {
       useLog()
@@ -165,12 +263,15 @@ export class PhotoScanService {
         .error("Unexpected Claude CLI envelope");
       throw new LedgerError(status.BAD_GATEWAY, "The AI returned an unexpected response", "ai_invalid_output");
     }
+    return this.parseModelJson(envelope.data.result);
+  }
 
-    const parsed = photoScanResultSchema.safeParse(safeJsonParse(stripFences(envelope.data.result)));
+  private parseModelJson(text: string): PhotoScanResult {
+    const parsed = photoScanResultSchema.safeParse(safeJsonParse(stripFences(text)));
     if (!parsed.success) {
       useLog()
-        .withMetadata({ result: envelope.data.result.slice(0, 2000), issues: z.treeifyError(parsed.error) })
-        .error("Claude output did not match the photo scan contract");
+        .withMetadata({ result: text.slice(0, 2000), issues: z.treeifyError(parsed.error) })
+        .error("Model output did not match the photo scan contract");
       throw new LedgerError(status.BAD_GATEWAY, "The AI returned an unexpected response", "ai_invalid_output");
     }
     return parsed.data;

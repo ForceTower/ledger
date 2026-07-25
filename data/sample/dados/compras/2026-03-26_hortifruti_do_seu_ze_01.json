@@ -1,0 +1,88 @@
+{
+  "id": "2026-03-26_hortifruti_do_seu_ze_01",
+  "data": "2026-03-26",
+  "hora": "15:00:00",
+  "origem": "manual",
+  "loja": {
+    "nome": "Hortifruti do Seu Zé",
+    "cnpj": "",
+    "endereco": ""
+  },
+  "nfce": null,
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "REPOLHO (METADE)",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 4.55,
+      "valor_total": 4.55,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 2,
+      "descricao": "FARINHA DE BEIJU",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 8.69,
+      "valor_total": 8.69,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 3,
+      "descricao": "AIPIM",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 7.29,
+      "valor_total": 7.29,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 4,
+      "descricao": "CAMARAO",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 7.92,
+      "valor_total": 7.92,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 5,
+      "descricao": "LIMAO",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 4.79,
+      "valor_total": 4.79,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 6,
+      "descricao": "BANANA DA TERRA",
+      "codigo": "",
+      "quantidade": 3,
+      "unidade": "Un",
+      "valor_unitario": 1.77,
+      "valor_total": 5.31,
+      "categoria": "hortifruti"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 6,
+    "valor_bruto": 38.55,
+    "descontos": 0,
+    "valor_pago": 38.55
+  },
+  "pagamento": [
+    {
+      "forma": "Dinheiro",
+      "codigo": null,
+      "valor": 38.55
+    }
+  ],
+  "tributos_totais": null
+}

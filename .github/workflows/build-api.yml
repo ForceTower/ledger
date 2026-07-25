@@ -64,8 +64,10 @@ jobs:
           cache-to: type=gha,mode=max
 
       # Pin the built sha tag into the deploy repo so the redeploy picks it up; the
-      # commit doubles as a deploy log. Via the GraphQL createCommitOnBranch API so
-      # the commit is signed by GitHub (Verified) and authored by the token owner.
+      # commit doubles as a deploy log. Both the prod and the App Review demo stacks
+      # are pinned in one commit so they always run the same image. Via the GraphQL
+      # createCommitOnBranch API so the commit is signed by GitHub (Verified) and
+      # authored by the token owner.
       - name: Pin image tag in deploy repo
         if: github.ref == 'refs/heads/main'
         env:
@@ -73,7 +75,7 @@ jobs:
           TAGS: ${{ steps.meta.outputs.tags }}
           REPO: ForceTower/homelab-pi
           BRANCH: main
-          FILE: services/ledger/docker-compose.yml
+          FILES: services/ledger/docker-compose.yml services/ledger-demo/docker-compose.yml
         run: |
           if [ -z "$GH_TOKEN" ]; then
             echo "HOMELAB_DEPLOY_PAT not set; skipping image-tag pin."
@@ -81,41 +83,59 @@ jobs:
           fi
           tag=$(printf '%s\n' "$TAGS" | grep -oE 'sha-[0-9a-f]+' | head -1)
           if [ -z "$tag" ]; then echo "::error::metadata produced no sha- tag"; exit 1; fi
-          old=$(gh api "repos/${REPO}/contents/${FILE}?ref=${BRANCH}" --jq .content | base64 -d)
-          new=$(printf '%s' "$old" | sed "s|${IMAGE}:[^[:space:]]*|${IMAGE}:${tag}|g")
-          if [ "$old" = "$new" ]; then
-            echo "deploy compose already at ${tag}; nothing to commit."
+          additions='[]'
+          changed=0
+          for file in $FILES; do
+            if ! old=$(gh api "repos/${REPO}/contents/${file}?ref=${BRANCH}" --jq .content | base64 -d); then
+              echo "::warning::${file} not found in ${REPO}; skipping."
+              continue
+            fi
+            new=$(printf '%s' "$old" | sed "s|${IMAGE}:[^[:space:]]*|${IMAGE}:${tag}|g")
+            if [ "$old" != "$new" ]; then changed=1; fi
+            additions=$(jq -c --arg path "$file" --arg contents "$(printf '%s\n' "$new" | base64 -w0)" \
+              '. + [{path: $path, contents: $contents}]' <<<"$additions")
+          done
+          if [ "$changed" -eq 0 ]; then
+            echo "deploy composes already at ${tag}; nothing to commit."
             exit 0
           fi
           oid=$(gh api "repos/${REPO}/commits/${BRANCH}" --jq .sha)
-          gh api graphql -f query='mutation($repo:String!,$branch:String!,$oid:GitObjectID!,$path:String!,$contents:Base64String!,$msg:String!){createCommitOnBranch(input:{branch:{repositoryNameWithOwner:$repo,branchName:$branch},message:{headline:$msg},expectedHeadOid:$oid,fileChanges:{additions:[{path:$path,contents:$contents}]}}){commit{oid}}}' \
-            -f repo="$REPO" -f branch="$BRANCH" -f oid="$oid" -f path="$FILE" \
-            -f contents="$(printf '%s\n' "$new" | base64 -w0)" -f msg="deploy(ledger): ${tag}" >/dev/null
-          echo "Pinned ledger to ${tag} (Verified, via createCommitOnBranch)."
+          query='mutation($repo:String!,$branch:String!,$oid:GitObjectID!,$additions:[FileAddition!]!,$msg:String!){createCommitOnBranch(input:{branch:{repositoryNameWithOwner:$repo,branchName:$branch},message:{headline:$msg},expectedHeadOid:$oid,fileChanges:{additions:$additions}}){commit{oid}}}'
+          jq -n --arg query "$query" --arg repo "$REPO" --arg branch "$BRANCH" --arg oid "$oid" \
+            --arg msg "deploy(ledger): ${tag}" --argjson additions "$additions" \
+            '{query: $query, variables: {repo: $repo, branch: $branch, oid: $oid, msg: $msg, additions: $additions}}' \
+            | gh api graphql --input - >/dev/null
+          echo "Pinned $(jq length <<<"$additions") compose file(s) to ${tag} (Verified, via createCommitOnBranch)."
 
-      # Trigger the deploy webhook, retrying transient failures. No-op if unset.
-      - name: Trigger redeploy webhook
+      # Trigger the deploy webhooks (prod + App Review demo), retrying transient
+      # failures. Unset webhooks are skipped.
+      - name: Trigger redeploy webhooks
         if: github.ref == 'refs/heads/main'
         env:
           WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK_URL }}
+          WEBHOOK_DEMO: ${{ secrets.PORTAINER_DEMO_WEBHOOK_URL }}
           CF_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
-          if [ -z "$WEBHOOK" ]; then
-            echo "PORTAINER_WEBHOOK_URL not set; skipping redeploy trigger."
-            exit 0
-          fi
           # Retry transient failures; fail fast on a 3xx (rejected token, not a
           # transient error). curl -f alone would treat a 3xx as success.
-          for attempt in 1 2 3 4 5; do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$WEBHOOK" \
-              -H "CF-Access-Client-Id: $CF_ID" \
-              -H "CF-Access-Client-Secret: $CF_SECRET" || echo 000)
-            echo "Attempt ${attempt}: webhook HTTP ${code}"
-            case "$code" in
-              2*) echo "Redeploy triggered."; exit 0 ;;
-              30*) echo "::error::Redirect (${code}) - deploy token rejected by the gateway."; exit 1 ;;
-              *)  echo "transient (${code}); retrying in 15s..."; sleep 15 ;;
-            esac
-          done
-          echo "::error::webhook failed after 5 attempts."; exit 1
+          trigger() {
+            local name=$1 url=$2
+            for attempt in 1 2 3 4 5; do
+              code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$url" \
+                -H "CF-Access-Client-Id: $CF_ID" \
+                -H "CF-Access-Client-Secret: $CF_SECRET" || echo 000)
+              echo "${name} attempt ${attempt}: webhook HTTP ${code}"
+              case "$code" in
+                2*) echo "${name} redeploy triggered."; return 0 ;;
+                30*) echo "::error::${name}: redirect (${code}) - deploy token rejected by the gateway."; return 1 ;;
+                *)  echo "${name}: transient (${code}); retrying in 15s..."; sleep 15 ;;
+              esac
+            done
+            echo "::error::${name}: webhook failed after 5 attempts."
+            return 1
+          }
+          failed=0
+          if [ -n "$WEBHOOK" ]; then trigger ledger "$WEBHOOK" || failed=1; else echo "PORTAINER_WEBHOOK_URL not set; skipping prod redeploy."; fi
+          if [ -n "$WEBHOOK_DEMO" ]; then trigger ledger-demo "$WEBHOOK_DEMO" || failed=1; else echo "PORTAINER_DEMO_WEBHOOK_URL not set; skipping demo redeploy."; fi
+          exit "$failed"

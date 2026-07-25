@@ -1,0 +1,88 @@
+{
+  "id": "2026-03-26_tempero_da_terra_01",
+  "data": "2026-03-26",
+  "hora": "15:00:00",
+  "origem": "manual",
+  "loja": {
+    "nome": "Tempero da Terra",
+    "cnpj": "",
+    "endereco": ""
+  },
+  "nfce": null,
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "LEMON PEPPER",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 5.37,
+      "valor_total": 5.37,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 2,
+      "descricao": "PAPRICA DEFUMADA",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 3.82,
+      "valor_total": 3.82,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 3,
+      "descricao": "ERVA DOCE",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 3.2,
+      "valor_total": 3.2,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 4,
+      "descricao": "FOLHA DE LOURO",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 3.4,
+      "valor_total": 3.4,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 5,
+      "descricao": "PASSAS",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 9.16,
+      "valor_total": 9.16,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 6,
+      "descricao": "AMEIXA",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 16.16,
+      "valor_total": 16.16,
+      "categoria": "mercearia"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 6,
+    "valor_bruto": 41.11,
+    "descontos": 0,
+    "valor_pago": 41.11
+  },
+  "pagamento": [
+    {
+      "forma": "Dinheiro",
+      "codigo": null,
+      "valor": 41.11
+    }
+  ],
+  "tributos_totais": null
+}

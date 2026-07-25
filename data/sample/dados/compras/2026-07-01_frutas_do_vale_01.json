@@ -1,0 +1,38 @@
+{
+  "id": "2026-07-01_frutas_do_vale_01",
+  "data": "2026-07-01",
+  "hora": "13:54:18",
+  "origem": "manual",
+  "loja": {
+    "nome": "Frutas do Vale",
+    "cnpj": "",
+    "endereco": ""
+  },
+  "nfce": null,
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "GARRAFAO DE AGUA 20L",
+      "codigo": "",
+      "quantidade": 2,
+      "unidade": "Un",
+      "valor_unitario": 7.58,
+      "valor_total": 15.16,
+      "categoria": "bebidas"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 15.16,
+    "descontos": 0,
+    "valor_pago": 15.16
+  },
+  "pagamento": [
+    {
+      "forma": "PIX",
+      "codigo": null,
+      "valor": 15.16
+    }
+  ],
+  "tributos_totais": null
+}

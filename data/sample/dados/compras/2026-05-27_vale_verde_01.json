@@ -1,0 +1,109 @@
+{
+  "id": "2026-05-27_vale_verde_01",
+  "data": "2026-05-27",
+  "hora": "13:30:20",
+  "origem": "nfce",
+  "loja": {
+    "nome": "COMERCIO DE ALIMENTOS VALE VERDE LTDA",
+    "cnpj": "73.461.444/0001-06",
+    "endereco": "Rua Barão de Cotegipe, 33, Centro, Feira de Santana, BA"
+  },
+  "nfce": {
+    "numero": 166582,
+    "serie": 10,
+    "chave_acesso": "29260573461444000106650100001665821927143294"
+  },
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "AMEIXA S CAROCO ARGENTINA",
+      "codigo": "47",
+      "codigo_barras": null,
+      "quantidade": 0.27,
+      "unidade": "KG1",
+      "valor_unitario": 37.19,
+      "valor_total": 10.04,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 2,
+      "descricao": "BARRINHA DE BANANA CCACAU 30G",
+      "codigo": "17980",
+      "codigo_barras": "7898939469660",
+      "quantidade": 1,
+      "unidade": "UND1",
+      "valor_unitario": 1.48,
+      "valor_total": 1.48,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 3,
+      "descricao": "CUPUACU DESIDRATADO S ACUCAR",
+      "codigo": "13976",
+      "codigo_barras": null,
+      "quantidade": 0.046,
+      "unidade": "KG1",
+      "valor_unitario": 137.1,
+      "valor_total": 6.31,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 4,
+      "descricao": "HIBISCO FLOR",
+      "codigo": "154",
+      "codigo_barras": null,
+      "quantidade": 0.118,
+      "unidade": "KG1",
+      "valor_unitario": 50.49,
+      "valor_total": 5.96,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 5,
+      "descricao": "PAO DU NATURAL INTEGRAL",
+      "codigo": "6632",
+      "codigo_barras": "7898949583066",
+      "quantidade": 1,
+      "unidade": "UND1",
+      "valor_unitario": 6.91,
+      "valor_total": 6.91,
+      "categoria": "padaria"
+    },
+    {
+      "seq": 6,
+      "descricao": "TAMARA S CAROCO",
+      "codigo": "201",
+      "codigo_barras": null,
+      "quantidade": 0.108,
+      "unidade": "KG1",
+      "valor_unitario": 57.08,
+      "valor_total": 6.16,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 7,
+      "descricao": "TEMPERO LEMON PEPPER",
+      "codigo": "12355",
+      "codigo_barras": null,
+      "quantidade": 0.116,
+      "unidade": "KG1",
+      "valor_unitario": 30.96,
+      "valor_total": 3.59,
+      "categoria": "mercearia"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 7,
+    "valor_bruto": 40.45,
+    "descontos": 0,
+    "valor_pago": 40.45
+  },
+  "pagamento": [
+    {
+      "forma": "Cartao de Debito",
+      "codigo": 4,
+      "valor": 40.45
+    }
+  ],
+  "tributos_totais": 0
+}

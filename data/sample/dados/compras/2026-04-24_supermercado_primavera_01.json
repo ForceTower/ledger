@@ -1,0 +1,620 @@
+{
+  "id": "2026-04-24_supermercado_primavera_01",
+  "data": "2026-04-24",
+  "hora": "12:04:56",
+  "origem": "nfce",
+  "loja": {
+    "nome": "SUPERMERCADO PRIMAVERA LTDA",
+    "cnpj": "11.948.916/0001-94",
+    "endereco": "Avenida João Durval, 950, Santa Mônica, Feira de Santana, BA"
+  },
+  "nfce": {
+    "numero": 474539,
+    "serie": 15,
+    "chave_acesso": "29260411948916000194650150004745391376916564"
+  },
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "CENOURA kg",
+      "codigo": "8133",
+      "codigo_barras": null,
+      "quantidade": 0.67,
+      "unidade": "Kg",
+      "valor_unitario": 11.39,
+      "valor_total": 7.63,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 2,
+      "descricao": "LARANJA PERSIA kg",
+      "codigo": "8254",
+      "codigo_barras": null,
+      "quantidade": 1.95,
+      "unidade": "Kg",
+      "valor_unitario": 8.52,
+      "valor_total": 16.61,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 3,
+      "descricao": "ALHO A GRANEL kg",
+      "codigo": "8123",
+      "codigo_barras": null,
+      "quantidade": 0.325,
+      "unidade": "Kg",
+      "valor_unitario": 19.35,
+      "valor_total": 6.29,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 4,
+      "descricao": "INHAME kg",
+      "codigo": "8167",
+      "codigo_barras": null,
+      "quantidade": 1.075,
+      "unidade": "Kg",
+      "valor_unitario": 9.92,
+      "valor_total": 10.66,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 5,
+      "descricao": "ABOBORA JAPONESA PD",
+      "codigo": "8159",
+      "codigo_barras": null,
+      "quantidade": 1.034,
+      "unidade": "Kg",
+      "valor_unitario": 6.02,
+      "valor_total": 6.22,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 6,
+      "descricao": "BATATA MONALI LAV kg",
+      "codigo": "8129",
+      "codigo_barras": "7890001000016",
+      "quantidade": 1.375,
+      "unidade": "Kg",
+      "valor_unitario": 6.59,
+      "valor_total": 9.06,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 7,
+      "descricao": "MAMAO FORMOSA kg",
+      "codigo": "8215",
+      "codigo_barras": null,
+      "quantidade": 2.2,
+      "unidade": "Kg",
+      "valor_unitario": 3.8,
+      "valor_total": 8.36,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 8,
+      "descricao": "BANANA TERRA kg",
+      "codigo": "62885",
+      "codigo_barras": null,
+      "quantidade": 1.8,
+      "unidade": "Kg",
+      "valor_unitario": 4.65,
+      "valor_total": 8.37,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 9,
+      "descricao": "ABOBORA SECA PD",
+      "codigo": "1083848",
+      "codigo_barras": null,
+      "quantidade": 2.042,
+      "unidade": "Kg",
+      "valor_unitario": 3.2,
+      "valor_total": 6.53,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 10,
+      "descricao": "MANGA TOMMY kg",
+      "codigo": "8192",
+      "codigo_barras": null,
+      "quantidade": 0.57,
+      "unidade": "Kg",
+      "valor_unitario": 4.48,
+      "valor_total": 2.55,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 11,
+      "descricao": "MANGA PALMER kg",
+      "codigo": "8140",
+      "codigo_barras": null,
+      "quantidade": 1.12,
+      "unidade": "Kg",
+      "valor_unitario": 5.87,
+      "valor_total": 6.57,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 12,
+      "descricao": "FILE PEITO SEARA 1kg",
+      "codigo": "32189",
+      "codigo_barras": "7894904015108",
+      "quantidade": 5,
+      "unidade": "PC",
+      "valor_unitario": 20.32,
+      "valor_total": 101.6,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 13,
+      "descricao": "ALF CRESPA HIDROP",
+      "codigo": "3419",
+      "codigo_barras": "7898273890069",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 4.47,
+      "valor_total": 4.47,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 14,
+      "descricao": "CR QJ TIRO 150G LIGH",
+      "codigo": "1199051",
+      "codigo_barras": "7896030521621",
+      "quantidade": 2,
+      "unidade": "Un",
+      "valor_unitario": 5.98,
+      "valor_total": 11.96,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 15,
+      "descricao": "CORVINA CSUL800G POS",
+      "codigo": "1033514",
+      "codigo_barras": "7896082500841",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 34.79,
+      "valor_total": 34.79,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 16,
+      "descricao": "SOBCOXA SEARA BJ 1kg",
+      "codigo": "1059698",
+      "codigo_barras": "7894904013180",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 11.27,
+      "valor_total": 11.27,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 17,
+      "descricao": "QJ M PADRAO DAVACA K",
+      "codigo": "1042844",
+      "codigo_barras": null,
+      "quantidade": 0.494,
+      "unidade": "Kg",
+      "valor_unitario": 61.73,
+      "valor_total": 30.49,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 18,
+      "descricao": "QJ T MUSS DAVACA PD",
+      "codigo": "38104",
+      "codigo_barras": null,
+      "quantidade": 0.342,
+      "unidade": "Kg",
+      "valor_unitario": 53.01,
+      "valor_total": 18.13,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 19,
+      "descricao": "QJ T MUSS DAVACA FT",
+      "codigo": "38083",
+      "codigo_barras": null,
+      "quantidade": 0.53,
+      "unidade": "Kg",
+      "valor_unitario": 47.69,
+      "valor_total": 25.28,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 20,
+      "descricao": "PRES SADIA S/C FT",
+      "codigo": "8492",
+      "codigo_barras": null,
+      "quantidade": 0.3,
+      "unidade": "Kg",
+      "valor_unitario": 27.03,
+      "valor_total": 8.11,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 21,
+      "descricao": "MORT BEX SEARA FT",
+      "codigo": "19791",
+      "codigo_barras": null,
+      "quantidade": 0.228,
+      "unidade": "Kg",
+      "valor_unitario": 30.63,
+      "valor_total": 6.98,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 22,
+      "descricao": "WAF LOOK 55G CHOC",
+      "codigo": "78469",
+      "codigo_barras": "7891340303233",
+      "quantidade": 4,
+      "unidade": "PC",
+      "valor_unitario": 3.7,
+      "valor_total": 14.8,
+      "categoria": "doces_snacks"
+    },
+    {
+      "seq": 23,
+      "descricao": "BOLACH MANT PAL 200G",
+      "codigo": "1204260",
+      "codigo_barras": "7898948243107",
+      "quantidade": 1,
+      "unidade": "PC",
+      "valor_unitario": 7.24,
+      "valor_total": 7.24,
+      "categoria": "doces_snacks"
+    },
+    {
+      "seq": 24,
+      "descricao": "MUSS NATVILLE MO",
+      "codigo": "1193088",
+      "codigo_barras": null,
+      "quantidade": 0.196,
+      "unidade": "Kg",
+      "valor_unitario": 48.76,
+      "valor_total": 9.56,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 25,
+      "descricao": "AZ GALLO E V 500ML",
+      "codigo": "77939",
+      "codigo_barras": "5601252231164",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 34.14,
+      "valor_total": 34.14,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 26,
+      "descricao": "BISC PIRAQ BLACK 80G",
+      "codigo": "1202980",
+      "codigo_barras": "7896024761811",
+      "quantidade": 5,
+      "unidade": "Un",
+      "valor_unitario": 4.59,
+      "valor_total": 22.95,
+      "categoria": "doces_snacks"
+    },
+    {
+      "seq": 27,
+      "descricao": "SUCRIL SAC 700G CHOC",
+      "codigo": "1250939",
+      "codigo_barras": "7896004010960",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 29.35,
+      "valor_total": 29.35,
+      "categoria": "doces_snacks"
+    },
+    {
+      "seq": 28,
+      "descricao": "C CRA VITARELLA 350G",
+      "codigo": "1162250",
+      "codigo_barras": "7896213006235",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 3.41,
+      "valor_total": 3.41,
+      "categoria": "doces_snacks"
+    },
+    {
+      "seq": 29,
+      "descricao": "CROCK VITAR 350G PAO",
+      "codigo": "1162253",
+      "codigo_barras": "7896213006303",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 6.89,
+      "valor_total": 6.89,
+      "categoria": "padaria"
+    },
+    {
+      "seq": 30,
+      "descricao": "GOMA TAP PARAGU 1kg",
+      "codigo": "1179932",
+      "codigo_barras": "7898530761033",
+      "quantidade": 1,
+      "unidade": "PC",
+      "valor_unitario": 5.08,
+      "valor_total": 5.08,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 31,
+      "descricao": "CH PO GAROTO 200G",
+      "codigo": "4670",
+      "codigo_barras": "7891008040029",
+      "quantidade": 1,
+      "unidade": "PC",
+      "valor_unitario": 24.1,
+      "valor_total": 24.1,
+      "categoria": "doces_snacks"
+    },
+    {
+      "seq": 32,
+      "descricao": "GRAO BICO KILC 500G",
+      "codigo": "1098496",
+      "codigo_barras": "7896116900197",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 8.07,
+      "valor_total": 8.07,
+      "categoria": "outros"
+    },
+    {
+      "seq": 33,
+      "descricao": "BOLACH MANT PAL 200G",
+      "codigo": "1204260",
+      "codigo_barras": "7898948243107",
+      "quantidade": 1,
+      "unidade": "PC",
+      "valor_unitario": 7.4,
+      "valor_total": 7.4,
+      "categoria": "doces_snacks"
+    },
+    {
+      "seq": 34,
+      "descricao": "AZ V PRAMESA SC 120G",
+      "codigo": "1068547",
+      "codigo_barras": "7898556010030",
+      "quantidade": 2,
+      "unidade": "Un",
+      "valor_unitario": 6.36,
+      "valor_total": 12.72,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 35,
+      "descricao": "ACU CRISTAL VIDA 1kg",
+      "codigo": "1053496",
+      "codigo_barras": "7898920795044",
+      "quantidade": 1,
+      "unidade": "PC",
+      "valor_unitario": 3.21,
+      "valor_total": 3.21,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 36,
+      "descricao": "BISC PIRAQ BLACK 80G",
+      "codigo": "1202980",
+      "codigo_barras": "7896024761811",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 4.4,
+      "valor_total": 4.4,
+      "categoria": "doces_snacks"
+    },
+    {
+      "seq": 37,
+      "descricao": "AZ V PRAMESA FT 120G",
+      "codigo": "1068533",
+      "codigo_barras": "7898556010023",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 4.77,
+      "valor_total": 4.77,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 38,
+      "descricao": "L COND MOCA LA 395G",
+      "codigo": "5851",
+      "codigo_barras": "7891000100103",
+      "quantidade": 1,
+      "unidade": "La",
+      "valor_unitario": 11.5,
+      "valor_total": 11.5,
+      "categoria": "doces_snacks"
+    },
+    {
+      "seq": 39,
+      "descricao": "AGUA SANIT YPE 2LT",
+      "codigo": "89546",
+      "codigo_barras": "7896098904688",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 5.32,
+      "valor_total": 5.32,
+      "categoria": "limpeza"
+    },
+    {
+      "seq": 40,
+      "descricao": "ALV BRILUX MULTI 1LT",
+      "codigo": "60243",
+      "codigo_barras": "7896013102342",
+      "quantidade": 2,
+      "unidade": "Un",
+      "valor_unitario": 4.61,
+      "valor_total": 9.22,
+      "categoria": "limpeza"
+    },
+    {
+      "seq": 41,
+      "descricao": "DET YPE 500ML COCO",
+      "codigo": "1050",
+      "codigo_barras": "7896098900239",
+      "quantidade": 6,
+      "unidade": "Un",
+      "valor_unitario": 2.99,
+      "valor_total": 17.94,
+      "categoria": "limpeza"
+    },
+    {
+      "seq": 42,
+      "descricao": "PINHO SOL 1,75L LIM",
+      "codigo": "1183093",
+      "codigo_barras": "7509546687742",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 18.31,
+      "valor_total": 18.31,
+      "categoria": "limpeza"
+    },
+    {
+      "seq": 43,
+      "descricao": "OMO LIQ 1,4L ACAO AN",
+      "codigo": "1254111",
+      "codigo_barras": "7891150104310",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 24.52,
+      "valor_total": 24.52,
+      "categoria": "limpeza"
+    },
+    {
+      "seq": 44,
+      "descricao": "ARIEL CONC 2LT 50 LA",
+      "codigo": "1052710",
+      "codigo_barras": "7500435115315",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 50.28,
+      "valor_total": 50.28,
+      "categoria": "limpeza"
+    },
+    {
+      "seq": 45,
+      "descricao": "EMBALIXO PIA/BAN 100",
+      "codigo": "1043361",
+      "codigo_barras": "7898226514141",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 16.77,
+      "valor_total": 16.77,
+      "categoria": "limpeza"
+    },
+    {
+      "seq": 46,
+      "descricao": "ESP SCOTCH LAR C/3",
+      "codigo": "1135891",
+      "codigo_barras": "7891040204465",
+      "quantidade": 1,
+      "unidade": "PC",
+      "valor_unitario": 5.93,
+      "valor_total": 5.93,
+      "categoria": "limpeza"
+    },
+    {
+      "seq": 47,
+      "descricao": "SAL PARRI/ERVAS 250G",
+      "codigo": "1203971",
+      "codigo_barras": "7898721340450",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 9.74,
+      "valor_total": 9.74,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 48,
+      "descricao": "SAL PARR E ALH0 250G",
+      "codigo": "1203961",
+      "codigo_barras": "7898721340436",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 10.22,
+      "valor_total": 10.22,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 49,
+      "descricao": "SAL PARR E CHIM 250G",
+      "codigo": "1203963",
+      "codigo_barras": "7898721340443",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 9.68,
+      "valor_total": 9.68,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 50,
+      "descricao": "D OLD 1200ML REFRESC",
+      "codigo": "1183355",
+      "codigo_barras": "7500435158688",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 13.87,
+      "valor_total": 13.87,
+      "categoria": "outros"
+    },
+    {
+      "seq": 51,
+      "descricao": "DESINF UTILIS 300ML",
+      "codigo": "1071139",
+      "codigo_barras": "7897744501176",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 10.64,
+      "valor_total": 10.64,
+      "categoria": "limpeza"
+    },
+    {
+      "seq": 52,
+      "descricao": "L COND MOCA LA 395G",
+      "codigo": "5851",
+      "codigo_barras": "7891000100103",
+      "quantidade": 1,
+      "unidade": "La",
+      "valor_unitario": 10.77,
+      "valor_total": 10.77,
+      "categoria": "doces_snacks"
+    },
+    {
+      "seq": 53,
+      "descricao": "SUCO R SOL INT 1,5L",
+      "codigo": "1192659",
+      "codigo_barras": "7898921126946",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 21.15,
+      "valor_total": 21.15,
+      "categoria": "bebidas"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 53,
+    "valor_bruto": 785.88,
+    "descontos": 2.64,
+    "valor_pago": 783.24
+  },
+  "pagamento": [
+    {
+      "forma": "Vale Alimentação",
+      "codigo": 10,
+      "valor": 609.4
+    },
+    {
+      "forma": "Cartão de Débito",
+      "codigo": 4,
+      "valor": 173.84
+    }
+  ],
+  "tributos_totais": 14.34
+}

@@ -1,0 +1,115 @@
+{
+  "id": "2026-03-28_bom_preco_atacado_02",
+  "data": "2026-03-28",
+  "hora": "08:24:35",
+  "origem": "nfce",
+  "loja": {
+    "nome": "ATACADO BOM PRECO S/A",
+    "cnpj": "68.887.104/0001-01",
+    "endereco": "Avenida Presidente Dutra, 2100, Santo Antônio, Feira de Santana, BA"
+  },
+  "nfce": {
+    "numero": 389214,
+    "serie": 503,
+    "chave_acesso": "29260368887104000101655030003892141651757361"
+  },
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "FILE PEITO FGO SEARA",
+      "codigo": "AR039632",
+      "codigo_barras": "7894904015108",
+      "quantidade": 1,
+      "unidade": "BDJ9",
+      "valor_unitario": 23.04,
+      "valor_total": 23.04,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 2,
+      "descricao": "TIGELA DURALEX 1.5L",
+      "codigo": "AR012012",
+      "codigo_barras": "7894993990904",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 28.96,
+      "valor_total": 28.96,
+      "categoria": "bazar_utilidades"
+    },
+    {
+      "seq": 3,
+      "descricao": "BANANA TERRA",
+      "codigo": "AR004808",
+      "codigo_barras": null,
+      "quantidade": 1.465,
+      "unidade": "KG9",
+      "valor_unitario": 6.77,
+      "valor_total": 9.92,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 4,
+      "descricao": "SOBRECOXA FDO SEARA",
+      "codigo": "AR039628",
+      "codigo_barras": "7894904013180",
+      "quantidade": 1,
+      "unidade": "BDJ9",
+      "valor_unitario": 10.4,
+      "valor_total": 10.4,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 5,
+      "descricao": "VINAGRE MINHOTO",
+      "codigo": "AR075899",
+      "codigo_barras": "7896013105626",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 2.93,
+      "valor_total": 2.93,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 6,
+      "descricao": "AMEIXA IMPORTADA",
+      "codigo": "AR005606",
+      "codigo_barras": null,
+      "quantidade": 0.345,
+      "unidade": "KG9",
+      "valor_unitario": 23.1,
+      "valor_total": 7.97,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 7,
+      "descricao": "SACOLA RET.BOM PRECO ATACADO",
+      "codigo": "AR083340",
+      "codigo_barras": "7898578191441",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 5.32,
+      "valor_total": 5.32,
+      "categoria": "bazar_utilidades"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 7,
+    "valor_bruto": 88.54,
+    "descontos": 0,
+    "valor_pago": 88.54
+  },
+  "pagamento": [
+    {
+      "forma": "Vale Alimentacao",
+      "codigo": 10,
+      "valor": 50.81
+    },
+    {
+      "forma": "Dinheiro",
+      "codigo": 1,
+      "valor": 50.04,
+      "troco": 12.31
+    }
+  ],
+  "tributos_totais": 19.52
+}

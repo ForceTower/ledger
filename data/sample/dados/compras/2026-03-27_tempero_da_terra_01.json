@@ -1,0 +1,58 @@
+{
+  "id": "2026-03-27_tempero_da_terra_01",
+  "data": "2026-03-27",
+  "hora": "11:00:00",
+  "origem": "manual",
+  "loja": {
+    "nome": "Tempero da Terra",
+    "cnpj": "",
+    "endereco": ""
+  },
+  "nfce": null,
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "FARINHA DE BERINJELA",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 3.85,
+      "valor_total": 3.85,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 2,
+      "descricao": "PSYLLIUM",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 3.27,
+      "valor_total": 3.27,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 3,
+      "descricao": "CHIMICHURRI",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 5.41,
+      "valor_total": 5.41,
+      "categoria": "mercearia"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 3,
+    "valor_bruto": 12.53,
+    "descontos": 0,
+    "valor_pago": 12.53
+  },
+  "pagamento": [
+    {
+      "forma": "Dinheiro",
+      "codigo": null,
+      "valor": 12.53
+    }
+  ],
+  "tributos_totais": null
+}

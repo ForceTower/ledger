@@ -1,0 +1,44 @@
+{
+  "id": "2026-04-24_supermercado_primavera_02",
+  "data": "2026-04-24",
+  "hora": "12:06:39",
+  "origem": "nfce",
+  "loja": {
+    "nome": "SUPERMERCADO PRIMAVERA LTDA",
+    "cnpj": "11.948.916/0001-94",
+    "endereco": "Avenida João Durval, 950, Santa Mônica, Feira de Santana, BA"
+  },
+  "nfce": {
+    "numero": 123304,
+    "serie": 15,
+    "chave_acesso": "29260411948916000194650150001233041188987800"
+  },
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "AM DOWNY 1,5L GTS150",
+      "codigo": "1216107",
+      "codigo_barras": "7500435251471",
+      "quantidade": 1,
+      "unidade": "Am",
+      "valor_unitario": 32.86,
+      "valor_total": 32.86,
+      "categoria": "limpeza"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 32.86,
+    "descontos": 0,
+    "valor_pago": 32.86
+  },
+  "pagamento": [
+    {
+      "forma": "Dinheiro",
+      "codigo": 1,
+      "valor": 96.11,
+      "troco": 63.25
+    }
+  ],
+  "tributos_totais": 0
+}

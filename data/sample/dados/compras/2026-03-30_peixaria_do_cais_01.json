@@ -1,0 +1,38 @@
+{
+  "id": "2026-03-30_peixaria_do_cais_01",
+  "data": "2026-03-30",
+  "hora": "",
+  "origem": "manual",
+  "loja": {
+    "nome": "Peixaria do Cais",
+    "cnpj": "",
+    "endereco": ""
+  },
+  "nfce": null,
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "PLACA DE OVOS 30UN",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 20.39,
+      "valor_total": 20.39,
+      "categoria": "mercearia"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 20.39,
+    "descontos": 0,
+    "valor_pago": 20.39
+  },
+  "pagamento": [
+    {
+      "forma": "Dinheiro",
+      "codigo": null,
+      "valor": 20.39
+    }
+  ],
+  "tributos_totais": null
+}

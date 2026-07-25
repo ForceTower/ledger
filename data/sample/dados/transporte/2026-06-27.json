@@ -1,0 +1,27 @@
+{
+  "data": "2026-06-27",
+  "trajetos": [
+    {
+      "meio": "uber",
+      "destinos": [
+        "Bom Preço Atacado"
+      ],
+      "distancia_km": null,
+      "custo_combustivel": null,
+      "custo_estacionamento": null,
+      "custo_total": 8.29,
+      "notas": null
+    },
+    {
+      "meio": "taxi",
+      "destinos": [
+        "Bom Preço Atacado"
+      ],
+      "distancia_km": null,
+      "custo_combustivel": null,
+      "custo_estacionamento": null,
+      "custo_total": 18.09,
+      "notas": null
+    }
+  ]
+}

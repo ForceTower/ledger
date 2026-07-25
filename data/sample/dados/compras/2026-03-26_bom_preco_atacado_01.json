@@ -1,0 +1,142 @@
+{
+  "id": "2026-03-26_bom_preco_atacado_01",
+  "data": "2026-03-26",
+  "hora": "14:44:08",
+  "origem": "nfce",
+  "loja": {
+    "nome": "ATACADO BOM PRECO S/A",
+    "cnpj": "68.887.104/0001-01",
+    "endereco": "Avenida Presidente Dutra, 2100, Santo Antônio, Feira de Santana, BA"
+  },
+  "nfce": {
+    "numero": 149267,
+    "serie": 501,
+    "chave_acesso": "29260368887104000101655010001492671435004220"
+  },
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "BOV.ACEM S/OSSO RESE",
+      "codigo": "AR085698",
+      "codigo_barras": null,
+      "quantidade": 1.252,
+      "unidade": "KG9",
+      "valor_unitario": 35.94,
+      "valor_total": 45,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 2,
+      "descricao": "BACON FATIADO SEARA",
+      "codigo": "AR063548",
+      "codigo_barras": "7894904203420",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 25.62,
+      "valor_total": 25.62,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 3,
+      "descricao": "BOV.ACEM S/OSSO RESE",
+      "codigo": "AR085698",
+      "codigo_barras": null,
+      "quantidade": 1.104,
+      "unidade": "KG9",
+      "valor_unitario": 32.72,
+      "valor_total": 36.12,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 4,
+      "descricao": "MOELA FRANGO",
+      "codigo": "AR085435",
+      "codigo_barras": null,
+      "quantidade": 0.588,
+      "unidade": "KG9",
+      "valor_unitario": 16.04,
+      "valor_total": 9.43,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 5,
+      "descricao": "SCO PLAST.ZIP M",
+      "codigo": "AR070031",
+      "codigo_barras": "7896300500363",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 13.53,
+      "valor_total": 13.53,
+      "categoria": "bazar_utilidades"
+    },
+    {
+      "seq": 6,
+      "descricao": "SCO PLAST.ZIP P.",
+      "codigo": "AR070033",
+      "codigo_barras": "7896300501094",
+      "quantidade": 3,
+      "unidade": "UND9",
+      "valor_unitario": 7.03,
+      "valor_total": 21.09,
+      "categoria": "bazar_utilidades"
+    },
+    {
+      "seq": 7,
+      "descricao": "FGO GUJAO FRESQ RESF",
+      "codigo": "AR092737",
+      "codigo_barras": null,
+      "quantidade": 2.8,
+      "unidade": "KG9",
+      "valor_unitario": 8.31,
+      "valor_total": 23.27,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 8,
+      "descricao": "CENOURA",
+      "codigo": "AR001920",
+      "codigo_barras": null,
+      "quantidade": 1.495,
+      "unidade": "KG9",
+      "valor_unitario": 7.68,
+      "valor_total": 11.48,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 9,
+      "descricao": "BATATA LAVADA",
+      "codigo": "AR014691",
+      "codigo_barras": null,
+      "quantidade": 1.28,
+      "unidade": "KG9",
+      "valor_unitario": 7.09,
+      "valor_total": 9.08,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 10,
+      "descricao": "SUCO VINHEDOS",
+      "codigo": "AR086170",
+      "codigo_barras": "7898154171713",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 18.94,
+      "valor_total": 18.94,
+      "categoria": "bebidas"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 10,
+    "valor_bruto": 213.56,
+    "descontos": 3,
+    "valor_pago": 210.56
+  },
+  "pagamento": [
+    {
+      "forma": "Vale Alimentação",
+      "codigo": 10,
+      "valor": 210.56
+    }
+  ],
+  "tributos_totais": 51.17
+}

@@ -1,0 +1,38 @@
+{
+  "id": "2026-03-26_feira_do_produtor_01",
+  "data": "2026-03-26",
+  "hora": "10:00:00",
+  "origem": "manual",
+  "loja": {
+    "nome": "Feira do Produtor",
+    "cnpj": "",
+    "endereco": ""
+  },
+  "nfce": null,
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "Ovo",
+      "codigo": "",
+      "quantidade": 30,
+      "unidade": "UN",
+      "valor_unitario": 0.78,
+      "valor_total": 23.4,
+      "categoria": "mercearia"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 23.4,
+    "descontos": 0,
+    "valor_pago": 23.4
+  },
+  "pagamento": [
+    {
+      "forma": "",
+      "codigo": "",
+      "valor": 23.4
+    }
+  ],
+  "tributos_totais": null
+}

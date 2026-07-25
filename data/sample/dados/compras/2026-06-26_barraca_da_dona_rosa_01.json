@@ -1,0 +1,38 @@
+{
+  "id": "2026-06-26_barraca_da_dona_rosa_01",
+  "data": "2026-06-26",
+  "hora": "09:47:16",
+  "origem": "manual",
+  "loja": {
+    "nome": "Barraca da Dona Rosa",
+    "cnpj": "",
+    "endereco": ""
+  },
+  "nfce": null,
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "BOTIJAO DE GAS",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 110.51,
+      "valor_total": 110.51,
+      "categoria": "outros"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 110.51,
+    "descontos": 0,
+    "valor_pago": 110.51
+  },
+  "pagamento": [
+    {
+      "forma": "PIX",
+      "codigo": null,
+      "valor": 110.51
+    }
+  ],
+  "tributos_totais": null
+}

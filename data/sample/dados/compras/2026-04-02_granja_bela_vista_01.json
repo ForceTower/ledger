@@ -1,0 +1,38 @@
+{
+  "id": "2026-04-02_granja_bela_vista_01",
+  "data": "2026-04-02",
+  "hora": "",
+  "origem": "manual",
+  "loja": {
+    "nome": "Granja Bela Vista",
+    "cnpj": "",
+    "endereco": ""
+  },
+  "nfce": null,
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "ITENS DIVERSOS",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 71.61,
+      "valor_total": 71.61,
+      "categoria": "outros"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 71.61,
+    "descontos": 0,
+    "valor_pago": 71.61
+  },
+  "pagamento": [
+    {
+      "forma": "Dinheiro",
+      "codigo": null,
+      "valor": 71.61
+    }
+  ],
+  "tributos_totais": null
+}

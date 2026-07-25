@@ -1,0 +1,106 @@
+{
+  "data": "2026-03-25",
+  "compra_origem": "2026-03-25_supermercado_primavera_01",
+  "doacoes": [
+    {
+      "destinatario": "Associação Comunitária",
+      "itens": [
+        {
+          "descricao": "ARR POP PARB T2 1kg",
+          "codigo": "73151",
+          "quantidade": 10,
+          "unidade": "PC",
+          "valor_unitario": 2.97,
+          "valor_total": 29.7,
+          "ref_seq": 94
+        }
+      ],
+      "valor_total": 29.7
+    },
+    {
+      "destinatario": "Vizinhança",
+      "itens": [
+        {
+          "descricao": "AC CRIST CHEEF 1kg",
+          "codigo": "1013688",
+          "quantidade": 2,
+          "unidade": "PC",
+          "valor_unitario": 2.77,
+          "valor_total": 5.54,
+          "ref_seq": 60
+        },
+        {
+          "descricao": "FLOCAO MARATA 500G",
+          "codigo": "100768",
+          "quantidade": 3,
+          "unidade": "Un",
+          "valor_unitario": 1.52,
+          "valor_total": 4.56,
+          "ref_seq": 48
+        },
+        {
+          "descricao": "ARR CAMIL PARB 1kg",
+          "codigo": "59796",
+          "quantidade": 1,
+          "unidade": "PC",
+          "valor_unitario": 4.29,
+          "valor_total": 4.29,
+          "ref_seq": 61
+        },
+        {
+          "descricao": "FEIJ CAR VIDA PR 1kg",
+          "codigo": "1025840",
+          "quantidade": 1,
+          "unidade": "Un",
+          "valor_unitario": 8.71,
+          "valor_total": 8.71,
+          "ref_seq": 57
+        },
+        {
+          "descricao": "VINAG REGI 500ML ALC",
+          "codigo": "62007",
+          "quantidade": 1,
+          "unidade": "Un",
+          "valor_unitario": 1.48,
+          "valor_total": 1.48,
+          "ref_seq": 76
+        },
+        {
+          "descricao": "FILE PEITO SEARA 1kg",
+          "codigo": "32189",
+          "quantidade": 1,
+          "unidade": "PC",
+          "valor_unitario": 24.51,
+          "valor_total": 24.51,
+          "ref_seq": 1
+        }
+      ],
+      "valor_total": 49.09
+    },
+    {
+      "destinatario": "Dona Marta",
+      "itens": [
+        {
+          "descricao": "POST TILAP COPAC 800",
+          "codigo": "1160593",
+          "quantidade": 1,
+          "unidade": "PC",
+          "valor_unitario": 26.62,
+          "valor_total": 26.62,
+          "ref_seq": 11
+        },
+        {
+          "descricao": "MORTEIN 360ML TOTAL",
+          "codigo": "1176280",
+          "quantidade": 1,
+          "unidade": "Un",
+          "valor_unitario": 17.27,
+          "valor_total": 17.27,
+          "ref_seq": 81
+        }
+      ],
+      "valor_total": 43.89
+    }
+  ],
+  "valor_total_doacoes": 122.68
+}

@@ -1,0 +1,49 @@
+{
+  "data": "2026-03-25",
+  "trajetos": [
+    {
+      "meio": "uber",
+      "destinos": [
+        "Bom Preço Atacado"
+      ],
+      "distancia_km": null,
+      "custo_combustivel": null,
+      "custo_estacionamento": null,
+      "custo_total": 7.35,
+      "notas": "Ida"
+    },
+    {
+      "meio": "taxi",
+      "destinos": [
+        "Bom Preço Atacado"
+      ],
+      "distancia_km": null,
+      "custo_combustivel": null,
+      "custo_estacionamento": null,
+      "custo_total": 15.85,
+      "notas": "Volta"
+    },
+    {
+      "meio": "uber",
+      "destinos": [
+        "Supermercado Primavera"
+      ],
+      "distancia_km": null,
+      "custo_combustivel": null,
+      "custo_estacionamento": null,
+      "custo_total": 7.03,
+      "notas": "Ida"
+    },
+    {
+      "meio": "taxi",
+      "destinos": [
+        "Supermercado Primavera"
+      ],
+      "distancia_km": null,
+      "custo_combustivel": null,
+      "custo_estacionamento": null,
+      "custo_total": 11.26,
+      "notas": "Volta"
+    }
+  ]
+}

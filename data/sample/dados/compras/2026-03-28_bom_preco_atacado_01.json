@@ -1,0 +1,43 @@
+{
+  "id": "2026-03-28_bom_preco_atacado_01",
+  "data": "2026-03-28",
+  "hora": "08:22:13",
+  "origem": "nfce",
+  "loja": {
+    "nome": "ATACADO BOM PRECO S/A",
+    "cnpj": "68.887.104/0001-01",
+    "endereco": "Avenida Presidente Dutra, 2100, Santo Antônio, Feira de Santana, BA"
+  },
+  "nfce": {
+    "numero": 530605,
+    "serie": 503,
+    "chave_acesso": "29260368887104000101655030005306051431992204"
+  },
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "FILE PEITO FGO SEARA",
+      "codigo": "AR039632",
+      "codigo_barras": "7894904015108",
+      "quantidade": 2,
+      "unidade": "BDJ9",
+      "valor_unitario": 22.18,
+      "valor_total": 44.36,
+      "categoria": "carnes"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 44.36,
+    "descontos": 0,
+    "valor_pago": 44.36
+  },
+  "pagamento": [
+    {
+      "forma": "Vale Alimentacao",
+      "codigo": 10,
+      "valor": 44.36
+    }
+  ],
+  "tributos_totais": 0
+}

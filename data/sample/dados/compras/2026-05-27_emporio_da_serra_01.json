@@ -1,0 +1,142 @@
+{
+  "id": "2026-05-27_emporio_da_serra_01",
+  "data": "2026-05-27",
+  "hora": "14:02:06",
+  "origem": "nfce",
+  "loja": {
+    "nome": "EMPORIO DA SERRA ALIMENTOS LTDA",
+    "cnpj": "10.481.422/0001-80",
+    "endereco": "Rua Intendente Rui, 18, Capuchinhos, Feira de Santana, BA"
+  },
+  "nfce": {
+    "numero": 337687,
+    "serie": 111,
+    "chave_acesso": "29260510481422000180651110003376871847796547"
+  },
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "SACOLA RET B4U UN",
+      "codigo": "R00001661053",
+      "codigo_barras": "7898964395019",
+      "quantidade": 1,
+      "unidade": "UN",
+      "valor_unitario": 8.69,
+      "valor_total": 8.69,
+      "categoria": "bazar_utilidades"
+    },
+    {
+      "seq": 2,
+      "descricao": "PAO CHOCOL GB KG KG",
+      "codigo": "R00001195800",
+      "codigo_barras": null,
+      "quantidade": 0.408,
+      "unidade": "KG",
+      "valor_unitario": 20.3,
+      "valor_total": 8.28,
+      "categoria": "padaria"
+    },
+    {
+      "seq": 3,
+      "descricao": "PAO DE LEITE GB KG KG",
+      "codigo": "R00001195798",
+      "codigo_barras": null,
+      "quantidade": 0.25,
+      "unidade": "KG",
+      "valor_unitario": 24.85,
+      "valor_total": 6.21,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 4,
+      "descricao": "PAO PETROPO GB KG KG",
+      "codigo": "R00001195802",
+      "codigo_barras": null,
+      "quantidade": 0.23,
+      "unidade": "KG",
+      "valor_unitario": 20.88,
+      "valor_total": 4.8,
+      "categoria": "padaria"
+    },
+    {
+      "seq": 5,
+      "descricao": "MACA GALA IMPOR kg KG",
+      "codigo": "R00001466446",
+      "codigo_barras": "4000360001026",
+      "quantidade": 0.715,
+      "unidade": "KG",
+      "valor_unitario": 15.6,
+      "valor_total": 11.15,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 6,
+      "descricao": "PAO CILINDRO GB KG KG",
+      "codigo": "R00001195822",
+      "codigo_barras": null,
+      "quantidade": 0.23,
+      "unidade": "KG",
+      "valor_unitario": 21.66,
+      "valor_total": 4.98,
+      "categoria": "padaria"
+    },
+    {
+      "seq": 7,
+      "descricao": "PAO CILINDRO GB KG KG",
+      "codigo": "R00001195822",
+      "codigo_barras": null,
+      "quantidade": 0.268,
+      "unidade": "KG",
+      "valor_unitario": 23.94,
+      "valor_total": 6.42,
+      "categoria": "padaria"
+    },
+    {
+      "seq": 8,
+      "descricao": "MORT DEF SADIA FAT KG",
+      "codigo": "R00001475021",
+      "codigo_barras": null,
+      "quantidade": 0.146,
+      "unidade": "KG",
+      "valor_unitario": 25.89,
+      "valor_total": 3.78,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 9,
+      "descricao": "MORT DEF SADIA FAT KG",
+      "codigo": "R00001475021",
+      "codigo_barras": null,
+      "quantidade": 0.138,
+      "unidade": "KG",
+      "valor_unitario": 24.63,
+      "valor_total": 3.4,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 10,
+      "descricao": "PERA BOSC kg KG",
+      "codigo": "R00001749086",
+      "codigo_barras": null,
+      "quantidade": 0.21,
+      "unidade": "KG",
+      "valor_unitario": 14.75,
+      "valor_total": 3.1,
+      "categoria": "hortifruti"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 10,
+    "valor_bruto": 60.81,
+    "descontos": 0,
+    "valor_pago": 60.81
+  },
+  "pagamento": [
+    {
+      "forma": "Cartao de Debito",
+      "codigo": 4,
+      "valor": 60.81
+    }
+  ],
+  "tributos_totais": 5.33
+}

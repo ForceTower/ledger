@@ -1,0 +1,43 @@
+{
+  "id": "2026-04-24_supermercado_primavera_03",
+  "data": "2026-04-24",
+  "hora": "12:09:59",
+  "origem": "nfce",
+  "loja": {
+    "nome": "SUPERMERCADO PRIMAVERA LTDA",
+    "cnpj": "11.948.916/0001-94",
+    "endereco": "Avenida João Durval, 950, Santa Mônica, Feira de Santana, BA"
+  },
+  "nfce": {
+    "numero": 169244,
+    "serie": 15,
+    "chave_acesso": "29260411948916000194650150001692441007140292"
+  },
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "SAC ASSA VD PO 58X70",
+      "codigo": "1201844",
+      "codigo_barras": "7898569864255",
+      "quantidade": 2,
+      "unidade": "Un",
+      "valor_unitario": 0.27,
+      "valor_total": 0.54,
+      "categoria": "bazar_utilidades"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 0.54,
+    "descontos": 0,
+    "valor_pago": 0.54
+  },
+  "pagamento": [
+    {
+      "forma": "Dinheiro",
+      "codigo": 1,
+      "valor": 0.54
+    }
+  ],
+  "tributos_totais": 0.09
+}

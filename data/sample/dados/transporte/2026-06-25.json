@@ -1,0 +1,33 @@
+{
+  "data": "2026-06-25",
+  "trajetos": [
+    {
+      "meio": "uber",
+      "destinos": [
+        "Estrela do Norte",
+        "Granja Bela Vista",
+        "Tempero da Terra",
+        "Hortifruti do Seu Zé"
+      ],
+      "distancia_km": null,
+      "custo_combustivel": null,
+      "custo_estacionamento": null,
+      "custo_total": 10.38,
+      "notas": null
+    },
+    {
+      "meio": "taxi",
+      "destinos": [
+        "Estrela do Norte",
+        "Granja Bela Vista",
+        "Tempero da Terra",
+        "Hortifruti do Seu Zé"
+      ],
+      "distancia_km": null,
+      "custo_combustivel": null,
+      "custo_estacionamento": null,
+      "custo_total": 24.18,
+      "notas": null
+    }
+  ]
+}

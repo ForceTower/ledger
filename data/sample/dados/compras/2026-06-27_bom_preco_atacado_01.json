@@ -1,0 +1,312 @@
+{
+  "id": "2026-06-27_bom_preco_atacado_01",
+  "data": "2026-06-27",
+  "hora": "10:53:29",
+  "origem": "nfce",
+  "loja": {
+    "nome": "ATACADO BOM PRECO S/A",
+    "cnpj": "68.887.104/0001-01",
+    "endereco": "Avenida Presidente Dutra, 2100, Santo Antônio, Feira de Santana, BA"
+  },
+  "nfce": {
+    "numero": 678964,
+    "serie": 515,
+    "chave_acesso": "29260668887104000101655150006789641526007580"
+  },
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "KIWI",
+      "codigo": "AR001788",
+      "codigo_barras": null,
+      "quantidade": 0.975,
+      "unidade": "KG9",
+      "valor_unitario": 27.38,
+      "valor_total": 26.7,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 2,
+      "descricao": "CARA PAULISTA",
+      "codigo": "AR001917",
+      "codigo_barras": null,
+      "quantidade": 0.625,
+      "unidade": "KG9",
+      "valor_unitario": 14.25,
+      "valor_total": 8.91,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 3,
+      "descricao": "MACA NAC.GALA",
+      "codigo": "AR001825",
+      "codigo_barras": null,
+      "quantidade": 1.115,
+      "unidade": "KG9",
+      "valor_unitario": 9.74,
+      "valor_total": 10.86,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 4,
+      "descricao": "ABACAXI",
+      "codigo": "AR001078",
+      "codigo_barras": null,
+      "quantidade": 2,
+      "unidade": "UND1",
+      "valor_unitario": 7.26,
+      "valor_total": 14.52,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 5,
+      "descricao": "LEITE FERM ACTIVIA",
+      "codigo": "AR080759",
+      "codigo_barras": "7891025123224",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 20.43,
+      "valor_total": 20.43,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 6,
+      "descricao": "BEB.LACTEA DANONE",
+      "codigo": "AR072829",
+      "codigo_barras": "7891025121626",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 7.77,
+      "valor_total": 7.77,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 7,
+      "descricao": "ABOBORA JAP/CABOTIA",
+      "codigo": "AR001894",
+      "codigo_barras": null,
+      "quantidade": 0.912,
+      "unidade": "KG9",
+      "valor_unitario": 5.54,
+      "valor_total": 5.05,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 8,
+      "descricao": "TA PRONTO WICKBOLD",
+      "codigo": "AR069474",
+      "codigo_barras": "7896066303185",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 12.31,
+      "valor_total": 12.31,
+      "categoria": "padaria"
+    },
+    {
+      "seq": 9,
+      "descricao": "PULLMAN RAP 10",
+      "codigo": "AR076090",
+      "codigo_barras": "7896002363792",
+      "quantidade": 1,
+      "unidade": "EMB9",
+      "valor_unitario": 10.82,
+      "valor_total": 10.82,
+      "categoria": "padaria"
+    },
+    {
+      "seq": 10,
+      "descricao": "QJO.MINAS PAD DAVACA",
+      "codigo": "AR090949",
+      "codigo_barras": null,
+      "quantidade": 0.524,
+      "unidade": "KG9",
+      "valor_unitario": 56.06,
+      "valor_total": 29.38,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 11,
+      "descricao": "CREME QJO.M.TIROLEZ",
+      "codigo": "AR088533",
+      "codigo_barras": "7896030521614",
+      "quantidade": 2,
+      "unidade": "UND9",
+      "valor_unitario": 5.91,
+      "valor_total": 11.82,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 12,
+      "descricao": "RF.REQUEIJAO NESTLE",
+      "codigo": "AR059072",
+      "codigo_barras": "7891000084649",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 4.98,
+      "valor_total": 4.98,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 13,
+      "descricao": "PAO FORMA LIMIAR",
+      "codigo": "AR019549",
+      "codigo_barras": "7898253580201",
+      "quantidade": 2,
+      "unidade": "PCT1",
+      "valor_unitario": 6.44,
+      "valor_total": 12.88,
+      "categoria": "padaria"
+    },
+    {
+      "seq": 14,
+      "descricao": "ALFACE AMERICANA",
+      "codigo": "AR004739",
+      "codigo_barras": null,
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 7.57,
+      "valor_total": 7.57,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 15,
+      "descricao": "PAO INTEGRAL LIMIAR",
+      "codigo": "AR045789",
+      "codigo_barras": "7898253588832",
+      "quantidade": 1,
+      "unidade": "CXA1",
+      "valor_unitario": 6.76,
+      "valor_total": 6.76,
+      "categoria": "padaria"
+    },
+    {
+      "seq": 16,
+      "descricao": "CHUCHU",
+      "codigo": "AR001923",
+      "codigo_barras": null,
+      "quantidade": 2.135,
+      "unidade": "KG9",
+      "valor_unitario": 6.32,
+      "valor_total": 13.49,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 17,
+      "descricao": "PIMENTA DEDO DE MOCA",
+      "codigo": "AR033184",
+      "codigo_barras": null,
+      "quantidade": 0.04,
+      "unidade": "KG9",
+      "valor_unitario": 30.48,
+      "valor_total": 1.22,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 18,
+      "descricao": "CURRY KITANO",
+      "codigo": "AR072894",
+      "codigo_barras": "7891095604777",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 9.48,
+      "valor_total": 9.48,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 19,
+      "descricao": "SACOLA INSTITUCIONAL",
+      "codigo": "AR049069",
+      "codigo_barras": "7899739501871",
+      "quantidade": 2,
+      "unidade": "UND9",
+      "valor_unitario": 0.29,
+      "valor_total": 0.58,
+      "categoria": "bazar_utilidades"
+    },
+    {
+      "seq": 20,
+      "descricao": "LEITE COCO SOCOCO",
+      "codigo": "AR037369",
+      "codigo_barras": "7896004401416",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 25.66,
+      "valor_total": 25.66,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 21,
+      "descricao": "SUCO AURORA I.UVA",
+      "codigo": "AR016891",
+      "codigo_barras": "7891141019838",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 18.47,
+      "valor_total": 18.47,
+      "categoria": "bebidas"
+    },
+    {
+      "seq": 22,
+      "descricao": "MILHO VERDE QUERO",
+      "codigo": "AR065823",
+      "codigo_barras": "7896102500608",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 4.38,
+      "valor_total": 4.38,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 23,
+      "descricao": "LUVA SANRO PLUS P",
+      "codigo": "AR008302",
+      "codigo_barras": "7896243101719",
+      "quantidade": 1,
+      "unidade": "PAR9",
+      "valor_unitario": 9.28,
+      "valor_total": 9.28,
+      "categoria": "bazar_utilidades"
+    },
+    {
+      "seq": 24,
+      "descricao": "LIMP.CIF.CREMOSO",
+      "codigo": "AR080091",
+      "codigo_barras": "7891150022003",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 10.67,
+      "valor_total": 10.67,
+      "categoria": "limpeza"
+    },
+    {
+      "seq": 25,
+      "descricao": "PORTA FRIOS COZA",
+      "codigo": "AR001598",
+      "codigo_barras": "7900161003342",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 31.74,
+      "valor_total": 31.74,
+      "categoria": "bazar_utilidades"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 25,
+    "valor_bruto": 315.73,
+    "descontos": 7.06,
+    "valor_pago": 308.67
+  },
+  "pagamento": [
+    {
+      "forma": "Vale Alimentacao",
+      "codigo": 10,
+      "valor": 213.52
+    },
+    {
+      "forma": "Cartao de Debito",
+      "codigo": 4,
+      "valor": 95.15
+    }
+  ],
+  "tributos_totais": 88.77
+}

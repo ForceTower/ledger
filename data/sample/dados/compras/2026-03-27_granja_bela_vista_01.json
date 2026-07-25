@@ -1,0 +1,38 @@
+{
+  "id": "2026-03-27_granja_bela_vista_01",
+  "data": "2026-03-27",
+  "hora": "",
+  "origem": "manual",
+  "loja": {
+    "nome": "Granja Bela Vista",
+    "cnpj": "",
+    "endereco": ""
+  },
+  "nfce": null,
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "CHA DE DENTRO",
+      "codigo": "",
+      "quantidade": 1.408,
+      "unidade": "Kg",
+      "valor_unitario": 49.54,
+      "valor_total": 69.75,
+      "categoria": "carnes"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 69.75,
+    "descontos": 0,
+    "valor_pago": 69.75
+  },
+  "pagamento": [
+    {
+      "forma": "Dinheiro",
+      "codigo": null,
+      "valor": 69.75
+    }
+  ],
+  "tributos_totais": null
+}

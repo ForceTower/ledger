@@ -1,0 +1,38 @@
+{
+  "id": "2026-06-25_hortifruti_do_seu_ze_01",
+  "data": "2026-06-25",
+  "hora": "17:41:00",
+  "origem": "manual",
+  "loja": {
+    "nome": "Hortifruti do Seu Zé",
+    "cnpj": "",
+    "endereco": ""
+  },
+  "nfce": null,
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "FRUTAS",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 20.74,
+      "valor_total": 20.74,
+      "categoria": "hortifruti"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 20.74,
+    "descontos": 0,
+    "valor_pago": 20.74
+  },
+  "pagamento": [
+    {
+      "forma": "Cartão de Débito",
+      "codigo": 4,
+      "valor": 20.74
+    }
+  ],
+  "tributos_totais": null
+}

@@ -1,0 +1,44 @@
+{
+  "id": "2026-04-24_supermercado_primavera_04",
+  "data": "2026-04-24",
+  "hora": "12:12:44",
+  "origem": "nfce",
+  "loja": {
+    "nome": "SUPERMERCADO PRIMAVERA LTDA",
+    "cnpj": "11.948.916/0001-94",
+    "endereco": "Avenida João Durval, 950, Santa Mônica, Feira de Santana, BA"
+  },
+  "nfce": {
+    "numero": 662790,
+    "serie": 15,
+    "chave_acesso": "29260411948916000194650150006627901879092266"
+  },
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "ABACATE kg",
+      "codigo": "8189",
+      "codigo_barras": null,
+      "quantidade": 0.885,
+      "unidade": "Kg",
+      "valor_unitario": 5.55,
+      "valor_total": 4.91,
+      "categoria": "hortifruti"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 4.91,
+    "descontos": 0,
+    "valor_pago": 4.91
+  },
+  "pagamento": [
+    {
+      "forma": "Dinheiro",
+      "codigo": 1,
+      "valor": 9.26,
+      "troco": 4.35
+    }
+  ],
+  "tributos_totais": 0
+}

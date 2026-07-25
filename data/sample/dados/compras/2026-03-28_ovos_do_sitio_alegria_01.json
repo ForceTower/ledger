@@ -1,0 +1,38 @@
+{
+  "id": "2026-03-28_ovos_do_sitio_alegria_01",
+  "data": "2026-03-28",
+  "hora": "",
+  "origem": "manual",
+  "loja": {
+    "nome": "Ovos do Sítio Alegria",
+    "cnpj": "",
+    "endereco": ""
+  },
+  "nfce": null,
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "BOTIJAO DE GAS DE COZINHA",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 105.87,
+      "valor_total": 105.87,
+      "categoria": "outros"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 105.87,
+    "descontos": 0,
+    "valor_pago": 105.87
+  },
+  "pagamento": [
+    {
+      "forma": "Dinheiro",
+      "codigo": null,
+      "valor": 105.87
+    }
+  ],
+  "tributos_totais": null
+}

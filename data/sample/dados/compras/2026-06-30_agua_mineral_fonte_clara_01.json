@@ -1,0 +1,38 @@
+{
+  "id": "2026-06-30_agua_mineral_fonte_clara_01",
+  "data": "2026-06-30",
+  "hora": "11:16:35",
+  "origem": "manual",
+  "loja": {
+    "nome": "Água Mineral Fonte Clara",
+    "cnpj": "",
+    "endereco": ""
+  },
+  "nfce": null,
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "FRUTAS",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 52.48,
+      "valor_total": 52.48,
+      "categoria": "hortifruti"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 52.48,
+    "descontos": 0,
+    "valor_pago": 52.48
+  },
+  "pagamento": [
+    {
+      "forma": "PIX",
+      "codigo": null,
+      "valor": 52.48
+    }
+  ],
+  "tributos_totais": null
+}

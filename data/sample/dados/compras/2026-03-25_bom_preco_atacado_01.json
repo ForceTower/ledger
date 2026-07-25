@@ -1,0 +1,230 @@
+{
+  "id": "2026-03-25_bom_preco_atacado_01",
+  "data": "2026-03-25",
+  "hora": "14:53:59",
+  "origem": "nfce",
+  "loja": {
+    "nome": "ATACADO BOM PRECO S/A",
+    "cnpj": "68.887.104/0001-01",
+    "endereco": "Avenida Presidente Dutra, 2100, Santo Antônio, Feira de Santana, BA"
+  },
+  "nfce": {
+    "numero": 399601,
+    "serie": 505,
+    "chave_acesso": "29260368887104000101655050003996011815675567"
+  },
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "SCO PLAST.ZIP P.",
+      "codigo": "AR070033",
+      "codigo_barras": "7896300501094",
+      "quantidade": 2,
+      "unidade": "UND9",
+      "valor_unitario": 6.47,
+      "valor_total": 12.94,
+      "categoria": "bazar_utilidades"
+    },
+    {
+      "seq": 2,
+      "descricao": "SCO PLAST.ZIP G",
+      "codigo": "AR070032",
+      "codigo_barras": "7896300500431",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 9.94,
+      "valor_total": 9.94,
+      "categoria": "bazar_utilidades"
+    },
+    {
+      "seq": 3,
+      "descricao": "SACOLA INSTITUCIONAL",
+      "codigo": "AR088047",
+      "codigo_barras": "7899739513416",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 0.25,
+      "valor_total": 0.25,
+      "categoria": "bazar_utilidades"
+    },
+    {
+      "seq": 4,
+      "descricao": "PULLMAN RAP 10",
+      "codigo": "AR076088",
+      "codigo_barras": "7896002364546",
+      "quantidade": 2,
+      "unidade": "EMB9",
+      "valor_unitario": 8.92,
+      "valor_total": 17.84,
+      "categoria": "padaria"
+    },
+    {
+      "seq": 5,
+      "descricao": "LEITE FERM ACTIVIA",
+      "codigo": "AR080759",
+      "codigo_barras": "7891025123224",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 20.54,
+      "valor_total": 20.54,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 6,
+      "descricao": "BARRA CEREAIS NUTRY",
+      "codigo": "AR053998",
+      "codigo_barras": "7891331008369",
+      "quantidade": 1,
+      "unidade": "DPL3",
+      "valor_unitario": 30.14,
+      "valor_total": 30.14,
+      "categoria": "doces_snacks"
+    },
+    {
+      "seq": 7,
+      "descricao": "BISC.L.MALTADO",
+      "codigo": "AR089631",
+      "codigo_barras": "7896024761811",
+      "quantidade": 6,
+      "unidade": "UND9",
+      "valor_unitario": 5.06,
+      "valor_total": 30.36,
+      "categoria": "doces_snacks"
+    },
+    {
+      "seq": 8,
+      "descricao": "FERM.FLEISCHMANN",
+      "codigo": "AR078756",
+      "codigo_barras": "7898409950827",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 2.95,
+      "valor_total": 2.95,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 9,
+      "descricao": "TORRADA VISCONTI",
+      "codigo": "AR060576",
+      "codigo_barras": "7891962052571",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 5.74,
+      "valor_total": 5.74,
+      "categoria": "padaria"
+    },
+    {
+      "seq": 10,
+      "descricao": "MARG.QUALY",
+      "codigo": "AR046135",
+      "codigo_barras": "7893000079298",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 20.79,
+      "valor_total": 20.79,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 11,
+      "descricao": "ABOBORA JAP/CABOTIA",
+      "codigo": "AR001894",
+      "codigo_barras": null,
+      "quantidade": 0.82,
+      "unidade": "KG9",
+      "valor_unitario": 6.8,
+      "valor_total": 5.58,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 12,
+      "descricao": "QJO PARMESAO BURITI",
+      "codigo": "AR062845",
+      "codigo_barras": null,
+      "quantidade": 0.18,
+      "unidade": "KG9",
+      "valor_unitario": 89.14,
+      "valor_total": 16.05,
+      "categoria": "frios_laticinios"
+    },
+    {
+      "seq": 13,
+      "descricao": "BOV.PALETA S/OSSO RE",
+      "codigo": "AR085708",
+      "codigo_barras": null,
+      "quantidade": 1.25,
+      "unidade": "KG9",
+      "valor_unitario": 39.88,
+      "valor_total": 49.85,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 14,
+      "descricao": "BOV.MIOLO ALCATRA RE",
+      "codigo": "AR085376",
+      "codigo_barras": null,
+      "quantidade": 1.59,
+      "unidade": "KG9",
+      "valor_unitario": 36.31,
+      "valor_total": 57.73,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 15,
+      "descricao": "GOIABA BRANCA TROPIC",
+      "codigo": "AR001773",
+      "codigo_barras": null,
+      "quantidade": 0.59,
+      "unidade": "KG9",
+      "valor_unitario": 31.11,
+      "valor_total": 18.35,
+      "categoria": "hortifruti"
+    },
+    {
+      "seq": 16,
+      "descricao": "JERKEED B.DIANTEIRO",
+      "codigo": "AR086770",
+      "codigo_barras": null,
+      "quantidade": 0.98,
+      "unidade": "KG9",
+      "valor_unitario": 42.32,
+      "valor_total": 41.47,
+      "categoria": "carnes"
+    },
+    {
+      "seq": 17,
+      "descricao": "CHA 3CORACOES MEDIT.",
+      "codigo": "AR077124",
+      "codigo_barras": "7896045104741",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 24.61,
+      "valor_total": 24.61,
+      "categoria": "bebidas"
+    },
+    {
+      "seq": 18,
+      "descricao": "CHOC.GAROTO CAJU",
+      "codigo": "AR082080",
+      "codigo_barras": "7891008124170",
+      "quantidade": 1,
+      "unidade": "UND9",
+      "valor_unitario": 6.94,
+      "valor_total": 6.94,
+      "categoria": "doces_snacks"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 18,
+    "valor_bruto": 372.07,
+    "descontos": 3.6,
+    "valor_pago": 368.47
+  },
+  "pagamento": [
+    {
+      "forma": "Vale Alimentação",
+      "codigo": 10,
+      "valor": 368.47
+    }
+  ],
+  "tributos_totais": 88.56
+}

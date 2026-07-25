@@ -1,0 +1,54 @@
+{
+  "id": "2026-06-29_mercado_boa_praca_01",
+  "data": "2026-06-29",
+  "hora": "08:31:41",
+  "origem": "nfce",
+  "loja": {
+    "nome": "COMERCIAL BOA PRACA LTDA",
+    "cnpj": "84.148.132/0001-55",
+    "endereco": "Avenida das Palmeiras, 1200, Centro, Feira de Santana, BA"
+  },
+  "nfce": {
+    "numero": 574100,
+    "serie": 1,
+    "chave_acesso": "29260684148132000155650010005741001185835026"
+  },
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "SAL MARINHO INTEGRAL 250G - LEVE CROCK",
+      "codigo": "14974",
+      "codigo_barras": "7898634263877",
+      "quantidade": 1,
+      "unidade": "UN",
+      "valor_unitario": 24.23,
+      "valor_total": 24.23,
+      "categoria": "mercearia"
+    },
+    {
+      "seq": 2,
+      "descricao": "SAL MARINHO INTEGRAL 1KG - SERTAO",
+      "codigo": "15927",
+      "codigo_barras": null,
+      "quantidade": 1,
+      "unidade": "UN",
+      "valor_unitario": 12.73,
+      "valor_total": 12.73,
+      "categoria": "mercearia"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 2,
+    "valor_bruto": 36.96,
+    "descontos": 0,
+    "valor_pago": 36.96
+  },
+  "pagamento": [
+    {
+      "forma": "Cartão de Crédito",
+      "codigo": 3,
+      "valor": 36.96
+    }
+  ],
+  "tributos_totais": 5.49
+}

@@ -1,0 +1,38 @@
+{
+  "id": "2026-06-25_tempero_da_terra_02",
+  "data": "2026-06-25",
+  "hora": "17:16:00",
+  "origem": "manual",
+  "loja": {
+    "nome": "Tempero da Terra",
+    "cnpj": "",
+    "endereco": ""
+  },
+  "nfce": null,
+  "itens": [
+    {
+      "seq": 1,
+      "descricao": "PRODUTOS NATURAIS (AMEIXA, PASSAS, ETC)",
+      "codigo": "",
+      "quantidade": 1,
+      "unidade": "Un",
+      "valor_unitario": 20.95,
+      "valor_total": 20.95,
+      "categoria": "mercearia"
+    }
+  ],
+  "totais": {
+    "qtd_itens": 1,
+    "valor_bruto": 20.95,
+    "descontos": 0,
+    "valor_pago": 20.95
+  },
+  "pagamento": [
+    {
+      "forma": "Cartão de Débito",
+      "codigo": 4,
+      "valor": 20.95
+    }
+  ],
+  "tributos_totais": null
+}

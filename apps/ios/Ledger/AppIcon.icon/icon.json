@@ -1,0 +1,43 @@
+{
+  "fill": {
+    "solid": "display-p3:0.25098,0.54492,0.50586,1.00000"
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "image-name": "rings.png",
+          "name": "rings"
+        },
+        {
+          "image-name": "house.png",
+          "name": "house"
+        },
+        {
+          "image-name": "coin.png",
+          "name": "coin"
+        },
+        {
+          "image-name": "paper.png",
+          "name": "paper"
+        },
+        {
+          "image-name": "chart.png",
+          "name": "chart"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.6
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.2
+      }
+    }
+  ],
+  "supported-platforms": {
+    "circles": ["watchOS"],
+    "squares": "shared"
+  }
+}

@@ -875,10 +875,18 @@ struct HistoryFeatureTests {
             $0.isSyncing = true
         }
         await store.receive(\.localLoaded) { $0.didLoad = true }
-        await store.receive(\.localLoaded) { $0.summaries = MockData.summaries }
+        await store.receive(\.localLoaded) {
+            $0.summaries = MockData.summaries
+            $0.sections = HistoryFeature.makeSections(MockData.summaries)
+            $0.hero = HistoryFeature.makeHero(summaries: MockData.summaries, categorySpending: [:])
+        }
         await store.receive(\.syncFinished) { $0.isSyncing = false }
         await store.receive(\.categorySpendingLoaded) {
             $0.monthCategorySpending = categorySpending(of: [MockData.atacadao, MockData.assai, MockData.paoDeAcucar])
+            $0.hero = HistoryFeature.makeHero(
+                summaries: MockData.summaries,
+                categorySpending: $0.monthCategorySpending
+            )
         }
     }
 
@@ -906,10 +914,13 @@ struct HistoryFeatureTests {
         await store.send(.refresh) { $0.isSyncing = true }
         await store.receive(\.localLoaded) {
             $0.summaries = [MockData.atacadao.summary, MockData.carrefour.summary]
+            $0.sections = HistoryFeature.makeSections($0.summaries)
+            $0.hero = HistoryFeature.makeHero(summaries: $0.summaries, categorySpending: [:])
         }
         await store.receive(\.syncFinished) { $0.isSyncing = false }
         await store.receive(\.categorySpendingLoaded) {
             $0.monthCategorySpending = categorySpending(of: [MockData.atacadao])
+            $0.hero = HistoryFeature.makeHero(summaries: $0.summaries, categorySpending: $0.monthCategorySpending)
         }
     }
 
@@ -935,10 +946,13 @@ struct HistoryFeatureTests {
         await store.send(.refresh) { $0.isSyncing = true }
         await store.receive(\.localLoaded) {
             $0.summaries = [MockData.carrefour.summary]
+            $0.sections = HistoryFeature.makeSections($0.summaries)
+            $0.hero = HistoryFeature.makeHero(summaries: $0.summaries, categorySpending: [:])
         }
         await store.receive(\.syncFinished) { $0.isSyncing = false }
         await store.receive(\.categorySpendingLoaded) {
             $0.monthCategorySpending = categorySpending(of: [MockData.carrefour])
+            $0.hero = HistoryFeature.makeHero(summaries: $0.summaries, categorySpending: $0.monthCategorySpending)
         }
     }
 
@@ -961,10 +975,16 @@ struct HistoryFeatureTests {
         await store.receive(\.localLoaded) {
             $0.summaries = MockData.summaries
             $0.didLoad = true
+            $0.sections = HistoryFeature.makeSections(MockData.summaries)
+            $0.hero = HistoryFeature.makeHero(summaries: MockData.summaries, categorySpending: [:])
         }
         await store.receive(\.syncFinished) { $0.isSyncing = false }
         await store.receive(\.categorySpendingLoaded) {
             $0.monthCategorySpending = categorySpending(of: [MockData.atacadao, MockData.assai, MockData.paoDeAcucar])
+            $0.hero = HistoryFeature.makeHero(
+                summaries: MockData.summaries,
+                categorySpending: $0.monthCategorySpending
+            )
         }
     }
 
@@ -980,11 +1000,15 @@ struct HistoryFeatureTests {
         }
 
         await store.send(.searchChanged("bacon")) { $0.searchText = "bacon" }
-        await store.receive(\.searchResults) { $0.searchResults = [MockData.atacadao.summary] }
+        await store.receive(\.searchResults) {
+            $0.searchResults = [MockData.atacadao.summary]
+            $0.sections = HistoryFeature.makeSections([MockData.atacadao.summary])
+        }
 
         await store.send(.searchChanged("")) {
             $0.searchText = ""
             $0.searchResults = nil
+            $0.sections = []
         }
     }
 
@@ -997,6 +1021,44 @@ struct HistoryFeatureTests {
         await store.send(.purchaseTapped(summary)) {
             $0.detail = PurchaseDetailFeature.State(summary: summary)
         }
+    }
+}
+
+struct HistoryDerivedStateTests {
+    @Test
+    func sectionsGroupByMonthNewestFirst() {
+        let sections = HistoryFeature.makeSections(MockData.summaries)
+
+        #expect(sections.map(\.id) == ["2026-03", "2026-02"])
+        #expect(sections[0].total == 208.75 + 156.40 + 92.15)
+        #expect(sections[0].purchases.map(\.id) == [
+            MockData.atacadao.id, MockData.assai.id, MockData.paoDeAcucar.id,
+        ])
+        #expect(sections[1].total == 312.80)
+        #expect(sections[1].purchases.map(\.id) == [MockData.carrefour.id])
+    }
+
+    @Test
+    func heroSummarizesTheLatestMonth() throws {
+        let spending: [LedgerKit.Category: Double] = [.meat: 300, .grocery: 200, .produce: 100, .bakery: 50]
+
+        let hero = try #require(HistoryFeature.makeHero(summaries: MockData.summaries, categorySpending: spending))
+
+        #expect(hero.monthName == "março")
+        #expect(hero.total == 208.75 + 156.40 + 92.15)
+        #expect(hero.purchaseCount == 3)
+        #expect(hero.trendPercent == 46)
+        #expect(hero.points == [
+            .init(date: "2026-03-18", cumulative: 92.15),
+            .init(date: "2026-03-22", cumulative: 92.15 + 156.40),
+            .init(date: "2026-03-26", cumulative: 92.15 + 156.40 + 208.75),
+        ])
+        #expect(hero.topCategories.map(\.category) == [.meat, .grocery, .produce])
+    }
+
+    @Test
+    func heroIsAbsentWithoutPurchases() {
+        #expect(HistoryFeature.makeHero(summaries: [], categorySpending: [:]) == nil)
     }
 }
 

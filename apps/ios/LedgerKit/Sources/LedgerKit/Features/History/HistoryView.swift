@@ -12,26 +12,28 @@ struct HistoryView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
+                // Sections flatten into the lazy container, so each row is an
+                // individual lazy child — months no longer materialize whole.
+                LazyVStack(alignment: .leading, spacing: 10) {
                     if let hero = store.hero {
                         HeroSpendCard(stats: hero)
                             .padding(.top, 6)
                         if !hero.topCategories.isEmpty {
                             CategoryQuickStrip(categories: hero.topCategories)
-                                .padding(.top, 12)
+                                .padding(.top, 2)
                         }
                     }
 
                     ForEach(store.sections) { section in
-                        sectionHeader(section)
-
-                        VStack(spacing: 10) {
+                        Section {
                             ForEach(section.purchases) { purchase in
                                 Button { store.send(.purchaseTapped(purchase)) } label: {
                                     PurchaseCard(summary: purchase)
                                 }
                                 .buttonStyle(.plain)
                             }
+                        } header: {
+                            sectionHeader(section)
                         }
                     }
                 }
@@ -71,8 +73,7 @@ struct HistoryView: View {
                 .foregroundStyle(Color.label3)
         }
         .padding(.horizontal, 4)
-        .padding(.top, 20)
-        .padding(.bottom, 10)
+        .padding(.top, 10)
     }
 }
 

@@ -12,69 +12,9 @@ struct HistoryFeature {
         var didLoad = false
         var didStartInitialSync = false
         var searchText = ""
+        var sections: [MonthSection] = []
+        var hero: HeroStats?
         @Presents var detail: PurchaseDetailFeature.State?
-
-        var filtered: [PurchaseSummary] {
-            guard !searchText.isEmpty else { return summaries }
-            if let searchResults { return searchResults }
-            let query = searchText.lowercased()
-            return summaries.filter { $0.store.lowercased().contains(query) }
-        }
-
-        var sections: [MonthSection] {
-            let groups = Dictionary(grouping: filtered) { String($0.date.prefix(7)) }
-            return groups
-                .map { key, value in
-                    let sorted = value.sorted { $0.date > $1.date }
-                    return MonthSection(
-                        id: key,
-                        title: Format.monthYear(fromISO: sorted[0].date),
-                        total: value.reduce(0) { $0 + $1.totalPaid },
-                        purchases: sorted
-                    )
-                }
-                .sorted { $0.id > $1.id }
-        }
-
-        var hero: HeroStats? {
-            guard searchText.isEmpty, !summaries.isEmpty else { return nil }
-            let byMonth = Dictionary(grouping: summaries) { String($0.date.prefix(7)) }
-            let months = byMonth.keys.sorted(by: >)
-            guard let currentKey = months.first, let current = byMonth[currentKey] else { return nil }
-
-            let total = current.reduce(0) { $0 + $1.totalPaid }
-            var trendPercent: Int?
-            if let previousKey = months.dropFirst().first, let previous = byMonth[previousKey] {
-                let previousTotal = previous.reduce(0) { $0 + $1.totalPaid }
-                if previousTotal > 0 {
-                    trendPercent = Int(((total - previousTotal) / previousTotal * 100).rounded())
-                }
-            }
-
-            let byDay = Dictionary(grouping: current, by: \.date)
-                .map { (date: $0.key, total: $0.value.reduce(0) { $0 + $1.totalPaid }) }
-                .sorted { $0.date < $1.date }
-            var running = 0.0
-            let points = byDay.map { day in
-                running += day.total
-                return HeroStats.Point(date: day.date, cumulative: running)
-            }
-
-            let topCategories = monthCategorySpending
-                .map { (category: $0.key, amount: $0.value) }
-                .sorted { $0.amount > $1.amount }
-                .prefix(3)
-
-            return HeroStats(
-                monthName: Format.monthName(fromISO: currentKey + "-01"),
-                total: total,
-                purchaseCount: current.count,
-                average: total / Double(current.count),
-                trendPercent: trendPercent,
-                points: points,
-                topCategories: Array(topCategories)
-            )
-        }
 
         var isEmpty: Bool { didLoad && !isSyncing && summaries.isEmpty }
 
@@ -112,6 +52,78 @@ struct HistoryFeature {
                 && lhs.points == rhs.points
                 && lhs.topCategories.elementsEqual(rhs.topCategories, by: { $0 == $1 })
         }
+    }
+
+    static func makeSections(_ summaries: [PurchaseSummary]) -> [MonthSection] {
+        let groups = Dictionary(grouping: summaries) { String($0.date.prefix(7)) }
+        return groups
+            .map { key, value in
+                let sorted = value.sorted { $0.date > $1.date }
+                return MonthSection(
+                    id: key,
+                    title: Format.monthYear(fromISO: sorted[0].date),
+                    total: value.reduce(0) { $0 + $1.totalPaid },
+                    purchases: sorted
+                )
+            }
+            .sorted { $0.id > $1.id }
+    }
+
+    static func makeHero(summaries: [PurchaseSummary], categorySpending: [Category: Double]) -> HeroStats? {
+        guard !summaries.isEmpty else { return nil }
+        let byMonth = Dictionary(grouping: summaries) { String($0.date.prefix(7)) }
+        let months = byMonth.keys.sorted(by: >)
+        guard let currentKey = months.first, let current = byMonth[currentKey] else { return nil }
+
+        let total = current.reduce(0) { $0 + $1.totalPaid }
+        var trendPercent: Int?
+        if let previousKey = months.dropFirst().first, let previous = byMonth[previousKey] {
+            let previousTotal = previous.reduce(0) { $0 + $1.totalPaid }
+            if previousTotal > 0 {
+                trendPercent = Int(((total - previousTotal) / previousTotal * 100).rounded())
+            }
+        }
+
+        let byDay = Dictionary(grouping: current, by: \.date)
+            .map { (date: $0.key, total: $0.value.reduce(0) { $0 + $1.totalPaid }) }
+            .sorted { $0.date < $1.date }
+        var running = 0.0
+        let points = byDay.map { day in
+            running += day.total
+            return HeroStats.Point(date: day.date, cumulative: running)
+        }
+
+        let topCategories = categorySpending
+            .map { (category: $0.key, amount: $0.value) }
+            .sorted { $0.amount > $1.amount }
+            .prefix(3)
+
+        return HeroStats(
+            monthName: Format.monthName(fromISO: currentKey + "-01"),
+            total: total,
+            purchaseCount: current.count,
+            average: total / Double(current.count),
+            trendPercent: trendPercent,
+            points: points,
+            topCategories: Array(topCategories)
+        )
+    }
+
+    /// Derivation runs once per state change here, not on every render.
+    private static func rebuildDerived(_ state: inout State) {
+        let visible: [PurchaseSummary]
+        if state.searchText.isEmpty {
+            visible = state.summaries
+        } else if let results = state.searchResults {
+            visible = results
+        } else {
+            let query = state.searchText.lowercased()
+            visible = state.summaries.filter { $0.store.lowercased().contains(query) }
+        }
+        state.sections = makeSections(visible)
+        state.hero = state.searchText.isEmpty
+            ? makeHero(summaries: state.summaries, categorySpending: state.monthCategorySpending)
+            : nil
     }
 
     enum Action: Equatable {
@@ -153,10 +165,12 @@ struct HistoryFeature {
             case let .localLoaded(summaries):
                 state.summaries = summaries
                 state.didLoad = true
+                Self.rebuildDerived(&state)
                 return loadCategorySpending(summaries)
 
             case let .categorySpendingLoaded(spending):
                 state.monthCategorySpending = spending
+                Self.rebuildDerived(&state)
                 return .none
 
             case .syncFinished:
@@ -167,8 +181,10 @@ struct HistoryFeature {
                 state.searchText = text
                 guard !text.isEmpty else {
                     state.searchResults = nil
+                    Self.rebuildDerived(&state)
                     return .cancel(id: CancelID.search)
                 }
+                Self.rebuildDerived(&state)
                 return .run { send in
                     await send(.searchResults(try await purchasesRepository.search(query: text)))
                 } catch: { _, _ in
@@ -177,6 +193,7 @@ struct HistoryFeature {
 
             case let .searchResults(results):
                 state.searchResults = results
+                Self.rebuildDerived(&state)
                 return .none
 
             case let .purchaseTapped(summary):
@@ -202,17 +219,16 @@ struct HistoryFeature {
     }
 
     private func loadCategorySpending(_ summaries: [PurchaseSummary]) -> Effect<Action> {
-        guard let latestMonth = summaries.map({ String($0.date.prefix(7)) }).max() else { return .none }
-        let ids = summaries.filter { $0.date.hasPrefix(latestMonth) }.map(\.id)
+        guard !summaries.isEmpty else { return .none }
         return .run { send in
-            var totals: [Category: Double] = [:]
-            for id in ids {
-                guard let purchase = try? await purchasesRepository.purchase(id: id) else { continue }
+            let purchases = try await purchasesRepository.recentPurchases(monthCount: 1)
+            let totals = purchases.reduce(into: [Category: Double]()) { totals, purchase in
                 for item in purchase.items {
                     totals[item.category, default: 0] += item.total
                 }
             }
             await send(.categorySpendingLoaded(totals))
+        } catch: { _, _ in
         }
         .cancellable(id: CancelID.categorySpending, cancelInFlight: true)
     }

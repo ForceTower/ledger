@@ -69,6 +69,9 @@ private func migrator() -> DatabaseMigrator {
             t.primaryKey(["purchaseSlug", "seq"])
         }
     }
+    migrator.registerMigration("v2") { db in
+        try db.create(index: "purchases_on_date_time", on: "purchases", columns: ["date", "time"])
+    }
     return migrator
 }
 

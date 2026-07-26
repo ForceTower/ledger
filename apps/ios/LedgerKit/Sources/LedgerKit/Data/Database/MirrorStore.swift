@@ -6,19 +6,26 @@ struct MirrorStore: Sendable {
 
     func summaries() async throws -> [PurchaseSummary] {
         try await writer.read { db in
-            try Self.orderedPurchases(db).map { try Self.hydrate($0, db).summary }
+            let categories = try Self.categoryCounts(db)
+            return try Self.orderedPurchases(db).map { Self.summary(of: $0, categories: categories[$0.slug] ?? [:]) }
         }
     }
 
     func search(_ query: String) async throws -> [PurchaseSummary] {
         try await writer.read { db in
-            try Self.orderedPurchases(db)
-                .map { try Self.hydrate($0, db) }
-                .filter { purchase in
-                    purchase.store.name.localizedCaseInsensitiveContains(query)
-                        || purchase.items.contains { $0.description.localizedCaseInsensitiveContains(query) }
+            // Matching stays in Swift: SQLite LIKE only case-folds ASCII, and the
+            // pt-BR data needs "açúcar" to match "Pão de Açúcar".
+            var descriptions: [String: [String]] = [:]
+            for row in try Row.fetchAll(db, sql: "SELECT purchaseSlug, itemDescription FROM purchaseItems") {
+                descriptions[row["purchaseSlug"], default: []].append(row["itemDescription"])
+            }
+            let categories = try Self.categoryCounts(db)
+            return try Self.orderedPurchases(db)
+                .filter { record in
+                    record.storeName.localizedCaseInsensitiveContains(query)
+                        || (descriptions[record.slug] ?? []).contains { $0.localizedCaseInsensitiveContains(query) }
                 }
-                .map(\.summary)
+                .map { Self.summary(of: $0, categories: categories[$0.slug] ?? [:]) }
         }
     }
 
@@ -93,6 +100,33 @@ struct MirrorStore: Sendable {
                 }
             }
         }
+    }
+
+    /// slug → item count per category, aggregated in SQL. Unknown raw categories
+    /// fold into `.other` with `+=`, matching `PurchaseItemRecord.item`.
+    private static func categoryCounts(_ db: Database) throws -> [String: [Category: Int]] {
+        var counts: [String: [Category: Int]] = [:]
+        let rows = try Row.fetchAll(
+            db,
+            sql: "SELECT purchaseSlug, category, COUNT(*) AS count FROM purchaseItems GROUP BY purchaseSlug, category"
+        )
+        for row in rows {
+            let category = Category(rawValue: row["category"]) ?? .other
+            counts[row["purchaseSlug"], default: [:]][category, default: 0] += row["count"] as Int
+        }
+        return counts
+    }
+
+    private static func summary(of record: PurchaseRecord, categories: [Category: Int]) -> PurchaseSummary {
+        PurchaseSummary(
+            id: record.slug,
+            store: record.storeName,
+            date: record.date,
+            time: record.time,
+            totalPaid: record.totalPaid,
+            itemCount: record.itemCount,
+            categories: categories
+        )
     }
 
     private static func orderedPurchases(_ db: Database) throws -> [PurchaseRecord] {

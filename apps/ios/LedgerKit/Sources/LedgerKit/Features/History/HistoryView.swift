@@ -43,7 +43,14 @@ struct HistoryView: View {
             .background(Color.appBackground)
             .navigationTitle("Histórico")
             .searchable(text: searchBinding, prompt: "Buscar loja ou item")
-            .refreshable { await store.send(.refresh).finish() }
+            .refreshable {
+                // Awaiting the store task directly would let it inherit the
+                // refresh control's cancellation — leaving the tab mid-sync would
+                // strand `isSyncing` and skip the prune. The detached task is not
+                // cancelled with the view, so the sync always settles.
+                let sync = store.send(.refresh)
+                await Task { await sync.finish() }.value
+            }
             .overlay {
                 if store.isInitialLoading {
                     ProgressView()

@@ -158,7 +158,6 @@ struct HistoryFeature {
                 return .concatenate(loadLocal(), sync())
 
             case .refresh:
-                guard !state.isSyncing else { return .none }
                 state.isSyncing = true
                 return sync()
 

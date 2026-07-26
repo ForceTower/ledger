@@ -69,7 +69,6 @@ async function main(): Promise<void> {
     const ai = useAi
       ? new AiClient({
           apiKey: env.ANTHROPIC_API_KEY || undefined,
-          subscriptionToken: env.CLAUDE_CODE_OAUTH_TOKEN || undefined,
           model: env.CLAUDE_CATEGORIZE_MODEL,
           timeoutMs: env.CLAUDE_TIMEOUT_MS,
         })

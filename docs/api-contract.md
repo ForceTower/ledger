@@ -259,11 +259,10 @@ AI item identification: take a photo of one or more items — or of a printed re
 and the server asks Claude to identify and categorize them. Body: `multipart/form-data` with an
 `image` field (JPEG, PNG, or WebP, ≤ 10 MB).
 
-Server configuration (env vars, shared by every AI read): `CLAUDE_CODE_OAUTH_TOKEN` (from
-`claude setup-token`; when set, every AI feature runs through the bundled Claude Agent SDK and
-bills the owner's Claude subscription — an API key is ignored), `ANTHROPIC_API_KEY` (without a
-token, one-shot reads like this one use the Anthropic API, billed per token),
-`CLAUDE_MODEL` (default `claude-haiku-4-5`),
+Server configuration (env vars, shared by every AI read): `ANTHROPIC_API_KEY` (when set, one-shot
+reads like this one use the Anthropic API, billed per token; otherwise they run through the
+bundled Claude Agent SDK on `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, billing the
+owner's Claude subscription), `CLAUDE_MODEL` (default `claude-haiku-4-5`),
 `CLAUDE_PHOTO_PROMPT` (the identification instruction; the strict output format is always enforced
 server-side on both backends), `CLAUDE_CATEGORIZE_PROMPT` (the instruction for the last-resort item
 categorizer), `CLAUDE_CATEGORIZE_MODEL` (default `claude-sonnet-5` — deciphering a receipt
@@ -431,8 +430,9 @@ rows per query — it can read everything and write nothing.
 
 Server configuration: `CLAUDE_CHAT_MODEL` (default `claude-opus-5` — chat quality is the product,
 scans stay on the cheaper `CLAUDE_MODEL`), `CLAUDE_CHAT_TIMEOUT_MS` (default `180000`). The chat
-always runs on the Claude Agent SDK, with whichever credential is configured — same precedence as
-every AI feature: `CLAUDE_CODE_OAUTH_TOKEN` when set, else `ANTHROPIC_API_KEY`.
+always runs on the Claude Agent SDK and prefers `CLAUDE_CODE_OAUTH_TOKEN` over `ANTHROPIC_API_KEY`
+when both are set — the opposite of the one-shot reads, so the token-hungry feature stays on the
+owner's Claude subscription while scans bill the cheap per-token API.
 
 ### Future (stub in UI only)
 

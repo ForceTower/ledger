@@ -5,7 +5,6 @@ import { agentSubprocessEnv, AiClient, MAX_IMAGE_BYTES, validateImage } from "..
 
 const client = new AiClient({
   apiKey: undefined,
-  subscriptionToken: undefined,
   model: "claude-haiku-4-5",
   timeoutMs: 1000,
 });

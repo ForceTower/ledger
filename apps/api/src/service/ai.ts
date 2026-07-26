@@ -53,13 +53,13 @@ export interface AiUsage {
 }
 
 export interface AiConfig {
-  /** Anthropic API key. Used only when no subscription token is present. */
-  apiKey: string | undefined;
   /**
-   * CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`. When set it wins outright: every run goes
-   * through the Claude Agent SDK and bills the owner's Claude subscription, API key or not.
+   * When set, one-shot runs use the Anthropic API, billed per token; otherwise they run through
+   * the Claude Agent SDK on CLAUDE_CODE_OAUTH_TOKEN (the owner's Claude subscription) or, with
+   * neither credential, whatever `claude` login the host has. The chat is different: it always
+   * runs on the Agent SDK and prefers the subscription token — see {@link agentSubprocessEnv}.
    */
-  subscriptionToken: string | undefined;
+  apiKey: string | undefined;
   model: string;
   timeoutMs: number;
 }
@@ -111,17 +111,16 @@ export async function validateImage(image: File, errorCode: string): Promise<Val
 }
 
 /**
- * One prompt in, one JSON answer out. Transport precedence: a subscription token routes everything
- * through the Claude Agent SDK (billing the owner's Claude plan); otherwise an API key uses the
- * Anthropic API; with neither, the Agent SDK still runs and picks up whatever login the host has —
- * the dev-machine fallback. Callers own the prompt and the schema; this owns the transport, the
- * timeout, and turning either failure mode into the `ai_unavailable` / `ai_invalid_output` contract.
+ * One prompt in, one JSON answer out — over the Anthropic API when a key is configured, else the
+ * Claude Agent SDK (subscription token, or the host's `claude` login in dev). Callers own the
+ * prompt and the schema; this owns the transport, the timeout, and turning either failure mode
+ * into the `ai_unavailable` / `ai_invalid_output` contract.
  */
 export class AiClient implements AiRunner {
   private readonly anthropic: Anthropic | undefined;
 
   constructor(private readonly config: AiConfig) {
-    this.anthropic = config.apiKey && !config.subscriptionToken ? new Anthropic({ apiKey: config.apiKey }) : undefined;
+    this.anthropic = config.apiKey ? new Anthropic({ apiKey: config.apiKey }) : undefined;
   }
 
   get model(): string {

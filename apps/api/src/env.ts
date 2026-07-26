@@ -21,11 +21,11 @@ const envVarsSchema = z.object({
   SEFAZ_BASE_URL: z.string().default("http://nfe.sefaz.ba.gov.br/servicos/nfce/modulos/geral/"),
   // Optional: base64 Firebase service account JSON. When unset, push notifications are disabled.
   FIREBASE_SERVICE_ACCOUNT_BASE64: z.string().optional(),
-  // AI (scans, the last-resort categorizer, and chat). Credential precedence: when
-  // CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`) is set, everything runs through the Claude
-  // Agent SDK and bills the owner's Claude subscription — an API key is ignored. Otherwise
-  // ANTHROPIC_API_KEY sends the one-shot reads through the Anthropic API, billed per token
-  // (the chat still runs on the Agent SDK, which then uses the same key).
+  // AI (scans, the last-resort categorizer, and chat). The one-shot reads use the Anthropic API
+  // when ANTHROPIC_API_KEY is set (billed per token), else the Claude Agent SDK. The chat always
+  // runs on the Agent SDK and prefers CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`, billing the
+  // owner's Claude subscription) over the key — so setting both splits the bill: cheap one-shot
+  // reads on the API, the token-hungry chat on the subscription.
   ANTHROPIC_API_KEY: z.string().optional(),
   CLAUDE_CODE_OAUTH_TOKEN: z.string().optional(),
   CLAUDE_MODEL: z.string().default("claude-haiku-4-5"),
@@ -85,7 +85,6 @@ export async function getEnv(): Promise<LedgerEnv> {
   const purchase = new PurchaseService({ db });
   const ai = new AiClient({
     apiKey: vars.ANTHROPIC_API_KEY || undefined,
-    subscriptionToken: vars.CLAUDE_CODE_OAUTH_TOKEN || undefined,
     model: vars.CLAUDE_MODEL,
     timeoutMs: vars.CLAUDE_TIMEOUT_MS,
   });
@@ -94,7 +93,6 @@ export async function getEnv(): Promise<LedgerEnv> {
     ai: vars.CATEGORIZE_WITH_AI
       ? new AiClient({
           apiKey: vars.ANTHROPIC_API_KEY || undefined,
-          subscriptionToken: vars.CLAUDE_CODE_OAUTH_TOKEN || undefined,
           model: vars.CLAUDE_CATEGORIZE_MODEL,
           timeoutMs: vars.CLAUDE_TIMEOUT_MS,
         })

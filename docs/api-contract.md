@@ -193,13 +193,17 @@ Outcomes are normal results, not errors:
 
 Genuine failures use the failure envelope with an `errorCode`:
 
+Failure statuses are always 4xx: the production Cloudflare Tunnel replaces origin `502`/`504`
+bodies with its own error stub, which would strip the envelope (and `errorCode`) before it reaches
+the app. Clients should key off `errorCode`, not the HTTP status.
+
 | errorCode      | HTTP | meaning                                                    |
 | -------------- | ---- | ---------------------------------------------------------- |
 | `invalid_url`  | 400  | URL has no `p=` with a 44-digit key (bad/incomplete QR)    |
-| `expired`      | 502  | SEFAZ link expired / receipt not found                     |
-| `unavailable`  | 502  | SEFAZ unreachable or returned no products                  |
+| `expired`      | 404  | SEFAZ link expired / receipt not found                     |
+| `unavailable`  | 424  | SEFAZ unreachable or returned no products                  |
 | `parse_failed` | 422  | fetched the page but could not parse it                    |
-| `qr_rejected`  | 502  | SEFAZ refused the QR signature — offer the access-key flow |
+| `qr_rejected`  | 422  | SEFAZ refused the QR signature — offer the access-key flow |
 
 `qr_rejected` means the store's POS signs its QR codes with a CSC the SEFAZ no longer recognizes
 (e.g. `[QRCode v2.00]: 103 - Identificador de CSC inexistente`). Rescanning never helps, but the
@@ -227,7 +231,7 @@ Body: `{ "accessKey": string }` — the 44-digit key (the digits in the QR's `p=
 }
 ```
 
-Failures: `invalid_url` (400) for a malformed key or unsupported state; `unavailable` (502) when
+Failures: `invalid_url` (400) for a malformed key or unsupported state; `unavailable` (424) when
 SEFAZ won't serve the form or the captcha.
 
 ### `POST /scan/key`
@@ -245,8 +249,8 @@ after any failure below the client must request a fresh challenge (and show the 
 | ------------------- | ---- | --------------------------------------------------- |
 | `challenge_expired` | 410  | unknown or lapsed `challengeId` — request a new one |
 | `captcha_rejected`  | 422  | wrong captcha answer — request a new challenge      |
-| `expired`           | 502  | SEFAZ does not know this key (yet) — retry later    |
-| `unavailable`       | 502  | SEFAZ unreachable or refused the consultation       |
+| `expired`           | 404  | SEFAZ does not know this key (yet) — retry later    |
+| `unavailable`       | 424  | SEFAZ unreachable or refused the consultation       |
 | `parse_failed`      | 422  | fetched the page but could not parse it             |
 
 ### `POST /scan/photo`
@@ -308,8 +312,8 @@ Genuine failures use the failure envelope with an `errorCode`:
 | errorCode           | HTTP | meaning                                                    |
 | ------------------- | ---- | ---------------------------------------------------------- |
 | `invalid_image`     | 400  | missing `image` field, unsupported type, or bad size       |
-| `ai_unavailable`    | 502  | the API call or `claude` CLI failed, errored, or timed out |
-| `ai_invalid_output` | 502  | the model ran but its output did not match the contract    |
+| `ai_unavailable`    | 424  | the API call or `claude` CLI failed, errored, or timed out |
+| `ai_invalid_output` | 424  | the model ran but its output did not match the contract    |
 
 ### `POST /scan/transfer`
 
@@ -337,8 +341,8 @@ Genuine failures use the failure envelope with an `errorCode`:
 | ------------------- | ---- | ---------------------------------------------------------- |
 | `invalid_input`     | 400  | neither `image` nor `text`, unsupported type, or bad size  |
 | `not_a_transfer`    | 422  | the AI read it but it is not a transfer receipt            |
-| `ai_unavailable`    | 502  | the API call or `claude` CLI failed, errored, or timed out |
-| `ai_invalid_output` | 502  | the model ran but its output did not match the contract    |
+| `ai_unavailable`    | 424  | the API call or `claude` CLI failed, errored, or timed out |
+| `ai_invalid_output` | 424  | the model ran but its output did not match the contract    |
 
 ### `POST /transfers`
 

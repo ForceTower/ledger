@@ -140,7 +140,7 @@ export class AiClient implements AiRunner {
       useLog()
         .withMetadata({ result: text.slice(0, 2000), issues: z.treeifyError(parsed.error) })
         .error("Model output did not match the contract");
-      throw new LedgerError(status.BAD_GATEWAY, "The AI returned an unexpected response", "ai_invalid_output");
+      throw new LedgerError(status.FAILED_DEPENDENCY, "The AI returned an unexpected response", "ai_invalid_output");
     }
     return parsed.data;
   }
@@ -167,13 +167,13 @@ export class AiClient implements AiRunner {
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       useLog().withError(err).error("Anthropic request failed");
-      throw new LedgerError(status.BAD_GATEWAY, "The AI service is unavailable", "ai_unavailable");
+      throw new LedgerError(status.FAILED_DEPENDENCY, "The AI service is unavailable", "ai_unavailable");
     }
 
     const textBlock = message.content.find((block): block is Anthropic.TextBlock => block.type === "text");
     if (message.stop_reason === "refusal" || textBlock === undefined) {
       useLog().withMetadata({ stopReason: message.stop_reason }).error("Anthropic returned no usable output");
-      throw new LedgerError(status.BAD_GATEWAY, "The AI returned an unexpected response", "ai_invalid_output");
+      throw new LedgerError(status.FAILED_DEPENDENCY, "The AI returned an unexpected response", "ai_invalid_output");
     }
     return { text: textBlock.text, usage: apiUsage(this.config.model, message.usage), transport: "api" };
   }
@@ -211,14 +211,14 @@ export class AiClient implements AiRunner {
         useLog()
           .withMetadata({ exitCode, stderr: stderr.slice(0, 2000) })
           .error("Claude CLI failed");
-        throw new LedgerError(status.BAD_GATEWAY, "The AI service is unavailable", "ai_unavailable");
+        throw new LedgerError(status.FAILED_DEPENDENCY, "The AI service is unavailable", "ai_unavailable");
       }
       return stdout;
     } catch (error) {
       if (error instanceof LedgerError) throw error;
       const err = error instanceof Error ? error : new Error(String(error));
       useLog().withError(err).error("Claude CLI could not be executed");
-      throw new LedgerError(status.BAD_GATEWAY, "The AI service is unavailable", "ai_unavailable");
+      throw new LedgerError(status.FAILED_DEPENDENCY, "The AI service is unavailable", "ai_unavailable");
     } finally {
       clearTimeout(timeout);
     }
@@ -230,7 +230,7 @@ export class AiClient implements AiRunner {
       useLog()
         .withMetadata({ stdout: stdout.slice(0, 2000) })
         .error("Unexpected Claude CLI envelope");
-      throw new LedgerError(status.BAD_GATEWAY, "The AI returned an unexpected response", "ai_invalid_output");
+      throw new LedgerError(status.FAILED_DEPENDENCY, "The AI returned an unexpected response", "ai_invalid_output");
     }
     return {
       text: envelope.data.result,

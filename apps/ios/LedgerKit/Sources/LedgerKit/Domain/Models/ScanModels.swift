@@ -52,8 +52,8 @@ public enum ScanFailure: Error, Equatable, Sendable {
         switch self {
         case .invalidQR: "erro · QR_INVÁLIDO"
         case .expired: "erro · LINK_EXPIRADO"
-        case .unavailable, .parseFailed: "erro · 502 · timeout"
-        case .qrRejected: "erro · 502 · QR_RECUSADO"
+        case .unavailable, .parseFailed: "erro · conexão · timeout"
+        case .qrRejected: "erro · 422 · QR_RECUSADO"
         case .captchaRejected: "erro · 422 · CÓDIGO_INCORRETO"
         case .challengeExpired: "erro · 410 · VERIFICAÇÃO_EXPIRADA"
         }
@@ -185,8 +185,8 @@ public enum PhotoScanFailure: Error, Equatable, Sendable {
         switch self {
         case .captureFailed: "erro · CAPTURA_FALHOU"
         case .invalidImage: "erro · 400 · IMAGEM_INVÁLIDA"
-        case .aiUnavailable: "erro · 502 · IA_INDISPONÍVEL"
-        case .aiInvalidOutput: "erro · 502 · SAÍDA_INVÁLIDA"
+        case .aiUnavailable: "erro · 424 · IA_INDISPONÍVEL"
+        case .aiInvalidOutput: "erro · 424 · SAÍDA_INVÁLIDA"
         }
     }
 

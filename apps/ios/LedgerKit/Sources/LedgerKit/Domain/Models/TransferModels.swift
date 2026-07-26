@@ -142,9 +142,9 @@ public enum TransferScanFailure: Error, Equatable, Sendable {
         switch self {
         case .invalidInput: "erro · 400 · ENTRADA_INVÁLIDA"
         case .notATransfer: "erro · 422 · NÃO_É_COMPROVANTE"
-        case .aiUnavailable: "erro · 502 · IA_INDISPONÍVEL"
-        case .aiInvalidOutput: "erro · 502 · SAÍDA_INVÁLIDA"
-        case .saveFailed: "erro · 502 · FALHA_AO_SALVAR"
+        case .aiUnavailable: "erro · 424 · IA_INDISPONÍVEL"
+        case .aiInvalidOutput: "erro · 424 · SAÍDA_INVÁLIDA"
+        case .saveFailed: "erro · FALHA_AO_SALVAR"
         }
     }
 

@@ -12,12 +12,15 @@ export class LedgerError extends Error {
   }
 }
 
+// Never 502/504 here: the production Cloudflare Tunnel replaces those bodies with its own error
+// stub, so the JSON envelope (and its errorCode) would never reach the client. Upstream failures
+// ride on 4xx instead — clients key off errorCode, not the status.
 const NFCE_STATUS: Record<NfceErrorCode, number> = {
   invalid_url: 400,
-  expired: 502,
-  unavailable: 502,
+  expired: 404,
+  unavailable: 424,
   parse_failed: 422,
-  qr_rejected: 502,
+  qr_rejected: 422,
   captcha_rejected: 422,
 };
 

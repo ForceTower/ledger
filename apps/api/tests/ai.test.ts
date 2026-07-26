@@ -37,7 +37,7 @@ describe("AiClient.parse", () => {
       client.parse("Claro! Aqui está:", schema);
     } catch (error) {
       expect((error as LedgerError).errorCode).toBe("ai_invalid_output");
-      expect((error as LedgerError).statusCode).toBe(502);
+      expect((error as LedgerError).statusCode).toBe(424);
     }
   });
 

@@ -11,8 +11,22 @@ public enum Format {
         return f
     }()
 
+    private static let currencyWhole: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .currency
+        f.locale = locale
+        f.currencyCode = "BRL"
+        f.maximumFractionDigits = 0
+        return f
+    }()
+
     public static func brl(_ value: Double) -> String {
         currency.string(from: value as NSNumber) ?? "R$ 0,00"
+    }
+
+    /// Rounded to whole reais, for tight spots where the cents do not earn their width.
+    public static func brlWhole(_ value: Double) -> String {
+        currencyWhole.string(from: value as NSNumber) ?? "R$ 0"
     }
 
     public static func date(fromISO iso: String) -> Date? {

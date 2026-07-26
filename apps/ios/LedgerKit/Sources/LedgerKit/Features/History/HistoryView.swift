@@ -188,7 +188,7 @@ private struct CategoryQuickStrip: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
-                    Text(Format.brl(entry.amount))
+                    Text(Format.brlWhole(entry.amount))
                         .font(.callout.weight(.bold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)

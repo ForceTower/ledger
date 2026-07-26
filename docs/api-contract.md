@@ -110,6 +110,35 @@ interface Transfer {
   } | null;
   purchaseId: string | null; // slug of the materialized purchase
 }
+
+// Reading a transfer receipt and saving it are two steps, because the owner gets to correct the
+// category and decide whether the transfer pays for a note already in the history.
+interface TransferMatch {
+  purchaseId: string;
+  store: string;
+  date: string;
+  time: string;
+  totalPaid: number;
+  itemCount: number;
+}
+
+interface TransferScanResult {
+  transfer: Transfer;
+  category: Category; // the AI's guess for the transfer as a whole
+  match: TransferMatch | null; // a same-day purchase with the same total
+  comment: string; // pt-BR
+}
+
+interface TransferSaveRequest {
+  transfer: Transfer;
+  category: Category;
+  linkedPurchaseId: string | null;
+}
+
+interface TransferSaveResult {
+  transfer: Transfer;
+  purchase: Purchase; // source: "pix"
+}
 ```
 
 ## Endpoints
@@ -176,10 +205,11 @@ Genuine failures use the failure envelope with an `errorCode`:
 AI item identification: take a photo of one or more items and the server asks Claude to identify and
 categorize them. Body: `multipart/form-data` with an `image` field (JPEG, PNG, or WebP, ≤ 10 MB).
 
-Server configuration (env vars): `ANTHROPIC_API_KEY` (when set, the Anthropic API is used; otherwise
-the server falls back to the local `claude` CLI), `CLAUDE_BIN` (default `claude`), `CLAUDE_MODEL`
-(default `claude-haiku-4-5`), `CLAUDE_PHOTO_PROMPT` (the identification instruction; the strict
-output format is always enforced server-side), `CLAUDE_TIMEOUT_MS` (default `60000`).
+Server configuration (env vars, shared by every AI read): `ANTHROPIC_API_KEY` (when set, the
+Anthropic API is used; otherwise the server falls back to the local `claude` CLI), `CLAUDE_BIN`
+(default `claude`), `CLAUDE_MODEL` (default `claude-haiku-4-5`), `CLAUDE_PHOTO_PROMPT` (the
+identification instruction; the strict output format is always enforced server-side),
+`CLAUDE_TIMEOUT_MS` (default `60000`).
 
 `items` carries one entry per distinct product, most prominent first, and is never empty (several
 copies of the same product are one entry — the app asks the owner for the quantity). At most 20
@@ -231,6 +261,53 @@ Genuine failures use the failure envelope with an `errorCode`:
 | `ai_unavailable`    | 502  | the API call or `claude` CLI failed, errored, or timed out |
 | `ai_invalid_output` | 502  | the model ran but its output did not match the contract    |
 
+### `POST /scan/transfer`
+
+AI extraction of a bank-transfer receipt (Pix comprovante). Body: `multipart/form-data` with an
+`image` field (the screenshot; JPEG, PNG, or WebP, ≤ 10 MB) and/or a `text` field (the receipt text
+the owner copied out of the banking app, ≤ 8000 chars). At least one of the two is required — banks
+put the amount in the screenshot, in the copied text, or both. When both arrive the prompt tells the
+model to trust the text, since it was copied rather than read off a screenshot.
+
+The upload's type is read from its own first bytes, not from the filename or the declared
+content type.
+
+Reading is not saving: this endpoint persists nothing. It returns `TransferScanResult` — the
+extraction, a suggested `category` for the whole transfer, and `match`, a purchase from the same day
+whose total equals `transfer.amount` (`null` when there is none). Purchases that came from a
+transfer themselves, and notes another transfer already claims, are never offered as matches; when
+several qualify, the one closest in time wins. The client shows both for review.
+
+Uses the same server configuration as `POST /scan/photo`, with `CLAUDE_TRANSFER_PROMPT` in place of
+`CLAUDE_PHOTO_PROMPT`.
+
+Genuine failures use the failure envelope with an `errorCode`:
+
+| errorCode           | HTTP | meaning                                                    |
+| ------------------- | ---- | ---------------------------------------------------------- |
+| `invalid_input`     | 400  | neither `image` nor `text`, unsupported type, or bad size  |
+| `not_a_transfer`    | 422  | the AI read it but it is not a transfer receipt            |
+| `ai_unavailable`    | 502  | the API call or `claude` CLI failed, errored, or timed out |
+| `ai_invalid_output` | 502  | the model ran but its output did not match the contract    |
+
+### `POST /transfers`
+
+Persists a reviewed transfer. Body: `TransferSaveRequest`.
+
+Inserts the `transfers` row (migration 004) keyed by `transactionId`. What it does with the money
+depends on `linkedPurchaseId`:
+
+- **`null`** — materializes a `Purchase` with `source: "pix"`, a single line item under the chosen
+  `category`, and a `Pix` payment, so the transfer shows up in the history feed on its own.
+- **a purchase slug** — attaches the transfer to that note and materializes nothing. The note
+  already accounts for the money, so the transfer adds no spending of its own.
+
+Re-posting the same `transactionId` is idempotent — it returns what is already stored rather than
+double-counting.
+
+`data: TransferSaveResult` — the stored transfer plus the purchase it is attached to (the new one,
+or the linked note), so the client can mirror it without a second request.
+
 ### `GET /purchases?page=&from=&to=&store=`
 
 The history feed. `data: PurchasePage` — **full** `Purchase` objects (same shape as
@@ -257,7 +334,4 @@ server has no Firebase credentials, push is disabled and registration is still a
 ### Future (stub in UI only)
 
 - `POST /scan-image` — multipart photo fallback (server decodes the QR, then `/scan`).
-- `POST /scan/transfer` — multipart Pix receipt screenshot → AI extraction → `Transfer` + a
-  materialized `Purchase` (source `"pix"`). Schema and types exist (`transfers` table, migration
-  004); the endpoint is not built yet.
 - `POST /ask` — natural-language question over the whole dataset (Anthropic API + SQL tools).

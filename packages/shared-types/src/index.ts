@@ -1,20 +1,24 @@
 // The wire contract shared by the API and every client. Mirrored in Swift by the iOS app.
 // See docs/api-contract.md for the prose version. All fields are English.
 
-export type Category =
-  | "produce"
-  | "meat"
-  | "dairy_deli"
-  | "bakery"
-  | "grocery"
-  | "beverages"
-  | "snacks_sweets"
-  | "frozen"
-  | "cleaning"
-  | "hygiene"
-  | "pet"
-  | "household"
-  | "other";
+/** The runtime list is the source of truth: the AI prompts enumerate it and `Category` derives from it. */
+export const CATEGORIES = [
+  "produce",
+  "meat",
+  "dairy_deli",
+  "bakery",
+  "grocery",
+  "beverages",
+  "snacks_sweets",
+  "frozen",
+  "cleaning",
+  "hygiene",
+  "pet",
+  "household",
+  "other",
+] as const;
+
+export type Category = (typeof CATEGORIES)[number];
 
 export type PurchaseSource = "nfce" | "manual" | "pix";
 
@@ -108,6 +112,47 @@ export interface Transfer {
   origin: TransferParty | null;
   /** Slug of the purchase this transfer materialized into; null if detached. */
   purchaseId: string | null;
+}
+
+export type TransferScanErrorCode =
+  | "invalid_input"
+  | "not_a_transfer"
+  | "ai_unavailable"
+  | "ai_invalid_output";
+
+/** A purchase the transfer probably paid for: same day, same total. */
+export interface TransferMatch {
+  purchaseId: string;
+  store: string;
+  date: string;
+  time: string;
+  totalPaid: number;
+  itemCount: number;
+}
+
+/** What `POST /scan/transfer` reads out of a receipt. Reading is not saving — nothing is persisted yet. */
+export interface TransferScanResult {
+  transfer: Transfer;
+  /** The AI's category guess for the transfer as a whole, from the destination's name. */
+  category: Category;
+  /** A purchase on the same day whose total matches — the transfer probably paid for it. */
+  match: TransferMatch | null;
+  /** Free-form remark about the extraction (pt-BR). */
+  comment: string;
+}
+
+/** What `POST /transfers` persists, once the owner has confirmed the category and the match. */
+export interface TransferSaveRequest {
+  transfer: Transfer;
+  category: Category;
+  /** The purchase this transfer paid for; keeps the two from being counted twice. */
+  linkedPurchaseId: string | null;
+}
+
+export interface TransferSaveResult {
+  transfer: Transfer;
+  /** The purchase the transfer materialized into (`source: "pix"`), so clients can mirror it. */
+  purchase: Purchase;
 }
 
 export type PhotoScanErrorCode = "invalid_image" | "ai_unavailable" | "ai_invalid_output";

@@ -55,6 +55,12 @@ unit_price, total, category`. Unique `(purchase_id, seq)`.
 - **scan_requests** — `id, url, status, error_code, error_message, purchase_slug, warnings jsonb,
 duration_ms, created_at`. Audit trail of every `POST /scan`: the raw scanned QR URL and how
   processing it went (`saved`/`duplicate`/`failed` + the error when it failed).
+- **transfers** — `id, transaction_id (unique), transfer_type, amount, date, time, destination_*,
+origin_*, purchase_id, extracted jsonb, created_at`. Pix receipts the AI read (`POST /scan/transfer`
+  → `POST /transfers`). **`transaction_id` (the bank's end-to-end ID) is the dedup key**, the way
+  `access_key` is for a nota. `purchase_id` points either at the single-item purchase the transfer
+  materialized (`source: "pix"`) or at the nota it paid for, when the owner linked the two — a linked
+  transfer adds no spending of its own.
 - **device_tokens** — `id, token (unique), platform, created_at, last_seen_at`. FCM push tokens.
 
 Extensions: `pg_trgm` for fuzzy product/description matching. `gen_random_uuid()` for PKs.

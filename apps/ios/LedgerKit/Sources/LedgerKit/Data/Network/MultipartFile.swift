@@ -7,25 +7,47 @@ struct MultipartFile: Sendable {
     var filename: String
     var mimeType: String
     var data: Data
+}
 
-    func multipartBody(boundary: String) -> Data {
+/// A `multipart/form-data` body. The AI endpoints take an image, some text, or both.
+struct MultipartForm: Sendable {
+    var fields: [(name: String, value: String)] = []
+    var files: [MultipartFile] = []
+
+    var isEmpty: Bool { fields.isEmpty && files.isEmpty }
+
+    func body(boundary: String) -> Data {
         var body = Data()
-        body.append("--\(boundary)\r\n")
-        body.append("Content-Disposition: form-data; name=\"\(field)\"; filename=\"\(filename)\"\r\n")
-        body.append("Content-Type: \(mimeType)\r\n\r\n")
-        body.append(data)
-        body.append("\r\n--\(boundary)--\r\n")
+        for field in fields {
+            body.append("--\(boundary)\r\n")
+            body.append("Content-Disposition: form-data; name=\"\(field.name)\"\r\n\r\n")
+            body.append(field.value)
+            body.append("\r\n")
+        }
+        for file in files {
+            body.append("--\(boundary)\r\n")
+            body.append("Content-Disposition: form-data; name=\"\(file.field)\"; filename=\"\(file.filename)\"\r\n")
+            body.append("Content-Type: \(file.mimeType)\r\n\r\n")
+            body.append(file.data)
+            body.append("\r\n")
+        }
+        body.append("--\(boundary)--\r\n")
         return body
     }
 }
 
 extension MultipartFile {
     /// The camera hands back HEIC and the photo library hands back whatever the user saved, neither of
-    /// which `POST /scan/photo` accepts. Re-encoding also keeps the upload well under the server's 10 MB
+    /// which the scan endpoints accept. Re-encoding also keeps the upload well under the server's 10 MB
     /// cap and near the resolution the model actually reads.
-    static func scanPhoto(from data: Data, maxPixelSize: Int = 1568, quality: Double = 0.8) -> MultipartFile? {
+    static func imageUpload(
+        from data: Data,
+        filename: String,
+        maxPixelSize: Int = 1568,
+        quality: Double = 0.8
+    ) -> MultipartFile? {
         guard let jpeg = jpegData(from: data, maxPixelSize: maxPixelSize, quality: quality) else { return nil }
-        return MultipartFile(field: "image", filename: "scan.jpg", mimeType: "image/jpeg", data: jpeg)
+        return MultipartFile(field: "image", filename: filename, mimeType: "image/jpeg", data: jpeg)
     }
 
     private static func jpegData(from data: Data, maxPixelSize: Int, quality: Double) -> Data? {

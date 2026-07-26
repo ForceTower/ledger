@@ -128,6 +128,71 @@ enum MockData {
         comment: "Parece um mamão formosa maduro, vendido por unidade."
     )
 
+    static let transfer = Transfer(
+        transactionId: "E607011902026072414204f8",
+        amount: 128.40,
+        date: "2026-07-24",
+        time: "14:20:00",
+        destination: TransferParty(
+            name: "Mercado Bom Preço LTDA",
+            institution: "Banco do Brasil",
+            agency: "3054",
+            account: "····8821"
+        ),
+        origin: TransferParty(name: "João Sena", institution: "Nubank", agency: "0001", account: "····1234")
+    )
+
+    static let transferReceiptText = """
+    Comprovante de Pix
+    Valor: R$ 128,40
+    Para: MERCADO BOM PREÇO LTDA
+    CNPJ 12.345.678/0001-90
+    24/07/2026 às 14:20
+    ID E607011902026072414204f8
+    """
+
+    static let transferScan = TransferScanResult(
+        transfer: transfer,
+        category: .grocery,
+        match: TransferMatch(
+            purchaseId: "2026-07-24_bom-preco_01",
+            store: "Mercado Bom Preço",
+            date: "2026-07-24",
+            time: "14:18:22",
+            totalPaid: 128.40,
+            itemCount: 12
+        ),
+        comment: "Sugerimos Mercearia pelo nome do destinatário."
+    )
+
+    /// The single-line purchase a saved transfer materializes into.
+    static func pixPurchase(_ transfer: Transfer, category: Category) -> Purchase {
+        Purchase(
+            id: "\(transfer.date)_\(transfer.transactionId)",
+            date: transfer.date,
+            time: transfer.time ?? "00:00:00",
+            source: .pix,
+            store: StoreInfo(name: transfer.destination.name, legalName: nil, cnpj: nil, address: nil),
+            receipt: nil,
+            items: [
+                PurchaseItem(
+                    seq: 1,
+                    description: transfer.destination.name,
+                    code: transfer.transactionId,
+                    barcode: nil,
+                    quantity: 1,
+                    unit: "un",
+                    unitPrice: transfer.amount,
+                    total: transfer.amount,
+                    category: category
+                ),
+            ],
+            totals: Totals(itemCount: 1, gross: transfer.amount, discount: 0, totalPaid: transfer.amount),
+            payments: [Payment(code: nil, method: transfer.type.shortLabel, amount: transfer.amount, change: nil)],
+            taxesTotal: nil
+        )
+    }
+
     static let purchases = [atacadao, assai, paoDeAcucar, carrefour]
 
     static let summaries = purchases.map(\.summary)

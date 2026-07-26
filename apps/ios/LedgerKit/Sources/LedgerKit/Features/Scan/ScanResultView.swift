@@ -15,7 +15,7 @@ struct ScanResultView: View {
         Group {
             switch store.phase {
             case .processing:
-                ProcessingView(photoMode: store.scanMode == .photo)
+                ProcessingView(mode: store.scanMode)
             case let .result(response):
                 if response.status == .duplicate {
                     DuplicateResultView(store: store, purchase: response.purchase)
@@ -36,6 +36,12 @@ struct ScanResultView: View {
                 ErrorResultView(store: store, failure: failure)
             case let .photoFailure(failure):
                 PhotoErrorResultView(store: store, failure: failure)
+            case let .transfer(result):
+                TransferResultView(store: store, result: result)
+            case let .transferSaved(saved):
+                TransferSavedView(store: store, saved: saved)
+            case let .transferFailure(failure):
+                TransferErrorResultView(store: store, failure: failure)
             case .idle, .detecting, .capturing:
                 Color.clear
             }
@@ -47,10 +53,34 @@ struct ScanResultView: View {
 // MARK: - Processing
 
 private struct ProcessingView: View {
-    let photoMode: Bool
+    let mode: ScanMode
 
     @State private var pulse = false
     @State private var spinning = false
+
+    private var symbol: String {
+        switch mode {
+        case .receipt: "doc.text.fill"
+        case .photo: "sparkles"
+        case .transfer: "arrow.up.right"
+        }
+    }
+
+    private var title: String {
+        switch mode {
+        case .receipt: "Lendo sua nota"
+        case .photo: "Identificando a imagem"
+        case .transfer: "Interpretando o comprovante"
+        }
+    }
+
+    private var subtitle: String {
+        switch mode {
+        case .receipt: "Buscando os itens junto à SEFAZ…"
+        case .photo: "Reconhecendo o que está na foto…"
+        case .transfer: "Entendendo valor, destino e data…"
+        }
+    }
 
     var body: some View {
         VStack(spacing: 22) {
@@ -61,7 +91,7 @@ private struct ProcessingView: View {
                     .trim(from: 0, to: 0.28)
                     .stroke(Color.appAccent, style: StrokeStyle(lineWidth: 5, lineCap: .round))
                     .rotationEffect(.degrees(spinning ? 360 : 0))
-                Image(systemName: photoMode ? "sparkles" : "doc.text.fill")
+                Image(systemName: symbol)
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(Color.appAccent)
                     .frame(width: 46, height: 46)
@@ -73,11 +103,13 @@ private struct ProcessingView: View {
             }
 
             VStack(spacing: 6) {
-                Text(photoMode ? "Identificando a imagem" : "Lendo sua nota")
+                Text(title)
                     .font(.title2.weight(.bold))
-                Text(photoMode ? "Reconhecendo o que está na foto…" : "Buscando os itens junto à SEFAZ…")
+                    .multilineTextAlignment(.center)
+                Text(subtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
             VStack(spacing: 10) {
                 shimmerBar(width: .infinity)
@@ -951,6 +983,380 @@ private struct PhotoPlaceholder: View {
     }
 }
 
+// MARK: - Transfer (Pix receipt)
+
+private struct TransferResultView: View {
+    let store: StoreOf<ScanFeature>
+    let result: TransferScanResult
+
+    private var transfer: Transfer { result.transfer }
+
+    /// The AI's guess leads, so the owner sees what it picked before the alternatives.
+    private var categories: [Category] {
+        [result.category] + Category.allCases.filter { $0 != result.category }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 14) {
+                Label("Comprovante interpretado", systemImage: "sparkles")
+                    .font(.footnote.weight(.bold))
+                    .foregroundStyle(Color.appAccent)
+                    .padding(.top, 24)
+
+                transferCard
+                categoryCard
+                if let match = result.match {
+                    linkCard(match)
+                }
+                if !store.trimmedTransferText.isEmpty {
+                    pastedTextCard
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
+        }
+        .scrollIndicators(.hidden)
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 9) {
+                Button { store.send(.saveTransferTapped) } label: {
+                    if store.transferSaving {
+                        ProgressView()
+                            .tint(Color.appAccentForeground)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(AppGradient.accent, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                    } else {
+                        PrimaryButtonLabel("Salvar no histórico")
+                    }
+                }
+                .disabled(store.transferSaving)
+
+                Button("Descartar") { store.send(.discardTransferTapped) }
+                    .font(.callout.weight(.medium))
+                    .tint(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
+            .background(Color.appElevated)
+        }
+    }
+
+    private var transferCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundStyle(resultBlue)
+                    .frame(width: 22, height: 22)
+                    .background(resultBlue.opacity(0.16), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                Text(transfer.type.label.uppercased())
+                    .font(.caption.weight(.heavy))
+                    .tracking(0.6)
+                    .foregroundStyle(resultBlue)
+            }
+
+            Text(Format.brl(transfer.amount))
+                .font(.system(size: 34, weight: .heavy))
+                .monospacedDigit()
+                .padding(.top, 12)
+
+            Text(transfer.destination.name)
+                .font(.headline)
+                .padding(.top, 8)
+
+            if let detail = Self.accountLine(transfer.destination) {
+                Text(detail)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 3)
+            }
+
+            WrapLayout(spacing: 7, lineSpacing: 7) {
+                InfoChip { Text(Self.dateTime(transfer)) }
+                if let origin = transfer.origin, let line = Self.accountLine(origin, includeAgency: false) {
+                    InfoChip { Text(line) }
+                }
+            }
+            .padding(.top, 14)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .card(cornerRadius: 22)
+    }
+
+    private var categoryCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            CardSectionHeader("Categoria sugerida")
+
+            WrapLayout(spacing: 8, lineSpacing: 8) {
+                ForEach(categories) { category in
+                    Button { store.send(.transferCategoryChanged(category)) } label: {
+                        CategoryChip(category: category, selected: store.transferCategory == category)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.top, 12)
+
+            Text(result.comment.isEmpty ? Self.suggestion(result.category) : result.comment)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.top, 11)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .card(cornerRadius: 20)
+    }
+
+    private func linkCard(_ match: TransferMatch) -> some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Vincular a uma nota").font(.callout.weight(.bold))
+                    Text("Achamos uma nota de **\(Format.brl(match.totalPaid))** no mesmo dia. Vincule para não contar duas vezes.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { store.transferLinked },
+                        set: { _ in store.send(.transferLinkToggled) }
+                    )
+                )
+                .labelsHidden()
+                .tint(resultGreen)
+            }
+
+            if store.transferLinked {
+                HStack(spacing: 12) {
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .fill(AppGradient.accent)
+                        .frame(width: 38, height: 38)
+                        .overlay {
+                            Text(String(match.store.first.map(String.init) ?? "?"))
+                                .font(.system(size: 15, weight: .heavy))
+                                .foregroundStyle(.white)
+                        }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(match.store).font(.subheadline.weight(.bold)).lineLimit(1)
+                        Text("\(Format.dayMonth(fromISO: match.date)) · \(match.time.prefix(5)) · \(match.itemCount) itens")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(resultGreen)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 11)
+                .background(Color.appFillSubtle, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .padding(.top, 13)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(16)
+        .card(cornerRadius: 20)
+        .animation(.easeInOut(duration: 0.25), value: store.transferLinked)
+    }
+
+    private var pastedTextCard: some View {
+        Button { store.send(.toggleTransferText) } label: {
+            VStack(spacing: 0) {
+                HStack {
+                    Text("TEXTO QUE VOCÊ COLOU")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .tracking(0.4)
+                    Spacer()
+                    Image(systemName: store.transferTextExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.label3)
+                }
+                if store.transferTextExpanded {
+                    Text(store.trimmedTransferText)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 12)
+                }
+            }
+            .padding(16)
+            .card(cornerRadius: 20)
+        }
+        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.25), value: store.transferTextExpanded)
+    }
+
+    private static func suggestion(_ category: Category) -> String {
+        "A IA sugeriu \(category.label) pelo nome do destinatário."
+    }
+
+    private static func dateTime(_ transfer: Transfer) -> String {
+        let day = Format.dayMonth(fromISO: transfer.date)
+        guard let time = transfer.time else { return day }
+        return "\(day) · \(time.prefix(5))"
+    }
+
+    /// "Nubank ag. 0001 ····1234", dropping whatever the bank did not put on the receipt.
+    private static func accountLine(_ party: TransferParty, includeAgency: Bool = true) -> String? {
+        var parts: [String] = []
+        if let institution = party.institution { parts.append(institution) }
+        if includeAgency, let agency = party.agency { parts.append("ag. \(agency)") }
+        if let account = party.account { parts.append(account) }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
+    }
+}
+
+private struct CategoryChip: View {
+    let category: Category
+    let selected: Bool
+
+    var body: some View {
+        Text(category.label)
+            .font(.subheadline.weight(.bold))
+            .foregroundStyle(selected ? Color.appAccent : .secondary)
+            .padding(.horizontal, 15)
+            .padding(.vertical, 9)
+            .background(selected ? Color.appAccentTint : Color.appFill, in: Capsule())
+            .overlay {
+                if selected {
+                    Capsule().strokeBorder(Color.appAccent, lineWidth: 1.5)
+                }
+            }
+    }
+}
+
+private struct TransferSavedView: View {
+    let store: StoreOf<ScanFeature>
+    let saved: TransferSaveResult
+
+    private var transfer: Transfer { saved.transfer }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 30, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 76, height: 76)
+                .background(resultGreen, in: Circle())
+                .shadow(color: resultGreen.opacity(0.4), radius: 13, y: 5)
+                .padding(.top, 44).padding(.bottom, 20)
+
+            Text("Transferência registrada")
+                .font(.title2.weight(.bold))
+                .multilineTextAlignment(.center)
+
+            Text(summary)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+                .frame(maxWidth: 300)
+
+            Button { store.send(.showInHistoryTapped) } label: {
+                HStack(spacing: 13) {
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 15, weight: .black))
+                        .foregroundStyle(resultBlue)
+                        .frame(width: 44, height: 44)
+                        .background(resultBlue.opacity(0.15), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(transfer.destination.name)
+                            .font(.callout.weight(.bold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Text("\(Format.dayMonth(fromISO: transfer.date)) · \(transfer.type.shortLabel) · \(store.transferCategory.label)")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 8)
+                    Text(Format.brl(transfer.amount))
+                        .font(.callout.weight(.heavy))
+                        .monospacedDigit()
+                        .foregroundStyle(.primary)
+                }
+                .padding(14)
+                .background(Color.appBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 24)
+
+            Spacer()
+
+            Button { store.send(.showInHistoryTapped) } label: {
+                PrimaryButtonLabel("Ver no histórico")
+            }
+
+            Button("Registrar outra") { store.send(.discardTransferTapped) }
+                .font(.callout.weight(.medium))
+                .tint(Color.appAccent)
+                .padding(.top, 14)
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 26)
+    }
+
+    private var summary: String {
+        let category = "Registrada em **\(store.transferCategory.label)**"
+        return store.transferLinked
+            ? "\(category) e vinculada à nota do mesmo dia — sem contar duas vezes."
+            : "\(category). Nenhuma nota vinculada."
+    }
+}
+
+private struct TransferErrorResultView: View {
+    let store: StoreOf<ScanFeature>
+    let failure: TransferScanFailure
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Image(systemName: failure.symbol)
+                .font(.system(size: 30))
+                .foregroundStyle(resultOrange)
+                .frame(width: 74, height: 74)
+                .background(resultOrange.opacity(0.14), in: Circle())
+                .padding(.top, 54).padding(.bottom, 20)
+
+            Text(failure.title)
+                .font(.title2.weight(.bold))
+                .multilineTextAlignment(.center)
+
+            Text(failure.message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+                .frame(maxWidth: 300)
+
+            Text(failure.code)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(Color.label3)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(Color.appFill, in: Capsule())
+                .padding(.top, 16)
+
+            Spacer()
+
+            // The draft survives a failed reading, so this lands back on the filled-in form.
+            Button { store.send(.scanAgainTapped) } label: {
+                PrimaryButtonLabel(failure.retryLabel)
+            }
+
+            Button("Abrir Ajustes") { store.send(.settingsTapped) }
+                .font(.callout.weight(.medium))
+                .tint(Color.appAccent)
+                .padding(.top, 14)
+        }
+        .padding(.horizontal, 28)
+        .padding(.bottom, 26)
+    }
+}
+
 // MARK: - Shared
 
 private struct ScanAgainButton: View {
@@ -981,6 +1387,17 @@ private func scanResultStore(phase: ScanFeature.State.Phase, productSaved: Bool 
             }
         )
     }
+    return Store(initialState: state) { ScanFeature() }
+}
+
+@MainActor
+private func transferResultStore(phase: ScanFeature.State.Phase, linked: Bool = true) -> StoreOf<ScanFeature> {
+    var state = ScanFeature.State()
+    state.scanMode = .transfer
+    state.phase = phase
+    state.transferText = MockData.transferReceiptText
+    state.transferCategory = MockData.transferScan.category
+    state.transferLinked = linked
     return Store(initialState: state) { ScanFeature() }
 }
 
@@ -1045,4 +1462,32 @@ private func scanResultStore(phase: ScanFeature.State.Phase, productSaved: Bool 
 
 #Preview("Erro da IA") {
     ScanResultView(store: scanResultStore(phase: .photoFailure(.aiUnavailable)))
+}
+
+#Preview("Comprovante interpretado") {
+    ScanResultView(store: transferResultStore(phase: .transfer(MockData.transferScan)))
+}
+
+#Preview("Comprovante sem nota") {
+    ScanResultView(
+        store: transferResultStore(
+            phase: .transfer(TransferScanResult(transfer: MockData.transfer, category: .grocery)),
+            linked: false
+        )
+    )
+}
+
+#Preview("Transferência registrada") {
+    ScanResultView(
+        store: transferResultStore(
+            phase: .transferSaved(TransferSaveResult(
+                transfer: MockData.transfer,
+                purchase: MockData.pixPurchase(MockData.transfer, category: .grocery)
+            ))
+        )
+    )
+}
+
+#Preview("Erro do comprovante") {
+    ScanResultView(store: transferResultStore(phase: .transferFailure(.notATransfer)))
 }

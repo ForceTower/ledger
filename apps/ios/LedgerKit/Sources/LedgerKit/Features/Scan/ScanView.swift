@@ -10,6 +10,12 @@ struct ScanView: View {
 
     private var detecting: Bool { store.phase == .detecting }
     private var photoMode: Bool { store.scanMode == .photo }
+    private var transferMode: Bool { store.scanMode == .transfer }
+    /// The transfer receipt comes from the photo library, so the camera stays off for it.
+    private var showsCamera: Bool { store.scanMode.usesCamera }
+    private var cameraReady: Bool { store.cameraAvailable && store.cameraAuthorized }
+    /// True only when this mode needs a camera it cannot have.
+    private var cameraBlocked: Bool { showsCamera && !cameraReady }
 
     private var hintTitle: String {
         if photoMode { return detecting ? "Itens reconhecidos" : "Fotografe um ou mais itens" }
@@ -21,10 +27,15 @@ struct ScanView: View {
         return detecting ? "Buscando os itens…" : "Salvamos automaticamente ao detectar"
     }
 
+    /// The QR sits in a square; a haul of items reads better in a taller frame, a little above centre.
+    private var reticleSize: CGSize {
+        photoMode ? CGSize(width: 258, height: 320) : CGSize(width: 236, height: 236)
+    }
+
     var body: some View {
         ZStack {
             #if canImport(UIKit)
-            if store.cameraAvailable && store.cameraAuthorized {
+            if store.cameraAvailable && store.cameraAuthorized && showsCamera {
                 LiveScannerView(
                     isActive: isActive,
                     idle: store.phase == .idle && store.scanMode == .receipt,
@@ -35,75 +46,78 @@ struct ScanView: View {
                 )
                 .ignoresSafeArea()
             } else {
-                ScanBackground()
+                ScanBackground(showsCameraLabel: showsCamera)
                     .ignoresSafeArea()
             }
             #else
-            ScanBackground()
+            ScanBackground(showsCameraLabel: showsCamera)
                 .ignoresSafeArea()
             #endif
 
-            ScanReticle(detecting: detecting, showsScanline: !photoMode)
-                .frame(width: 236, height: 236)
+            if showsCamera && cameraReady {
+                ScanReticle(detecting: detecting, showsScanline: !photoMode)
+                    .frame(width: reticleSize.width, height: reticleSize.height)
+                    .offset(y: photoMode ? -52 : -12)
+            }
+
+            // Below the controls, so the mode switch stays reachable — Transferência needs no camera.
+            if cameraBlocked {
+                Group {
+                    if store.cameraAvailable {
+                        PermissionDeniedView { store.send(.openSystemSettings) }
+                    } else {
+                        CameraUnavailableView()
+                    }
+                }
+                .transition(.opacity)
+            }
 
             VStack(spacing: 0) {
                 HStack {
                     glassButton(systemImage: "gearshape") { store.send(.settingsTapped) }
                     Spacer()
-                    glassButton(
-                        systemImage: store.flashOn ? "bolt.fill" : "bolt.slash.fill",
-                        highlighted: store.flashOn
-                    ) { store.send(.flashTapped) }
+                    if showsCamera {
+                        glassButton(
+                            systemImage: store.flashOn ? "bolt.fill" : "bolt.slash.fill",
+                            highlighted: store.flashOn
+                        ) { store.send(.flashTapped) }
+                    }
                 }
 
-                Spacer()
-
-                VStack(spacing: 10) {
-                    Text(hintTitle)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 11)
-                        .background {
-                            Capsule().fill(
-                                detecting ? AnyShapeStyle(Color(hex: 0x28A745)) : AnyShapeStyle(.ultraThinMaterial)
-                            )
-                        }
-                    Text(hintSubtitle)
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.6))
+                if transferMode {
+                    TransferComposeView(store: store)
+                        .padding(.top, 16)
+                } else {
+                    Spacer()
+                    if !cameraBlocked {
+                        hint
+                    }
                 }
 
                 modeToggle
-                    .padding(.top, 24)
+                    .padding(.top, transferMode ? 14 : 24)
 
-                Group {
-                    if photoMode {
-                        captureRow
-                    } else {
-                        Button { store.send(.choosePhotoTapped) } label: {
-                            Label("Escolher foto", systemImage: "photo.on.rectangle")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 18)
-                                .padding(.vertical, 11)
-                                .background(.ultraThinMaterial, in: Capsule())
+                if !transferMode && !cameraBlocked {
+                    Group {
+                        if photoMode {
+                            captureRow
+                        } else {
+                            Button { store.send(.choosePhotoTapped) } label: {
+                                Label("Escolher foto", systemImage: "photo.on.rectangle")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 18)
+                                    .padding(.vertical, 11)
+                                    .background(.ultraThinMaterial, in: Capsule())
+                            }
                         }
                     }
+                    .padding(.top, 20)
                 }
-                .padding(.top, 20)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
-            .animation(.easeInOut(duration: 0.2), value: photoMode)
-
-            if !store.cameraAvailable {
-                CameraUnavailableView()
-                    .transition(.opacity)
-            } else if !store.cameraAuthorized {
-                PermissionDeniedView { store.send(.openSystemSettings) }
-                    .transition(.opacity)
-            }
+            .animation(.easeInOut(duration: 0.25), value: store.scanMode)
         }
         .task { store.send(.onAppear) }
         .animation(.easeInOut(duration: 0.3), value: store.cameraAuthorized)
@@ -134,22 +148,41 @@ struct ScanView: View {
         }
     }
 
+    private var hint: some View {
+        VStack(spacing: 10) {
+            Text(hintTitle)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 11)
+                .background {
+                    Capsule().fill(
+                        detecting ? AnyShapeStyle(Color(hex: 0x28A745)) : AnyShapeStyle(.ultraThinMaterial)
+                    )
+                }
+            Text(hintSubtitle)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.white.opacity(0.6))
+        }
+    }
+
     private var modeToggle: some View {
-        HStack(spacing: 3) {
-            modePill("Nota fiscal", mode: .receipt)
-            modePill("Foto", mode: .photo)
+        HStack(spacing: 2) {
+            ForEach(ScanMode.allCases, id: \.self) { mode in
+                modePill(mode)
+            }
         }
         .padding(4)
-        .background(.black.opacity(0.34), in: Capsule())
+        .background(.black.opacity(0.38), in: Capsule())
         .background(.ultraThinMaterial, in: Capsule())
     }
 
-    private func modePill(_ title: String, mode: ScanMode) -> some View {
+    private func modePill(_ mode: ScanMode) -> some View {
         Button { store.send(.modeChanged(mode)) } label: {
-            Text(title)
+            Text(mode.label)
                 .font(.footnote.weight(.bold))
-                .foregroundStyle(store.scanMode == mode ? Color.black : .white.opacity(0.72))
-                .padding(.horizontal, 15)
+                .foregroundStyle(store.scanMode == mode ? Color.black : .white.opacity(0.68))
+                .padding(.horizontal, 13)
                 .padding(.vertical, 8)
                 .background {
                     if store.scanMode == mode {
@@ -215,11 +248,28 @@ struct ScanView: View {
     }
 }
 
-#Preview {
-    ScanView(store: Store(initialState: ScanFeature.State()) { ScanFeature() })
+@MainActor
+private func scanStore(mode: ScanMode) -> StoreOf<ScanFeature> {
+    var state = ScanFeature.State()
+    state.scanMode = mode
+    return Store(initialState: state) { ScanFeature() }
+}
+
+#Preview("Nota fiscal") {
+    ScanView(store: scanStore(mode: .receipt))
+}
+
+#Preview("Foto") {
+    ScanView(store: scanStore(mode: .photo))
+}
+
+#Preview("Transferência") {
+    ScanView(store: scanStore(mode: .transfer))
 }
 
 private struct ScanBackground: View {
+    var showsCameraLabel = true
+
     var body: some View {
         ZStack {
             LinearGradient(
@@ -234,13 +284,15 @@ private struct ScanBackground: View {
                 colors: [Color.appAccent.opacity(0.16), .clear],
                 center: UnitPoint(x: 0.72, y: 0.9), startRadius: 0, endRadius: 320
             )
-            VStack {
-                Text("[ visão da câmera ao vivo ]")
-                    .font(.system(.caption2, design: .monospaced))
-                    .tracking(1)
-                    .foregroundStyle(.white.opacity(0.26))
-                    .padding(.top, 120)
-                Spacer()
+            if showsCameraLabel {
+                VStack {
+                    Text("[ visão da câmera ao vivo ]")
+                        .font(.system(.caption2, design: .monospaced))
+                        .tracking(1)
+                        .foregroundStyle(.white.opacity(0.26))
+                        .padding(.top, 120)
+                    Spacer()
+                }
             }
         }
     }

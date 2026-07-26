@@ -44,7 +44,7 @@ public struct Payment: Codable, Equatable, Sendable, Identifiable {
 }
 
 public struct Purchase: Codable, Equatable, Sendable, Identifiable {
-    public enum Source: String, Codable, Equatable, Sendable { case nfce, manual }
+    public enum Source: String, Codable, Equatable, Sendable { case nfce, manual, pix }
 
     public var id: String
     public var date: String

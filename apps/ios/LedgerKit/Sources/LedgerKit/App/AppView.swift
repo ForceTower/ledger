@@ -11,7 +11,7 @@ struct AppView: View {
     var body: some View {
         TabView(selection: tabBinding) {
             ScanView(store: store.scope(state: \.scan, action: \.scan), isActive: store.tab == .scan)
-                .tabItem { Label("Escanear", systemImage: "qrcode.viewfinder") }
+                .tabItem { Label("Adicionar", systemImage: "plus.viewfinder") }
                 .tag(AppFeature.Tab.scan)
 
             HistoryView(store: store.scope(state: \.history, action: \.history))

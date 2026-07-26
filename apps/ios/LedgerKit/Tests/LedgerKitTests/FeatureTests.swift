@@ -336,6 +336,178 @@ struct PhotoScanFeatureTests {
     }
 }
 
+@MainActor
+struct TransferScanFeatureTests {
+    private static func transferStore(
+        interpret: @escaping @Sendable (Data?, String?) async throws -> TransferScanResult = { _, _ in
+            MockData.transferScan
+        },
+        save: @escaping @Sendable (TransferSaveRequest) async throws -> TransferSaveResult = { request in
+            TransferSaveResult(
+                transfer: request.transfer,
+                purchase: MockData.pixPurchase(request.transfer, category: request.category)
+            )
+        }
+    ) -> TestStoreOf<ScanFeature> {
+        var state = ScanFeature.State()
+        state.scanMode = .transfer
+        return TestStore(initialState: state) {
+            ScanFeature()
+        } withDependencies: {
+            $0.transferScanRepository.interpret = interpret
+            $0.transferScanRepository.save = save
+        }
+    }
+
+    /// Reading is not saving: the owner reviews the AI's guess before anything is written down.
+    @Test
+    func readingAComprovanteThenSavingItTakesTwoSteps() async {
+        let scan = MockData.transferScan
+        let requests = LockIsolated<[TransferSaveRequest]>([])
+        let store = Self.transferStore(save: { request in
+            requests.withValue { $0.append(request) }
+            return TransferSaveResult(
+                transfer: request.transfer,
+                purchase: MockData.pixPurchase(request.transfer, category: request.category)
+            )
+        })
+
+        await store.send(.transferTextChanged(MockData.transferReceiptText)) {
+            $0.transferText = MockData.transferReceiptText
+        }
+        await store.send(.interpretTransferTapped) { $0.phase = .processing }
+        await store.receive(\.transferScanResponse) {
+            $0.phase = .transfer(scan)
+            $0.transferCategory = scan.category
+            $0.transferLinked = true
+        }
+
+        await store.send(.saveTransferTapped) { $0.transferSaving = true }
+        await store.receive(\.transferSaveResponse) {
+            $0.transferSaving = false
+            $0.phase = .transferSaved(TransferSaveResult(
+                transfer: scan.transfer,
+                purchase: MockData.pixPurchase(scan.transfer, category: scan.category)
+            ))
+        }
+
+        #expect(requests.value.count == 1)
+        #expect(requests.value.first?.linkedPurchaseId == scan.match?.purchaseId)
+    }
+
+    /// The AI needs a print or some text; with neither, the button does nothing.
+    @Test
+    func anEmptyComprovanteIsNeverSentToTheAI() async {
+        let store = Self.transferStore(interpret: { _, _ in
+            Issue.record("nothing should be interpreted without an input")
+            return MockData.transferScan
+        })
+
+        #expect(store.state.transferReady == false)
+        await store.send(.interpretTransferTapped)
+
+        await store.send(.transferTextChanged("   \n  ")) { $0.transferText = "   \n  " }
+        #expect(store.state.transferReady == false)
+        await store.send(.interpretTransferTapped)
+    }
+
+    @Test
+    func theOwnersCorrectionsAreWhatGetSaved() async {
+        let requests = LockIsolated<[TransferSaveRequest]>([])
+        let store = Self.transferStore(save: { request in
+            requests.withValue { $0.append(request) }
+            return TransferSaveResult(
+                transfer: request.transfer,
+                purchase: MockData.pixPurchase(request.transfer, category: request.category)
+            )
+        })
+
+        await store.send(.transferTextChanged("Pix de R$ 128,40")) { $0.transferText = "Pix de R$ 128,40" }
+        await store.send(.interpretTransferTapped) { $0.phase = .processing }
+        await store.receive(\.transferScanResponse) {
+            $0.phase = .transfer(MockData.transferScan)
+            $0.transferCategory = MockData.transferScan.category
+            $0.transferLinked = true
+        }
+
+        await store.send(.transferCategoryChanged(.bakery)) { $0.transferCategory = .bakery }
+        await store.send(.transferLinkToggled) { $0.transferLinked = false }
+        await store.send(.saveTransferTapped) { $0.transferSaving = true }
+        await store.receive(\.transferSaveResponse) {
+            $0.transferSaving = false
+            $0.phase = .transferSaved(TransferSaveResult(
+                transfer: MockData.transferScan.transfer,
+                purchase: MockData.pixPurchase(MockData.transferScan.transfer, category: .bakery)
+            ))
+        }
+
+        #expect(requests.value.first?.category == .bakery)
+        #expect(requests.value.first?.linkedPurchaseId == nil)
+    }
+
+    /// A note the AI could not read is worth another try — the owner should not have to paste it again.
+    @Test
+    func aFailedReadingKeepsTheDraft() async {
+        let store = Self.transferStore(interpret: { _, _ in throw TransferScanFailure.notATransfer })
+
+        await store.send(.transferTextChanged("nada disso")) { $0.transferText = "nada disso" }
+        await store.send(.interpretTransferTapped) { $0.phase = .processing }
+        await store.receive(\.transferScanResponse) { $0.phase = .transferFailure(.notATransfer) }
+
+        await store.send(.scanAgainTapped) { $0.phase = .idle }
+        #expect(store.state.transferText == "nada disso")
+    }
+
+    @Test
+    func discardingClearsTheDraft() async {
+        let store = Self.transferStore()
+
+        await store.send(.transferTextChanged(MockData.transferReceiptText)) {
+            $0.transferText = MockData.transferReceiptText
+        }
+        await store.send(.interpretTransferTapped) { $0.phase = .processing }
+        await store.receive(\.transferScanResponse) {
+            $0.phase = .transfer(MockData.transferScan)
+            $0.transferCategory = MockData.transferScan.category
+            $0.transferLinked = true
+        }
+
+        await store.send(.discardTransferTapped) {
+            $0.phase = .idle
+            $0.transferText = ""
+            $0.transferCategory = .other
+            $0.transferLinked = false
+        }
+    }
+
+    /// The gallery is shared with the photo mode, but here a pick attaches rather than identifies.
+    @Test
+    func aGalleryPickInTransferModeAttachesThePrint() async {
+        let print = Data("png".utf8)
+        let store = Self.transferStore()
+
+        await store.send(.choosePhotoTapped) { $0.photoPickerPresented = true }
+        await store.send(.photoPickerPresented(false)) { $0.photoPickerPresented = false }
+        await store.send(.photoPicked(print)) { $0.transferImage = print }
+
+        #expect(store.state.transferReady)
+        await store.send(.transferImageCleared) { $0.transferImage = nil }
+        #expect(store.state.transferReady == false)
+    }
+
+    /// Nothing to light up once the camera is off.
+    @Test
+    func switchingToTransferTurnsTheTorchOff() async {
+        let store = TestStore(initialState: ScanFeature.State()) { ScanFeature() }
+
+        await store.send(.flashTapped) { $0.flashOn = true }
+        await store.send(.modeChanged(.transfer)) {
+            $0.scanMode = .transfer
+            $0.flashOn = false
+        }
+    }
+}
+
 struct PhotoScanRepositoryTests {
     @Test
     func theImageIsUploadedAsMultipartJPEG() async throws {
@@ -422,6 +594,114 @@ struct PhotoScanRepositoryTests {
                 try await PhotoScanRepository.liveValue.identify(imageData: png)
             }
         }
+    }
+}
+
+struct TransferScanRepositoryTests {
+    @Test
+    func thePrintAndTheTextTravelInTheSameMultipartBody() async throws {
+        let png = try sampleImageData()
+        let result = try await withDependencies {
+            $0.apiClient.send = { request in
+                #expect(request.method == "POST")
+                #expect(request.path == "scan/transfer")
+                #expect((request.timeout ?? 0) > 60)
+
+                let body = try #require(request.body)
+                let text = try #require(String(data: body, encoding: .isoLatin1))
+                #expect(text.contains(#"name="text""#))
+                #expect(text.contains("Comprovante de Pix"))
+                #expect(text.contains(#"name="image""#))
+                #expect(text.contains("Content-Type: image/jpeg"))
+                #expect(body.range(of: Data([0xFF, 0xD8, 0xFF])) != nil)
+
+                return try envelope(MockData.transferScan)
+            }
+        } operation: {
+            try await TransferScanRepository.liveValue.interpret(
+                imageData: png,
+                text: MockData.transferReceiptText
+            )
+        }
+
+        #expect(result == MockData.transferScan)
+    }
+
+    /// Banks put the amount in the screenshot, in the text, or both — one of the two is enough.
+    @Test
+    func textOnItsOwnIsEnoughToInterpret() async throws {
+        let result = try await withDependencies {
+            $0.apiClient.send = { request in
+                let body = try #require(request.body)
+                let text = try #require(String(data: body, encoding: .utf8))
+                #expect(!text.contains(#"name="image""#))
+                return try envelope(MockData.transferScan)
+            }
+        } operation: {
+            try await TransferScanRepository.liveValue.interpret(imageData: nil, text: "Pix de R$ 128,40")
+        }
+
+        #expect(result == MockData.transferScan)
+    }
+
+    @Test
+    func nothingToReadNeverReachesTheServer() async throws {
+        await #expect(throws: TransferScanFailure.invalidInput) {
+            try await withDependencies {
+                $0.apiClient.send = { _ in
+                    Issue.record("the client should not upload an empty comprovante")
+                    return Data()
+                }
+            } operation: {
+                try await TransferScanRepository.liveValue.interpret(imageData: nil, text: nil)
+            }
+        }
+    }
+
+    @Test
+    func serverErrorCodesMapToTransferFailures() async throws {
+        for (errorCode, expected) in [
+            ("invalid_input", TransferScanFailure.invalidInput),
+            ("not_a_transfer", .notATransfer),
+            ("ai_invalid_output", .aiInvalidOutput),
+            ("ai_unavailable", .aiUnavailable),
+        ] {
+            await #expect(throws: expected) {
+                try await withDependencies {
+                    $0.apiClient.send = { _ in
+                        throw APIError.server(status: 502, errorCode: errorCode, message: nil)
+                    }
+                } operation: {
+                    try await TransferScanRepository.liveValue.interpret(imageData: nil, text: "Pix")
+                }
+            }
+        }
+    }
+
+    @Test
+    func aSavedTransferLandsInTheLocalMirror() async throws {
+        let database = try inMemoryDatabase()
+        let purchase = MockData.pixPurchase(MockData.transfer, category: .grocery)
+        let request = TransferSaveRequest(
+            transfer: MockData.transfer,
+            category: .grocery,
+            linkedPurchaseId: nil
+        )
+
+        let result = try await withDependencies {
+            $0.database = database
+            $0.apiClient.send = { apiRequest in
+                #expect(apiRequest.method == "POST")
+                #expect(apiRequest.path == "transfers")
+                return try envelope(TransferSaveResult(transfer: MockData.transfer, purchase: purchase))
+            }
+        } operation: {
+            try await TransferScanRepository.liveValue.save(request: request)
+        }
+
+        #expect(result.purchase == purchase)
+        let mirrored = try await MirrorStore(writer: database).purchase(id: purchase.id)
+        #expect(mirrored == purchase)
     }
 }
 

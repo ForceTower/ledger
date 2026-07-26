@@ -4,8 +4,19 @@ import Foundation
 import UIKit
 #endif
 
-enum ScanMode: Equatable, Sendable {
-    case receipt, photo
+enum ScanMode: String, CaseIterable, Equatable, Sendable {
+    case receipt, photo, transfer
+
+    var label: String {
+        switch self {
+        case .receipt: "Nota fiscal"
+        case .photo: "Foto"
+        case .transfer: "Transferência"
+        }
+    }
+
+    /// Only the QR reader needs a live camera; the transfer receipt arrives from the photo library.
+    var usesCamera: Bool { self != .transfer }
 }
 
 /// One item the AI found in a photo, plus the price and quantity only the owner can supply.
@@ -38,6 +49,22 @@ struct ScanFeature {
         var cameraAvailable = true
         @Shared(.inMemory("cameraAuthorized")) var cameraAuthorized = true
 
+        /// The Pix receipt being put together: the screenshot, the text the bank gave the owner, or both.
+        var transferImage: Data?
+        var transferText = ""
+        /// The owner's call on what the AI guessed, editable from the moment the result lands.
+        var transferCategory: Category = .other
+        var transferLinked = false
+        var transferTextExpanded = false
+        var transferSaving = false
+
+        var trimmedTransferText: String {
+            transferText.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        /// The AI needs at least one of the two to have anything to read.
+        var transferReady: Bool { transferImage != nil || !trimmedTransferText.isEmpty }
+
         var selectedDrafts: [ProductDraft] { productDrafts.filter(\.selected) }
 
         var productTotal: Double {
@@ -59,13 +86,37 @@ struct ScanFeature {
             case rejected(PhotoScanRejected)
             case failure(ScanFailure)
             case photoFailure(PhotoScanFailure)
+            case transfer(TransferScanResult)
+            case transferSaved(TransferSaveResult)
+            case transferFailure(TransferScanFailure)
         }
 
         var isSheetPresented: Bool {
             switch phase {
-            case .processing, .result, .product, .rejected, .failure, .photoFailure: true
-            case .idle, .detecting, .capturing: false
+            case .processing, .result, .product, .rejected, .failure, .photoFailure,
+                 .transfer, .transferSaved, .transferFailure:
+                true
+            case .idle, .detecting, .capturing:
+                false
             }
+        }
+
+        /// Everything a finished scan leaves behind, cleared before the next one.
+        mutating func clearResult() {
+            phase = .idle
+            itemsExpanded = false
+            productDrafts = []
+            productSaved = false
+            capturedPhoto = nil
+            transferSaving = false
+            transferTextExpanded = false
+        }
+
+        mutating func clearTransferDraft() {
+            transferImage = nil
+            transferText = ""
+            transferLinked = false
+            transferCategory = .other
         }
     }
 
@@ -84,6 +135,16 @@ struct ScanFeature {
         case productPriceChanged(id: ProductDraft.ID, price: Double)
         case productSelectionToggled(id: ProductDraft.ID)
         case addProductTapped
+        case transferImageCleared
+        case transferTextChanged(String)
+        case interpretTransferTapped
+        case transferScanResponse(Result<TransferScanResult, TransferScanFailure>)
+        case transferCategoryChanged(Category)
+        case transferLinkToggled
+        case toggleTransferText
+        case saveTransferTapped
+        case transferSaveResponse(Result<TransferSaveResult, TransferScanFailure>)
+        case discardTransferTapped
         case flashTapped
         case toggleItems
         case scanAgainTapped
@@ -103,6 +164,7 @@ struct ScanFeature {
 
     @Dependency(\.scanRepository) var scanRepository
     @Dependency(\.photoScanRepository) var photoScanRepository
+    @Dependency(\.transferScanRepository) var transferScanRepository
     @Dependency(\.cameraClient) var cameraClient
     @Dependency(\.continuousClock) var clock
     @Dependency(\.openURL) var openURL
@@ -186,6 +248,8 @@ struct ScanFeature {
             case let .modeChanged(mode):
                 guard state.phase == .idle else { return .none }
                 state.scanMode = mode
+                // The torch belongs to a camera that is about to be shut down.
+                if !mode.usesCamera { state.flashOn = false }
                 return .none
 
             case .shutterTapped:
@@ -204,6 +268,14 @@ struct ScanFeature {
             case let .photoPicked(data):
                 // The picker dismisses itself before the image finishes loading, so this lands on .idle.
                 guard state.phase == .idle else { return .none }
+                if state.scanMode == .transfer {
+                    guard let data else {
+                        state.phase = .transferFailure(.invalidInput)
+                        return .none
+                    }
+                    state.transferImage = data
+                    return .none
+                }
                 guard let data else {
                     state.phase = .photoFailure(.invalidImage)
                     return .none
@@ -243,6 +315,88 @@ struct ScanFeature {
                 state.productSaved = true
                 return .none
 
+            case .transferImageCleared:
+                state.transferImage = nil
+                return .none
+
+            case let .transferTextChanged(text):
+                state.transferText = text
+                return .none
+
+            case .interpretTransferTapped:
+                guard state.phase == .idle, state.scanMode == .transfer, state.transferReady else { return .none }
+                let image = state.transferImage
+                let text = state.trimmedTransferText.isEmpty ? nil : state.trimmedTransferText
+                state.phase = .processing
+                return .run { send in
+                    do {
+                        let result = try await transferScanRepository.interpret(imageData: image, text: text)
+                        await send(.transferScanResponse(.success(result)))
+                    } catch let failure as TransferScanFailure {
+                        await send(.transferScanResponse(.failure(failure)))
+                    } catch {
+                    }
+                }
+                .cancellable(id: CancelID.scan)
+
+            case let .transferScanResponse(.success(result)):
+                state.phase = .transfer(result)
+                state.transferCategory = result.category
+                // Linking is only offered when the server found a note it could be paying for.
+                state.transferLinked = result.match != nil
+                state.transferTextExpanded = false
+                return .none
+
+            case let .transferScanResponse(.failure(failure)):
+                state.phase = .transferFailure(failure)
+                return .none
+
+            case let .transferCategoryChanged(category):
+                state.transferCategory = category
+                return .none
+
+            case .transferLinkToggled:
+                state.transferLinked.toggle()
+                return .none
+
+            case .toggleTransferText:
+                state.transferTextExpanded.toggle()
+                return .none
+
+            case .saveTransferTapped:
+                guard case let .transfer(result) = state.phase, !state.transferSaving else { return .none }
+                state.transferSaving = true
+                let request = TransferSaveRequest(
+                    transfer: result.transfer,
+                    category: state.transferCategory,
+                    linkedPurchaseId: state.transferLinked ? result.match?.purchaseId : nil
+                )
+                return .run { send in
+                    do {
+                        let saved = try await transferScanRepository.save(request: request)
+                        await send(.transferSaveResponse(.success(saved)))
+                    } catch let failure as TransferScanFailure {
+                        await send(.transferSaveResponse(.failure(failure)))
+                    } catch {
+                    }
+                }
+                .cancellable(id: CancelID.scan)
+
+            case let .transferSaveResponse(.success(saved)):
+                state.transferSaving = false
+                state.phase = .transferSaved(saved)
+                return .none
+
+            case let .transferSaveResponse(.failure(failure)):
+                state.transferSaving = false
+                state.phase = .transferFailure(failure)
+                return .none
+
+            case .discardTransferTapped:
+                state.clearResult()
+                state.clearTransferDraft()
+                return .cancel(id: CancelID.scan)
+
             case .flashTapped:
                 state.flashOn.toggle()
                 return .none
@@ -251,12 +405,10 @@ struct ScanFeature {
                 state.itemsExpanded.toggle()
                 return .none
 
+            // A saved transfer is spent; anything short of that is worth retrying without retyping.
             case .scanAgainTapped, .sheetDismissed:
-                state.phase = .idle
-                state.itemsExpanded = false
-                state.productDrafts = []
-                state.productSaved = false
-                state.capturedPhoto = nil
+                if case .transferSaved = state.phase { state.clearTransferDraft() }
+                state.clearResult()
                 return .cancel(id: CancelID.scan)
 
             case .choosePhotoTapped:
@@ -279,10 +431,8 @@ struct ScanFeature {
                 }
 
             case .showInHistoryTapped:
-                state.phase = .idle
-                state.productDrafts = []
-                state.productSaved = false
-                state.capturedPhoto = nil
+                state.clearResult()
+                state.clearTransferDraft()
                 return .concatenate(
                     .cancel(id: CancelID.scan),
                     .send(.delegate(.showHistory))

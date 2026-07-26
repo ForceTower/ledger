@@ -10,12 +10,16 @@ extension PhotoScanRepository: DependencyKey {
         identify: { imageData in
             @Dependency(\.apiClient) var apiClient
 
-            guard let file = MultipartFile.scanPhoto(from: imageData) else {
+            guard let file = MultipartFile.imageUpload(from: imageData, filename: "scan.jpg") else {
                 throw PhotoScanFailure.invalidImage
             }
 
             do {
-                return try await apiClient.upload(to: "scan/photo", file: file, timeout: uploadTimeout)
+                return try await apiClient.upload(
+                    to: "scan/photo",
+                    form: MultipartForm(files: [file]),
+                    timeout: uploadTimeout
+                )
             } catch is CancellationError {
                 throw CancellationError()
             } catch let error as URLError where error.code == .cancelled {

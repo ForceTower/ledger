@@ -49,14 +49,14 @@ extension APIClient {
     func upload<T: Decodable>(
         _ type: T.Type = T.self,
         to path: String,
-        file: MultipartFile,
+        form: MultipartForm,
         timeout: TimeInterval
     ) async throws -> T {
         let boundary = "ledger-\(UUID().uuidString)"
         let request = APIRequest(
             method: "POST",
             path: path,
-            body: file.multipartBody(boundary: boundary),
+            body: form.body(boundary: boundary),
             contentType: "multipart/form-data; boundary=\(boundary)",
             timeout: timeout
         )

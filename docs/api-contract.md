@@ -173,13 +173,13 @@ Genuine failures use the failure envelope with an `errorCode`:
 
 ### `POST /scan/photo`
 
-AI item identification: take a photo of any item and the server asks Claude (via the local `claude`
-CLI) to identify and categorize it. Body: `multipart/form-data` with an `image` field (JPEG, PNG, or
-WebP, ≤ 10 MB).
+AI item identification: take a photo of any item and the server asks Claude to identify and
+categorize it. Body: `multipart/form-data` with an `image` field (JPEG, PNG, or WebP, ≤ 10 MB).
 
-Server configuration (env vars): `CLAUDE_BIN` (default `claude`), `CLAUDE_MODEL` (default
-`claude-opus-4-8`), `CLAUDE_PHOTO_PROMPT` (the identification instruction; the strict output format
-is always appended server-side), `CLAUDE_TIMEOUT_MS` (default `60000`).
+Server configuration (env vars): `ANTHROPIC_API_KEY` (when set, the Anthropic API is used; otherwise
+the server falls back to the local `claude` CLI), `CLAUDE_BIN` (default `claude`), `CLAUDE_MODEL`
+(default `claude-haiku-4-5`), `CLAUDE_PHOTO_PROMPT` (the identification instruction; the strict
+output format is always enforced server-side), `CLAUDE_TIMEOUT_MS` (default `60000`).
 
 A rejection is a normal result, not an error — the AI declines when it cannot identify the item:
 
@@ -215,11 +215,11 @@ A rejection is a normal result, not an error — the AI declines when it cannot 
 
 Genuine failures use the failure envelope with an `errorCode`:
 
-| errorCode           | HTTP | meaning                                               |
-| ------------------- | ---- | ----------------------------------------------------- |
-| `invalid_image`     | 400  | missing `image` field, unsupported type, or bad size  |
-| `ai_unavailable`    | 502  | the `claude` CLI failed to run, errored, or timed out |
-| `ai_invalid_output` | 502  | the CLI ran but its output did not match the contract |
+| errorCode           | HTTP | meaning                                                    |
+| ------------------- | ---- | ---------------------------------------------------------- |
+| `invalid_image`     | 400  | missing `image` field, unsupported type, or bad size       |
+| `ai_unavailable`    | 502  | the API call or `claude` CLI failed, errored, or timed out |
+| `ai_invalid_output` | 502  | the model ran but its output did not match the contract    |
 
 ### `GET /purchases?page=&from=&to=&store=`
 

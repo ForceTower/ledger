@@ -302,6 +302,10 @@ reads), `CLAUDE_TIMEOUT_MS` (default `60000`), `CATEGORIZE_WITH_AI` (default `tr
 leave items the keyword rules and barcode history cannot place as `other` instead of asking the
 model).
 
+Every successful AI run — photo, entry and transfer reads, categorizer calls, chat turns — is
+recorded server-side in the internal `ai_requests` table (model, tokens, cost in USD, duration).
+There is no read endpoint; the chat assistant queries the table directly.
+
 `items` carries one entry per distinct product, most prominent first, and is never empty (several
 copies of the same product are one entry whose `quantity` carries the count). At most 20 entries.
 `unitPrice` and `quantity` are read off price tags and receipt lines, never guessed — both are

@@ -1,6 +1,7 @@
 import type { PhotoScanItem } from "@ledger/shared-types";
 import { describe, expect, test } from "bun:test";
 import type { AiRequest, AiResponse, AiRunner } from "../src/service/ai";
+import type { AiSpend } from "../src/service/ai-spend";
 import { PhotoScanService } from "../src/service/photo-scan";
 
 // FF D8 FF is the JPEG signature validateImage sniffs for.
@@ -95,5 +96,28 @@ describe("PhotoScanService", () => {
     const result = await service.identify(jpeg);
     if (result.status !== "identified") throw new Error("expected an identified result");
     expect(result.items[0]).toEqual({ ...item, unitPrice: null, quantity: null });
+  });
+
+  test("records what the run cost", async () => {
+    const recorded: AiSpend[] = [];
+    const ai = stubAi({ result: { status: "identified", items: [item], comment: "" } });
+    const service = new PhotoScanService({
+      ai,
+      prompt: "identify it",
+      spend: {
+        record: async (spend) => {
+          recorded.push(spend);
+        },
+      },
+    });
+
+    await service.identify(jpeg);
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]).toMatchObject({
+      operation: "photo_scan",
+      model: "stub",
+      transport: "api",
+      usage: { inputTokens: 0, outputTokens: 0, costUsd: undefined },
+    });
   });
 });

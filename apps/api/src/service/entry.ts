@@ -4,6 +4,7 @@ import { z } from "zod";
 import { LedgerError } from "../error";
 import { useLog } from "../logger";
 import { type AiRunner, validateImage } from "./ai";
+import type { SpendRecorder } from "./ai-spend";
 
 /** A typed description is a sentence or two; anything longer is a pasted receipt, which still fits. */
 const MAX_TEXT_LENGTH = 8000;
@@ -117,6 +118,7 @@ export class EntryService {
       /** The ledger's home timezone, so "hoje" means the owner's today rather than the server's. */
       timeZone: string;
       now?: () => Date;
+      spend?: SpendRecorder;
     },
   ) {}
 
@@ -142,13 +144,14 @@ export class EntryService {
     });
     const extraction = this.deps.ai.parse(response.text, entryEnvelopeSchema).result;
 
+    const durationMs = Date.now() - startedAt;
     useLog()
       .withMetadata({
         status: extraction.status,
         itemCount: extraction.status === "entry" ? extraction.items.length : 0,
         hasImage: image !== undefined,
         hasText: text !== undefined,
-        durationMs: Date.now() - startedAt,
+        durationMs,
         model: this.deps.ai.model,
         transport: response.transport,
         inputTokens: response.usage.inputTokens,
@@ -156,6 +159,13 @@ export class EntryService {
         costUsd: response.usage.costUsd,
       })
       .info("Entry description processed");
+    await this.deps.spend?.record({
+      operation: "entry",
+      model: this.deps.ai.model,
+      transport: response.transport,
+      usage: response.usage,
+      durationMs,
+    });
 
     if (extraction.status === "not_an_entry") {
       throw new LedgerError(status.UNPROCESSABLE_ENTITY, extraction.comment, "not_an_entry");

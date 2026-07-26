@@ -12,6 +12,7 @@ import type { LedgerDb } from "../db";
 import { LedgerError } from "../error";
 import { useLog } from "../logger";
 import { type AiRunner, validateImage } from "./ai";
+import type { SpendRecorder } from "./ai-spend";
 import { saveTransfer, WRITE_LOCK } from "./ingest";
 import type { PurchaseService } from "./purchase";
 
@@ -134,6 +135,7 @@ export class TransferService {
       ai: AiRunner;
       purchase: PurchaseService;
       prompt: string;
+      spend?: SpendRecorder;
     },
   ) {}
 
@@ -163,12 +165,13 @@ export class TransferService {
     });
     const extraction = this.deps.ai.parse(response.text, transferEnvelopeSchema).result;
 
+    const durationMs = Date.now() - startedAt;
     useLog()
       .withMetadata({
         status: extraction.status,
         hasImage: image !== undefined,
         hasText: text !== undefined,
-        durationMs: Date.now() - startedAt,
+        durationMs,
         model: this.deps.ai.model,
         transport: response.transport,
         inputTokens: response.usage.inputTokens,
@@ -176,6 +179,13 @@ export class TransferService {
         costUsd: response.usage.costUsd,
       })
       .info("Transfer scan processed");
+    await this.deps.spend?.record({
+      operation: "transfer",
+      model: this.deps.ai.model,
+      transport: response.transport,
+      usage: response.usage,
+      durationMs,
+    });
 
     if (extraction.status === "not_a_transfer") {
       throw new LedgerError(status.UNPROCESSABLE_ENTITY, extraction.comment, "not_a_transfer");

@@ -14,6 +14,7 @@ import type { LedgerDb } from "../db";
 import { LedgerError } from "../error";
 import { useLog } from "../logger";
 import { agentSubprocessEnv } from "./ai";
+import type { SpendRecorder } from "./ai-spend";
 
 const QUERY_TOOL = "query_database";
 /** The Agent SDK namespaces MCP tools as mcp__<server>__<tool>. */
@@ -53,7 +54,9 @@ type AgentQueryFn = (args: {
 export class ChatService {
   private readonly runQuery: AgentQueryFn;
 
-  constructor(private readonly deps: { db: LedgerDb; config: ChatConfig; agentQuery?: AgentQueryFn }) {
+  constructor(
+    private readonly deps: { db: LedgerDb; config: ChatConfig; agentQuery?: AgentQueryFn; spend?: SpendRecorder },
+  ) {
     this.runQuery = deps.agentQuery ?? agentQuery;
   }
 
@@ -133,16 +136,26 @@ export class ChatService {
               outputTokens: message.usage.output_tokens,
               costUsd: message.total_cost_usd,
             };
+            const durationMs = Date.now() - startedAt;
             useLog()
               .withMetadata({
                 sessionId: message.session_id,
                 model: this.deps.config.model,
                 numTurns: message.num_turns,
-                durationMs: Date.now() - startedAt,
+                durationMs,
                 ...usage,
               })
               .info("Chat turn completed");
-            yield { type: "done", sessionId: message.session_id, usage, durationMs: Date.now() - startedAt };
+            await this.deps.spend?.record({
+              operation: "chat",
+              model: this.deps.config.model,
+              transport: "agent",
+              usage,
+              durationMs,
+              sessionId: message.session_id,
+              numTurns: message.num_turns,
+            });
+            yield { type: "done", sessionId: message.session_id, usage, durationMs };
             break;
           }
           default:
@@ -237,6 +250,10 @@ function buildSystemPrompt(): string {
     "  purchase it points at — never add transfers.amount on top of purchases.paid_total.",
     "- trips — transport costs to the store: date, legs (jsonb array of {mode, cost, ...}).",
     "- donations — donated items: date, entries (jsonb), total, source_purchase_slug.",
+    "- ai_requests — one row per AI call the API itself made: operation ('photo_scan' | 'entry' |",
+    "  'categorize' | 'transfer' | 'chat'), model, transport, input_tokens, output_tokens, cost_usd",
+    "  (US dollars, unlike the BRL money columns; null when unpriced), duration_ms, session_id and",
+    "  num_turns (chat only), created_at.",
     "",
     `Item/product categories: ${CATEGORIES.join(", ")}.`,
     "",

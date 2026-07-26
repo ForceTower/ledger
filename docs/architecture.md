@@ -61,6 +61,10 @@ origin_*, purchase_id, extracted jsonb, created_at`. Pix receipts the AI read (`
   `access_key` is for a nota. `purchase_id` points either at the single-item purchase the transfer
   materialized (`source: "pix"`) or at the nota it paid for, when the owner linked the two — a linked
   transfer adds no spending of its own.
+- **ai_requests** — `id, operation, model, transport, input_tokens, output_tokens, cost_usd,
+duration_ms, session_id, num_turns, created_at`. Audit trail of every successful AI run the API made
+  and what it cost (`cost_usd` is US dollars, unlike the BRL money columns). No read endpoint — the
+  chat's SQL tool is the read surface.
 - **device_tokens** — `id, token (unique), platform, created_at, last_seen_at`. FCM push tokens.
 
 Extensions: `pg_trgm` for fuzzy product/description matching. `gen_random_uuid()` for PKs.

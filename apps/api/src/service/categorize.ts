@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { LedgerDb } from "../db";
 import { useLog } from "../logger";
 import type { AiRunner } from "./ai";
+import type { SpendRecorder } from "./ai-spend";
 
 /** One prompt covers a whole receipt; beyond this the descriptions are split across calls. */
 const MAX_BATCH = 40;
@@ -51,7 +52,7 @@ const CATEGORIZE_JSON_SCHEMA = {
  * `other`, which is what the rules alone would have produced.
  */
 export class CategorizerService {
-  constructor(private readonly deps: { db: LedgerDb; ai?: AiRunner; prompt: string }) {}
+  constructor(private readonly deps: { db: LedgerDb; ai?: AiRunner; prompt: string; spend?: SpendRecorder }) {}
 
   async resolve(items: ParsedItem[]): Promise<ParsedItem[]> {
     const unresolved = items.filter((item) => item.category === "other");
@@ -107,11 +108,12 @@ export class CategorizerService {
           const description = batch[answer.index];
           if (description !== undefined) resolved.set(description, answer.category);
         }
+        const durationMs = Date.now() - startedAt;
         useLog()
           .withMetadata({
             requested: batch.length,
             answered: resolved.size,
-            durationMs: Date.now() - startedAt,
+            durationMs,
             model: ai.model,
             transport: response.transport,
             inputTokens: response.usage.inputTokens,
@@ -119,6 +121,13 @@ export class CategorizerService {
             costUsd: response.usage.costUsd,
           })
           .info("Categorized unmatched items");
+        await this.deps.spend?.record({
+          operation: "categorize",
+          model: ai.model,
+          transport: response.transport,
+          usage: response.usage,
+          durationMs,
+        });
       } catch (error) {
         // The rules already produced a usable answer (`other`), so a model outage must not fail a scan.
         useLog().withError(error).withMetadata({ count: batch.length }).warn("Category inference failed");

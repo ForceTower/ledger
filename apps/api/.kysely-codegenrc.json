@@ -5,6 +5,8 @@
   "outFile": "src/db/schema.ts",
   "overrides": {
     "columns": {
+      "ai_requests.operation": "\"photo_scan\" | \"entry\" | \"categorize\" | \"transfer\" | \"chat\"",
+      "ai_requests.transport": "\"api\" | \"agent\"",
       "purchases.source": "\"nfce\" | \"manual\" | \"pix\"",
       "purchase_items.category": "\"produce\" | \"meat\" | \"dairy_deli\" | \"bakery\" | \"grocery\" | \"beverages\" | \"snacks_sweets\" | \"frozen\" | \"cleaning\" | \"hygiene\" | \"pet\" | \"household\" | \"transport\" | \"dining\" | \"health\" | \"services\" | \"other\"",
       "products.default_category": "\"produce\" | \"meat\" | \"dairy_deli\" | \"bakery\" | \"grocery\" | \"beverages\" | \"snacks_sweets\" | \"frozen\" | \"cleaning\" | \"hygiene\" | \"pet\" | \"household\" | \"transport\" | \"dining\" | \"health\" | \"services\" | \"other\" | null",

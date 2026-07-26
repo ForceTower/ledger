@@ -2,6 +2,7 @@ import { CATEGORIES, type PhotoScanResult } from "@ledger/shared-types";
 import { z } from "zod";
 import { useLog } from "../logger";
 import { type AiRunner, validateImage } from "./ai";
+import type { SpendRecorder } from "./ai-spend";
 
 /** A photo of a full haul could list dozens of items; cap the output so it stays within the token budget. */
 const MAX_ITEMS = 20;
@@ -94,7 +95,7 @@ const PHOTO_SCAN_JSON_SCHEMA = {
 };
 
 export class PhotoScanService {
-  constructor(private readonly deps: { ai: AiRunner; prompt: string }) {}
+  constructor(private readonly deps: { ai: AiRunner; prompt: string; spend?: SpendRecorder }) {}
 
   /** Identify the items in a photo. Rejections are results, not errors. */
   async identify(image: File): Promise<PhotoScanResult> {
@@ -108,11 +109,12 @@ export class PhotoScanService {
     });
     const result = normalizeReadings(this.deps.ai.parse(response.text, photoScanEnvelopeSchema).result);
 
+    const durationMs = Date.now() - startedAt;
     useLog()
       .withMetadata({
         status: result.status,
         itemCount: result.status === "identified" ? result.items.length : 0,
-        durationMs: Date.now() - startedAt,
+        durationMs,
         model: this.deps.ai.model,
         transport: response.transport,
         inputTokens: response.usage.inputTokens,
@@ -120,6 +122,13 @@ export class PhotoScanService {
         costUsd: response.usage.costUsd,
       })
       .info("Photo scan processed");
+    await this.deps.spend?.record({
+      operation: "photo_scan",
+      model: this.deps.ai.model,
+      transport: response.transport,
+      usage: response.usage,
+      durationMs,
+    });
     return result;
   }
 

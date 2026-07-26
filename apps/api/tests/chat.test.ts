@@ -3,6 +3,7 @@ import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatStreamEvent } from "@ledger/shared-types";
 import { makeDb } from "../src/db";
 import { LedgerError } from "../src/error";
+import type { SpendRecorder } from "../src/service/ai-spend";
 import { ChatService, rejectStatement, shapeRows } from "../src/service/chat";
 
 // Never connected: the stubbed agent loop below never runs the SQL tool.
@@ -117,7 +118,7 @@ function errorResult(): SDKMessage {
   };
 }
 
-function serviceFor(messages: SDKMessage[]): ChatService {
+function serviceFor(messages: SDKMessage[], spend?: SpendRecorder): ChatService {
   return new ChatService({
     db,
     config: { model: "claude-opus-5", timeoutMs: 5_000 },
@@ -125,6 +126,7 @@ function serviceFor(messages: SDKMessage[]): ChatService {
       (async function* () {
         yield* messages;
       })(),
+    spend,
   });
 }
 
@@ -177,6 +179,38 @@ describe("ChatService.stream", () => {
     expect(error).toBeInstanceOf(LedgerError);
     expect((error as LedgerError).errorCode).toBe("ai_unavailable");
     expect((error as LedgerError).statusCode).toBe(424);
+  });
+
+  test("records what the turn cost", async () => {
+    const recorded: Parameters<SpendRecorder["record"]>[0][] = [];
+    const service = serviceFor([initMessage(), successResult()], {
+      record: async (spend) => {
+        recorded.push(spend);
+      },
+    });
+
+    await collect(service);
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]).toMatchObject({
+      operation: "chat",
+      model: "claude-opus-5",
+      transport: "agent",
+      usage: { inputTokens: 100, outputTokens: 50, costUsd: 0.0123 },
+      sessionId: SESSION_ID,
+      numTurns: 2,
+    });
+  });
+
+  test("a failed turn records no spend", async () => {
+    const recorded: Parameters<SpendRecorder["record"]>[0][] = [];
+    const service = serviceFor([initMessage(), errorResult()], {
+      record: async (spend) => {
+        recorded.push(spend);
+      },
+    });
+
+    await collect(service).catch(() => undefined);
+    expect(recorded).toHaveLength(0);
   });
 });
 

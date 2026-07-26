@@ -24,6 +24,20 @@ export type Numeric = ColumnType<number, number | string, number | string>;
 
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
+export interface AiRequests {
+  costUsd: Numeric | null;
+  createdAt: Generated<Timestamp>;
+  durationMs: number;
+  id: Generated<string>;
+  inputTokens: number;
+  model: string;
+  numTurns: number | null;
+  operation: "photo_scan" | "entry" | "categorize" | "transfer" | "chat";
+  outputTokens: number;
+  sessionId: string | null;
+  transport: "api" | "agent";
+}
+
 export interface DeviceTokens {
   createdAt: Generated<Timestamp>;
   id: Generated<string>;
@@ -174,6 +188,7 @@ export interface Trips {
 }
 
 export interface DB {
+  aiRequests: AiRequests;
   deviceTokens: DeviceTokens;
   donations: Donations;
   payments: Payments;

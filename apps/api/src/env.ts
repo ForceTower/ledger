@@ -4,6 +4,7 @@ import { type LedgerDb, makeDb } from "./db";
 import { useLog } from "./logger";
 import { shutdownOtel } from "./otel";
 import { AiClient } from "./service/ai";
+import { AiSpendRecorder } from "./service/ai-spend";
 import { CategorizerService, DEFAULT_CATEGORIZE_PROMPT } from "./service/categorize";
 import { ChatService } from "./service/chat";
 import { DEFAULT_ENTRY_PROMPT, EntryService } from "./service/entry";
@@ -88,6 +89,7 @@ export async function getEnv(): Promise<LedgerEnv> {
   const db = makeDb(vars.DATABASE_URL);
   const cache = createCacheClient(vars.REDIS_URL);
   const purchase = new PurchaseService({ db, cache });
+  const spend = new AiSpendRecorder({ db });
   const ai = new AiClient({
     apiKey: vars.ANTHROPIC_API_KEY || undefined,
     model: vars.CLAUDE_MODEL,
@@ -103,15 +105,17 @@ export async function getEnv(): Promise<LedgerEnv> {
         })
       : undefined,
     prompt: vars.CLAUDE_CATEGORIZE_PROMPT,
+    spend,
   });
   const scan = new ScanService({ db, cache, purchase, categorizer, sefazBaseUrl: vars.SEFAZ_BASE_URL });
-  const photoScan = new PhotoScanService({ ai, prompt: vars.CLAUDE_PHOTO_PROMPT });
-  const entry = new EntryService({ ai, prompt: vars.CLAUDE_ENTRY_PROMPT, timeZone: vars.LEDGER_TIME_ZONE });
-  const transfer = new TransferService({ db, cache, ai, purchase, prompt: vars.CLAUDE_TRANSFER_PROMPT });
+  const photoScan = new PhotoScanService({ ai, prompt: vars.CLAUDE_PHOTO_PROMPT, spend });
+  const entry = new EntryService({ ai, prompt: vars.CLAUDE_ENTRY_PROMPT, timeZone: vars.LEDGER_TIME_ZONE, spend });
+  const transfer = new TransferService({ db, cache, ai, purchase, prompt: vars.CLAUDE_TRANSFER_PROMPT, spend });
   const notifications = new NotificationService({ db, serviceAccountBase64: vars.FIREBASE_SERVICE_ACCOUNT_BASE64 });
   const chat = new ChatService({
     db,
     config: { model: vars.CLAUDE_CHAT_MODEL, timeoutMs: vars.CLAUDE_CHAT_TIMEOUT_MS },
+    spend,
   });
 
   cached = {

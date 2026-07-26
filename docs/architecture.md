@@ -115,6 +115,10 @@ Category slugs:
 | `bazar_utilidades` | `household`     |
 | `outros`           | `other`         |
 
+`transport`, `dining`, `health` and `services` have no legacy counterpart — the dataset was
+supermarket receipts. They exist for the typed lançamentos (`POST /scan/entry`), which are about
+spending no NFC-e ever covers.
+
 ## packages/nfce — the port
 
 The prototype's fetch/parse/categorize is Python; this package is the TypeScript port and the reusable

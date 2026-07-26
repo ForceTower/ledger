@@ -1,5 +1,5 @@
 import type { ParsedItem, ParsedReceipt } from "@ledger/nfce";
-import type { TransferSaveRequest } from "@ledger/shared-types";
+import type { PurchaseCreateRequest, TransferSaveRequest } from "@ledger/shared-types";
 import type { Transaction } from "kysely";
 import type { LedgerDb } from "../db";
 import type { Database } from "../db";
@@ -99,6 +99,72 @@ export async function saveParsedReceipt(
 
     return { status: "saved", slug, warnings: parsed.warnings };
   });
+}
+
+/**
+ * Persist a purchase the owner typed instead of scanning (`source: "manual"`). There is no dedup
+ * key — nothing outside the description says two identical entries are the same purchase, so the
+ * owner asking for it twice means two purchases.
+ *
+ * Callers must hold {@link WRITE_LOCK}: this mints a slug.
+ */
+export async function saveManualPurchase(db: LedgerDb, request: PurchaseCreateRequest): Promise<{ slug: string }> {
+  const items = request.items.map((item, index) => ({
+    ...item,
+    seq: index + 1,
+    total: money(item.unitPrice * item.quantity),
+  }));
+  const total = money(items.reduce((sum, item) => sum + item.total, 0));
+
+  return await db.transaction().execute(async (trx) => {
+    const store = await resolveStore(trx, { name: request.store, legalName: null, cnpj: null, address: null });
+    const slug = await nextSlug(trx, request.date, slugifyStore(store.name));
+
+    const purchase = await trx
+      .insertInto("purchases")
+      .values({
+        slug,
+        date: request.date,
+        time: request.time,
+        source: "manual",
+        storeId: store.id,
+        grossTotal: total,
+        paidTotal: total,
+        itemCount: items.length,
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+
+    await trx
+      .insertInto("purchaseItems")
+      .values(
+        items.map((item) => ({
+          purchaseId: purchase.id,
+          seq: item.seq,
+          description: item.description,
+          quantity: item.quantity,
+          unit: "un",
+          unitPrice: item.unitPrice,
+          total: item.total,
+          category: item.category,
+        })),
+      )
+      .execute();
+
+    if (request.paymentMethod) {
+      await trx
+        .insertInto("payments")
+        .values({ purchaseId: purchase.id, method: request.paymentMethod, amount: total })
+        .execute();
+    }
+
+    return { slug };
+  });
+}
+
+/** The money columns are numeric(12,2); arithmetic on floats is not. */
+function money(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 export interface TransferIngestResult {

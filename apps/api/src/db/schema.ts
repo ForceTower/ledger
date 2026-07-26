@@ -67,6 +67,10 @@ export interface Products {
     | "hygiene"
     | "pet"
     | "household"
+    | "transport"
+    | "dining"
+    | "health"
+    | "services"
     | "other"
     | null;
   id: Generated<string>;
@@ -87,6 +91,10 @@ export interface PurchaseItems {
     | "hygiene"
     | "pet"
     | "household"
+    | "transport"
+    | "dining"
+    | "health"
+    | "services"
     | "other";
   code: string | null;
   description: string;

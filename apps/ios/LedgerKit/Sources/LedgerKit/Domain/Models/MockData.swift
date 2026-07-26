@@ -139,67 +139,60 @@ enum MockData {
         comment: "Parece um mamão formosa maduro, vendido por unidade."
     )
 
-    static let transfer = Transfer(
-        transactionId: "E607011902026072414204f8",
-        amount: 128.40,
+    static let entryDescription = "37,00 de transporte no dia 24 de julho"
+
+    static let entryDraft = EntryDraft(
         date: "2026-07-24",
-        time: "14:20:00",
-        destination: TransferParty(
-            name: "Mercado Bom Preço LTDA",
-            institution: "Banco do Brasil",
-            agency: "3054",
-            account: "····8821"
-        ),
-        origin: TransferParty(name: "João Sena", institution: "Nubank", agency: "0001", account: "····1234")
+        items: [EntryDraftItem(description: "Transporte", category: .transport, quantity: 1, unitPrice: 37.00)],
+        comment: "Entendi 24 de julho deste ano; nenhum estabelecimento foi citado."
     )
 
-    static let transferReceiptText = """
-    Comprovante de Pix
-    Valor: R$ 128,40
-    Para: MERCADO BOM PREÇO LTDA
-    CNPJ 12.345.678/0001-90
-    24/07/2026 às 14:20
-    ID E607011902026072414204f8
-    """
-
-    static let transferScan = TransferScanResult(
-        transfer: transfer,
-        category: .grocery,
-        match: TransferMatch(
-            purchaseId: "2026-07-24_bom-preco_01",
-            store: "Mercado Bom Preço",
-            date: "2026-07-24",
-            time: "14:18:22",
-            totalPaid: 128.40,
-            itemCount: 12
-        ),
-        comment: "Sugerimos Mercearia pelo nome do destinatário."
+    static let entryDraftMultiple = EntryDraft(
+        date: "2026-07-24",
+        store: "Feira de São Joaquim",
+        paymentMethod: "Pix",
+        items: [
+            EntryDraftItem(description: "Transporte", category: .transport, quantity: 1, unitPrice: 37.00),
+            EntryDraftItem(description: "Pão francês", category: .bakery, quantity: 3, unitPrice: 1.15),
+            EntryDraftItem(description: "Almoço", category: .dining, quantity: 1, unitPrice: 42.50),
+        ],
+        comment: "Somei três lançamentos do mesmo dia."
     )
 
-    /// The single-line purchase a saved transfer materializes into.
-    static func pixPurchase(_ transfer: Transfer, category: Category) -> Purchase {
-        Purchase(
-            id: "\(transfer.date)_\(transfer.transactionId)",
-            date: transfer.date,
-            time: transfer.time ?? "00:00:00",
-            source: .pix,
-            store: StoreInfo(name: transfer.destination.name, legalName: nil, cnpj: nil, address: nil),
+    static let entrySaveRequest = PurchaseCreateRequest(
+        date: entryDraft.date,
+        time: nil,
+        store: "Transporte",
+        paymentMethod: nil,
+        items: [PurchaseCreateItem(description: "Transporte", category: .transport, quantity: 1, unitPrice: 37.00)]
+    )
+
+    /// The purchase a confirmed lançamento becomes, the way the server hands it back.
+    static func manualPurchase(_ request: PurchaseCreateRequest) -> Purchase {
+        let items = request.items.enumerated().map { index, item in
+            PurchaseItem(
+                seq: index + 1,
+                description: item.description,
+                code: "",
+                barcode: nil,
+                quantity: Double(item.quantity),
+                unit: "un",
+                unitPrice: item.unitPrice,
+                total: item.unitPrice * Double(item.quantity),
+                category: item.category
+            )
+        }
+        let total = items.reduce(0) { $0 + $1.total }
+        return Purchase(
+            id: "\(request.date)_lancamento_01",
+            date: request.date,
+            time: request.time ?? "",
+            source: .manual,
+            store: StoreInfo(name: request.store, legalName: nil, cnpj: nil, address: nil),
             receipt: nil,
-            items: [
-                PurchaseItem(
-                    seq: 1,
-                    description: transfer.destination.name,
-                    code: transfer.transactionId,
-                    barcode: nil,
-                    quantity: 1,
-                    unit: "un",
-                    unitPrice: transfer.amount,
-                    total: transfer.amount,
-                    category: category
-                ),
-            ],
-            totals: Totals(itemCount: 1, gross: transfer.amount, discount: 0, totalPaid: transfer.amount),
-            payments: [Payment(code: nil, method: transfer.type.shortLabel, amount: transfer.amount, change: nil)],
+            items: items,
+            totals: Totals(itemCount: items.count, gross: total, discount: 0, totalPaid: total),
+            payments: request.paymentMethod.map { [Payment(code: nil, method: $0, amount: total, change: nil)] } ?? [],
             taxesTotal: nil
         )
     }

@@ -33,11 +33,16 @@ public enum Format {
         isoDateParser.date(from: iso)
     }
 
+    /// The way back: a picked date as the "YYYY-MM-DD" the wire contract expects.
+    public static func iso(from date: Date) -> String {
+        isoDateParser.string(from: date)
+    }
+
     private static let isoDateParser: DateFormatter = {
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = TimeZone(identifier: "America/Sao_Paulo")
+        f.timeZone = TimeZone(identifier: "America/Bahia")
         f.dateFormat = "yyyy-MM-dd"
         return f
     }()
@@ -78,7 +83,7 @@ public enum Format {
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = TimeZone(identifier: "America/Sao_Paulo")
+        f.timeZone = TimeZone(identifier: "America/Bahia")
         f.dateFormat = "yyyy-MM"
         return f
     }()

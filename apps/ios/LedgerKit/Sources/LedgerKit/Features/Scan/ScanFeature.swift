@@ -5,18 +5,19 @@ import UIKit
 #endif
 
 enum ScanMode: String, CaseIterable, Equatable, Sendable {
-    case receipt, photo, transfer
+    case receipt, photo, entry
 
     var label: String {
         switch self {
         case .receipt: "Nota fiscal"
         case .photo: "Foto"
-        case .transfer: "Transferência"
+        case .entry: "Lançamento"
         }
     }
 
-    /// Only the QR reader needs a live camera; the transfer receipt arrives from the photo library.
-    var usesCamera: Bool { self != .transfer }
+    /// Only the QR reader needs a live camera; a lançamento is typed, and its print — when there is
+    /// one — arrives from the photo library.
+    var usesCamera: Bool { self != .entry }
 }
 
 /// An open SEFAZ access-key consultation: the anti-robot image the owner must read so the server
@@ -39,6 +40,24 @@ struct ProductDraft: Equatable, Identifiable, Sendable {
     var selected = true
 
     var total: Double { unitPrice * Double(quantity) }
+}
+
+/// One line of the draft the AI put together from the owner's description. Everything about it is
+/// the owner's to correct — down to what it is called and which category it belongs to.
+struct EntryItemDraft: Equatable, Identifiable, Sendable {
+    let id: Int
+    var description: String
+    var category: Category = .other
+    var quantity = 1
+    var unitPrice = 0.0
+    /// A description can mention things the owner does not want on the ledger; unticking leaves them out.
+    var selected = true
+
+    var total: Double { unitPrice * Double(quantity) }
+
+    var trimmedDescription: String {
+        description.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 }
 
 @Reducer
@@ -66,21 +85,37 @@ struct ScanFeature {
         /// Inline complaint after a wrong or lapsed captcha answer, shown next to the fresh image.
         var captchaError: String?
 
-        /// The Pix receipt being put together: the screenshot, the text the bank gave the owner, or both.
-        var transferImage: Data?
-        var transferText = ""
-        /// The owner's call on what the AI guessed, editable from the moment the result lands.
-        var transferCategory: Category = .other
-        var transferLinked = false
-        var transferTextExpanded = false
-        var transferSaving = false
+        /// The lançamento being described: the owner's own words, plus a print when they have one.
+        var entryText = ""
+        var entryImage: Data?
+        var entryTextExpanded = false
+        var entrySaving = false
 
-        var trimmedTransferText: String {
-            transferText.trimmingCharacters(in: .whitespacesAndNewlines)
+        /// The draft under review, editable from the moment the AI's reading lands.
+        var entryStore = ""
+        var entryDate = ""
+        var entryPaymentMethod: String?
+        var entryItems: IdentifiedArrayOf<EntryItemDraft> = []
+
+        var trimmedEntryText: String {
+            entryText.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        /// The AI needs at least one of the two to have anything to read.
-        var transferReady: Bool { transferImage != nil || !trimmedTransferText.isEmpty }
+        /// The words are the point, but a print alone is enough for the AI to have something to read.
+        var entryReady: Bool { !trimmedEntryText.isEmpty || entryImage != nil }
+
+        var selectedEntryItems: [EntryItemDraft] { entryItems.filter(\.selected) }
+
+        var entryTotal: Double {
+            selectedEntryItems.reduce(0) { $0 + $1.total }
+        }
+
+        /// Every line that goes to the history needs a name, and the purchase needs somewhere to sit.
+        var entrySavable: Bool {
+            !selectedEntryItems.isEmpty
+                && !entryStore.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && selectedEntryItems.allSatisfy { !$0.trimmedDescription.isEmpty }
+        }
 
         var selectedDrafts: [ProductDraft] { productDrafts.filter(\.selected) }
 
@@ -104,15 +139,15 @@ struct ScanFeature {
             case failure(ScanFailure)
             case captcha(CaptchaChallenge)
             case photoFailure(PhotoScanFailure)
-            case transfer(TransferScanResult)
-            case transferSaved(TransferSaveResult)
-            case transferFailure(TransferScanFailure)
+            case entry(EntryDraft)
+            case entrySaved(Purchase)
+            case entryFailure(EntryScanFailure)
         }
 
         var isSheetPresented: Bool {
             switch phase {
             case .processing, .result, .product, .rejected, .failure, .captcha, .photoFailure,
-                 .transfer, .transferSaved, .transferFailure:
+                 .entry, .entrySaved, .entryFailure:
                 true
             case .idle, .detecting, .capturing:
                 false
@@ -126,19 +161,22 @@ struct ScanFeature {
             productDrafts = []
             productSaved = false
             capturedPhoto = nil
-            transferSaving = false
-            transferTextExpanded = false
+            entrySaving = false
+            entryTextExpanded = false
+            entryItems = []
+            entryStore = ""
+            entryDate = ""
+            entryPaymentMethod = nil
             scannedAccessKey = nil
             captchaAnswer = ""
             captchaBusy = false
             captchaError = nil
         }
 
-        mutating func clearTransferDraft() {
-            transferImage = nil
-            transferText = ""
-            transferLinked = false
-            transferCategory = .other
+        /// What the owner typed, which outlives a failed reading — only a saved lançamento spends it.
+        mutating func clearEntryComposition() {
+            entryText = ""
+            entryImage = nil
         }
     }
 
@@ -163,16 +201,22 @@ struct ScanFeature {
         case productPriceChanged(id: ProductDraft.ID, price: Double)
         case productSelectionToggled(id: ProductDraft.ID)
         case addProductTapped
-        case transferImageCleared
-        case transferTextChanged(String)
-        case interpretTransferTapped
-        case transferScanResponse(Result<TransferScanResult, TransferScanFailure>)
-        case transferCategoryChanged(Category)
-        case transferLinkToggled
-        case toggleTransferText
-        case saveTransferTapped
-        case transferSaveResponse(Result<TransferSaveResult, TransferScanFailure>)
-        case discardTransferTapped
+        case entryImageCleared
+        case entryTextChanged(String)
+        case interpretEntryTapped
+        case entryScanResponse(Result<EntryDraft, EntryScanFailure>)
+        case entryStoreChanged(String)
+        case entryDateChanged(String)
+        case entryItemDescriptionChanged(id: EntryItemDraft.ID, description: String)
+        case entryItemCategoryChanged(id: EntryItemDraft.ID, category: Category)
+        case entryItemQuantityChanged(id: EntryItemDraft.ID, quantity: Int)
+        case entryItemPriceChanged(id: EntryItemDraft.ID, price: Double)
+        case entryItemSelectionToggled(id: EntryItemDraft.ID)
+        case addEntryItemTapped
+        case toggleEntryText
+        case saveEntryTapped
+        case entrySaveResponse(Result<Purchase, EntryScanFailure>)
+        case discardEntryTapped
         case flashTapped
         case toggleItems
         case scanAgainTapped
@@ -192,7 +236,7 @@ struct ScanFeature {
 
     @Dependency(\.scanRepository) var scanRepository
     @Dependency(\.photoScanRepository) var photoScanRepository
-    @Dependency(\.transferScanRepository) var transferScanRepository
+    @Dependency(\.entryRepository) var entryRepository
     @Dependency(\.cameraClient) var cameraClient
     @Dependency(\.continuousClock) var clock
     @Dependency(\.openURL) var openURL
@@ -390,12 +434,12 @@ struct ScanFeature {
             case let .photoPicked(data):
                 // The picker dismisses itself before the image finishes loading, so this lands on .idle.
                 guard state.phase == .idle else { return .none }
-                if state.scanMode == .transfer {
+                if state.scanMode == .entry {
                     guard let data else {
-                        state.phase = .transferFailure(.invalidInput)
+                        state.phase = .entryFailure(.invalidInput)
                         return .none
                     }
-                    state.transferImage = data
+                    state.entryImage = data
                     return .none
                 }
                 guard let data else {
@@ -444,86 +488,132 @@ struct ScanFeature {
                 state.productSaved = true
                 return .none
 
-            case .transferImageCleared:
-                state.transferImage = nil
+            case .entryImageCleared:
+                state.entryImage = nil
                 return .none
 
-            case let .transferTextChanged(text):
-                state.transferText = text
+            case let .entryTextChanged(text):
+                state.entryText = text
                 return .none
 
-            case .interpretTransferTapped:
-                guard state.phase == .idle, state.scanMode == .transfer, state.transferReady else { return .none }
-                let image = state.transferImage
-                let text = state.trimmedTransferText.isEmpty ? nil : state.trimmedTransferText
+            case .interpretEntryTapped:
+                guard state.phase == .idle, state.scanMode == .entry, state.entryReady else { return .none }
+                let text = state.trimmedEntryText.isEmpty ? nil : state.trimmedEntryText
+                let image = state.entryImage
                 state.phase = .processing
                 return .run { send in
                     do {
-                        let result = try await transferScanRepository.interpret(imageData: image, text: text)
-                        await send(.transferScanResponse(.success(result)))
-                    } catch let failure as TransferScanFailure {
-                        await send(.transferScanResponse(.failure(failure)))
+                        let draft = try await entryRepository.interpret(text: text, imageData: image)
+                        await send(.entryScanResponse(.success(draft)))
+                    } catch let failure as EntryScanFailure {
+                        await send(.entryScanResponse(.failure(failure)))
                     } catch {
                     }
                 }
                 .cancellable(id: CancelID.scan)
 
-            case let .transferScanResponse(.success(result)):
-                state.phase = .transfer(result)
-                state.transferCategory = result.category
-                // Linking is only offered when the server found a note it could be paying for.
-                state.transferLinked = result.match != nil
-                state.transferTextExpanded = false
+            case let .entryScanResponse(.success(draft)):
+                state.phase = .entry(draft)
+                state.entryDate = draft.date
+                // A lançamento often names no place; the thing paid for is the best stand-in for one.
+                state.entryStore = draft.store ?? draft.items.first?.description ?? ""
+                state.entryPaymentMethod = draft.paymentMethod
+                state.entryItems = IdentifiedArray(
+                    uniqueElements: draft.items.enumerated().map { index, item in
+                        EntryItemDraft(
+                            id: index,
+                            description: item.description,
+                            category: item.category,
+                            quantity: max(1, item.quantity ?? 1),
+                            unitPrice: max(0, item.unitPrice ?? 0)
+                        )
+                    }
+                )
+                state.entryTextExpanded = false
                 return .none
 
-            case let .transferScanResponse(.failure(failure)):
-                state.phase = .transferFailure(failure)
+            case let .entryScanResponse(.failure(failure)):
+                state.phase = .entryFailure(failure)
                 return .none
 
-            case let .transferCategoryChanged(category):
-                state.transferCategory = category
+            case let .entryStoreChanged(store):
+                state.entryStore = store
                 return .none
 
-            case .transferLinkToggled:
-                state.transferLinked.toggle()
+            case let .entryDateChanged(date):
+                state.entryDate = date
                 return .none
 
-            case .toggleTransferText:
-                state.transferTextExpanded.toggle()
+            case let .entryItemDescriptionChanged(id, description):
+                state.entryItems[id: id]?.description = description
                 return .none
 
-            case .saveTransferTapped:
-                guard case let .transfer(result) = state.phase, !state.transferSaving else { return .none }
-                state.transferSaving = true
-                let request = TransferSaveRequest(
-                    transfer: result.transfer,
-                    category: state.transferCategory,
-                    linkedPurchaseId: state.transferLinked ? result.match?.purchaseId : nil
+            case let .entryItemCategoryChanged(id, category):
+                state.entryItems[id: id]?.category = category
+                return .none
+
+            case let .entryItemQuantityChanged(id, quantity):
+                state.entryItems[id: id]?.quantity = max(1, quantity)
+                return .none
+
+            case let .entryItemPriceChanged(id, price):
+                state.entryItems[id: id]?.unitPrice = max(0, price)
+                return .none
+
+            case let .entryItemSelectionToggled(id):
+                state.entryItems[id: id]?.selected.toggle()
+                return .none
+
+            case .addEntryItemTapped:
+                guard case .entry = state.phase else { return .none }
+                state.entryItems.append(EntryItemDraft(id: (state.entryItems.ids.max() ?? -1) + 1, description: ""))
+                return .none
+
+            case .toggleEntryText:
+                state.entryTextExpanded.toggle()
+                return .none
+
+            case .saveEntryTapped:
+                guard case let .entry(draft) = state.phase, !state.entrySaving, state.entrySavable else { return .none }
+                state.entrySaving = true
+                let request = PurchaseCreateRequest(
+                    date: state.entryDate,
+                    time: draft.time,
+                    store: state.entryStore.trimmingCharacters(in: .whitespacesAndNewlines),
+                    paymentMethod: state.entryPaymentMethod,
+                    items: state.selectedEntryItems.map { item in
+                        PurchaseCreateItem(
+                            description: item.trimmedDescription,
+                            category: item.category,
+                            quantity: item.quantity,
+                            unitPrice: item.unitPrice
+                        )
+                    }
                 )
                 return .run { send in
                     do {
-                        let saved = try await transferScanRepository.save(request: request)
-                        await send(.transferSaveResponse(.success(saved)))
-                    } catch let failure as TransferScanFailure {
-                        await send(.transferSaveResponse(.failure(failure)))
+                        let purchase = try await entryRepository.save(request: request)
+                        await send(.entrySaveResponse(.success(purchase)))
+                    } catch let failure as EntryScanFailure {
+                        await send(.entrySaveResponse(.failure(failure)))
                     } catch {
                     }
                 }
                 .cancellable(id: CancelID.scan)
 
-            case let .transferSaveResponse(.success(saved)):
-                state.transferSaving = false
-                state.phase = .transferSaved(saved)
+            case let .entrySaveResponse(.success(purchase)):
+                state.entrySaving = false
+                state.phase = .entrySaved(purchase)
                 return .none
 
-            case let .transferSaveResponse(.failure(failure)):
-                state.transferSaving = false
-                state.phase = .transferFailure(failure)
+            case let .entrySaveResponse(.failure(failure)):
+                state.entrySaving = false
+                state.phase = .entryFailure(failure)
                 return .none
 
-            case .discardTransferTapped:
+            case .discardEntryTapped:
                 state.clearResult()
-                state.clearTransferDraft()
+                state.clearEntryComposition()
                 return .cancel(id: CancelID.scan)
 
             case .flashTapped:
@@ -534,9 +624,9 @@ struct ScanFeature {
                 state.itemsExpanded.toggle()
                 return .none
 
-            // A saved transfer is spent; anything short of that is worth retrying without retyping.
+            // A saved lançamento is spent; anything short of that is worth retrying without retyping.
             case .scanAgainTapped, .sheetDismissed:
-                if case .transferSaved = state.phase { state.clearTransferDraft() }
+                if case .entrySaved = state.phase { state.clearEntryComposition() }
                 state.clearResult()
                 return .cancel(id: CancelID.scan)
 
@@ -561,7 +651,7 @@ struct ScanFeature {
 
             case .showInHistoryTapped:
                 state.clearResult()
-                state.clearTransferDraft()
+                state.clearEntryComposition()
                 return .concatenate(
                     .cancel(id: CancelID.scan),
                     .send(.delegate(.showHistory))

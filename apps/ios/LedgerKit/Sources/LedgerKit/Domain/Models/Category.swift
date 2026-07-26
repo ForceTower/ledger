@@ -13,6 +13,10 @@ public enum Category: String, Codable, CaseIterable, Equatable, Sendable, Identi
     case hygiene
     case pet
     case household
+    case transport
+    case dining
+    case health
+    case services
     case other
 
     public var id: String { rawValue }
@@ -31,6 +35,10 @@ public enum Category: String, Codable, CaseIterable, Equatable, Sendable, Identi
         case .hygiene: "Higiene"
         case .pet: "Pet"
         case .household: "Bazar e Utilidades"
+        case .transport: "Transporte"
+        case .dining: "Restaurantes"
+        case .health: "Saúde"
+        case .services: "Serviços"
         case .other: "Outros"
         }
     }
@@ -49,6 +57,10 @@ public enum Category: String, Codable, CaseIterable, Equatable, Sendable, Identi
         case .frozen: Color(hex: 0x5AA9D6)
         case .pet: Color(hex: 0x7E8AA2)
         case .household: Color(hex: 0x9A8C98)
+        case .transport: Color(hex: 0x3F7F8C)
+        case .dining: Color(hex: 0xD1705C)
+        case .health: Color(hex: 0x4FA98C)
+        case .services: Color(hex: 0x8571C7)
         case .other: .secondary
         }
     }

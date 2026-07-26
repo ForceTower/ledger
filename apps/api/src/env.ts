@@ -6,6 +6,7 @@ import { shutdownOtel } from "./otel";
 import { AiClient } from "./service/ai";
 import { CategorizerService, DEFAULT_CATEGORIZE_PROMPT } from "./service/categorize";
 import { ChatService } from "./service/chat";
+import { DEFAULT_ENTRY_PROMPT, EntryService } from "./service/entry";
 import { NotificationService } from "./service/notification";
 import { DEFAULT_PHOTO_PROMPT, PhotoScanService } from "./service/photo-scan";
 import { PurchaseService } from "./service/purchase";
@@ -36,6 +37,9 @@ const envVarsSchema = z.object({
   CLAUDE_CATEGORIZE_MODEL: z.string().default("claude-sonnet-5"),
   CLAUDE_PHOTO_PROMPT: z.string().default(DEFAULT_PHOTO_PROMPT),
   CLAUDE_TRANSFER_PROMPT: z.string().default(DEFAULT_TRANSFER_PROMPT),
+  CLAUDE_ENTRY_PROMPT: z.string().default(DEFAULT_ENTRY_PROMPT),
+  // "ontem" and "dia 24" are relative to the owner's calendar, not to a container running on UTC.
+  LEDGER_TIME_ZONE: z.string().default("America/Bahia"),
   CLAUDE_CATEGORIZE_PROMPT: z.string().default(DEFAULT_CATEGORIZE_PROMPT),
   CLAUDE_TIMEOUT_MS: z.coerce.number().default(60_000),
   // A chat turn can run several SQL round-trips, so it gets more room than a one-shot scan.
@@ -56,6 +60,7 @@ export interface LedgerEnv {
   service: {
     scan: ScanService;
     photoScan: PhotoScanService;
+    entry: EntryService;
     transfer: TransferService;
     purchase: PurchaseService;
     categorizer: CategorizerService;
@@ -82,7 +87,7 @@ export async function getEnv(): Promise<LedgerEnv> {
 
   const db = makeDb(vars.DATABASE_URL);
   const cache = createCacheClient(vars.REDIS_URL);
-  const purchase = new PurchaseService({ db });
+  const purchase = new PurchaseService({ db, cache });
   const ai = new AiClient({
     apiKey: vars.ANTHROPIC_API_KEY || undefined,
     model: vars.CLAUDE_MODEL,
@@ -101,6 +106,7 @@ export async function getEnv(): Promise<LedgerEnv> {
   });
   const scan = new ScanService({ db, cache, purchase, categorizer, sefazBaseUrl: vars.SEFAZ_BASE_URL });
   const photoScan = new PhotoScanService({ ai, prompt: vars.CLAUDE_PHOTO_PROMPT });
+  const entry = new EntryService({ ai, prompt: vars.CLAUDE_ENTRY_PROMPT, timeZone: vars.LEDGER_TIME_ZONE });
   const transfer = new TransferService({ db, cache, ai, purchase, prompt: vars.CLAUDE_TRANSFER_PROMPT });
   const notifications = new NotificationService({ db, serviceAccountBase64: vars.FIREBASE_SERVICE_ACCOUNT_BASE64 });
   const chat = new ChatService({
@@ -112,7 +118,7 @@ export async function getEnv(): Promise<LedgerEnv> {
     vars,
     db,
     cache,
-    service: { scan, photoScan, transfer, purchase, categorizer, notifications, chat },
+    service: { scan, photoScan, entry, transfer, purchase, categorizer, notifications, chat },
     isDev: vars.NODE_ENV === "development",
     cleanup: async () => {
       await db.destroy();

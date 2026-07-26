@@ -15,6 +15,11 @@ export const CATEGORIES = [
   "hygiene",
   "pet",
   "household",
+  // Not groceries: what a typed lançamento tends to be about, and what no receipt line ever is.
+  "transport",
+  "dining",
+  "health",
+  "services",
   "other",
 ] as const;
 
@@ -174,6 +179,57 @@ export interface TransferSaveResult {
   transfer: Transfer;
   /** The purchase the transfer materialized into (`source: "pix"`), so clients can mirror it. */
   purchase: Purchase;
+}
+
+export type EntryScanErrorCode =
+  | "invalid_input"
+  | "not_an_entry"
+  | "ai_unavailable"
+  | "ai_invalid_output";
+
+/** One line the AI pulled out of the owner's description. */
+export interface EntryDraftItem {
+  /** What was bought or paid for, as a receipt line would put it (pt-BR). */
+  description: string;
+  category: Category;
+  /** Whole units; null when the description does not say. */
+  quantity: number | null;
+  /** BRL for one unit; null when the description carries no price for this line. */
+  unitPrice: number | null;
+}
+
+/**
+ * What `POST /scan/entry` reads out of a typed description ("37,00 de transporte no dia 24 de
+ * julho"). Reading is not saving — the owner confirms the draft, then posts it to `POST /purchases`.
+ */
+export interface EntryDraft {
+  /** Resolved against the server's today, so "dia 24 de julho" comes back as a real date. */
+  date: string;
+  time: string | null;
+  /** Where the money went, when the description names it. */
+  store: string | null;
+  /** "Pix", "Dinheiro", "Cartão de crédito"… as the description put it; null when it does not say. */
+  paymentMethod: string | null;
+  /** One entry per thing paid for. Never empty. */
+  items: EntryDraftItem[];
+  /** Free-form remark about the reading (pt-BR). */
+  comment: string;
+}
+
+export interface PurchaseCreateItem {
+  description: string;
+  category: Category;
+  quantity: number;
+  unitPrice: number;
+}
+
+/** What `POST /purchases` persists: a purchase the owner typed rather than scanned. */
+export interface PurchaseCreateRequest {
+  date: string;
+  time: string | null;
+  store: string;
+  paymentMethod: string | null;
+  items: PurchaseCreateItem[];
 }
 
 export type ChatErrorCode = "ai_unavailable";

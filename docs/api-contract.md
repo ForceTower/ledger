@@ -35,6 +35,11 @@ type Category =
   | "hygiene"
   | "pet"
   | "household"
+  // Not groceries: what a typed lançamento tends to be about, and what no receipt line ever is.
+  | "transport"
+  | "dining"
+  | "health"
+  | "services"
   | "other";
 
 interface PurchaseSummary {
@@ -138,6 +143,32 @@ interface TransferSaveRequest {
 interface TransferSaveResult {
   transfer: Transfer;
   purchase: Purchase; // source: "pix"
+}
+
+// A lançamento the owner typed ("37,00 de transporte no dia 24 de julho"), read by AI into a draft
+// they finish. Drafting and saving are two steps: the draft is a suggestion, the purchase is not.
+interface EntryDraftItem {
+  description: string; // pt-BR, like a receipt line
+  category: Category;
+  quantity: number | null; // whole units; null when the description does not say
+  unitPrice: number | null; // BRL per unit; null when no price was given
+}
+
+interface EntryDraft {
+  date: string; // already resolved against the server's today
+  time: string | null;
+  store: string | null; // null when the description names no place
+  paymentMethod: string | null; // "Pix", "Dinheiro", … as the description put it
+  items: EntryDraftItem[]; // never empty
+  comment: string; // pt-BR
+}
+
+interface PurchaseCreateRequest {
+  date: string;
+  time: string | null;
+  store: string;
+  paymentMethod: string | null;
+  items: { description: string; category: Category; quantity: number; unitPrice: number }[];
 }
 ```
 
@@ -326,6 +357,35 @@ Genuine failures use the failure envelope with an `errorCode`:
 | `ai_unavailable`    | 424  | the API call or `claude` CLI failed, errored, or timed out |
 | `ai_invalid_output` | 424  | the model ran but its output did not match the contract    |
 
+### `POST /scan/entry`
+
+AI reading of a lançamento the owner typed in their own words — "37,00 de transporte no dia 24 de
+julho". Body: `multipart/form-data` with a `text` field (the description, ≤ 8000 chars) and/or an
+`image` field (a print backing it up: JPEG, PNG or WebP, ≤ 10 MB). At least one of the two is
+required; where the two disagree the prompt tells the model to trust the text, since the owner typed
+it on purpose.
+
+Reading is not saving: this endpoint persists nothing. It returns `EntryDraft` — the items it found,
+the date it resolved, and the store and payment method when the description named them. The client
+shows the draft for the owner to correct and confirms it with `POST /purchases`.
+
+Relative dates are resolved server-side: the prompt carries today's date in `LEDGER_TIME_ZONE`
+(default `America/Bahia`), so "ontem", "sexta passada" and a bare "dia 24" land on real dates
+instead of on whatever the model assumes today is. `unitPrice` and `quantity` are read, never
+invented — both are `null` when the description does not say, and the app asks the owner.
+
+Uses the same server configuration as `POST /scan/photo`, with `CLAUDE_ENTRY_PROMPT` in place of
+`CLAUDE_PHOTO_PROMPT`.
+
+Genuine failures use the failure envelope with an `errorCode`:
+
+| errorCode           | HTTP | meaning                                                    |
+| ------------------- | ---- | ---------------------------------------------------------- |
+| `invalid_input`     | 400  | neither `text` nor `image`, unsupported type, or bad size  |
+| `not_an_entry`      | 422  | the AI read it but it describes no spending                |
+| `ai_unavailable`    | 424  | the API call or `claude` CLI failed, errored, or timed out |
+| `ai_invalid_output` | 424  | the model ran but its output did not match the contract    |
+
 ### `POST /scan/transfer`
 
 AI extraction of a bank-transfer receipt (Pix comprovante). Body: `multipart/form-data` with an
@@ -381,6 +441,21 @@ dataset into its local database for offline use (drives the "Histórico" list an
 
 All query params optional. `page` is 1-based (default 1); a page past the end returns empty `items`.
 `from`/`to` are `YYYY-MM-DD` (inclusive); `store` matches the store's display name exactly.
+
+### `POST /purchases`
+
+Stores a purchase the owner typed instead of scanning — the confirmed half of `POST /scan/entry`.
+Body: `PurchaseCreateRequest`.
+
+Inserts the purchase with `source: "manual"`, one `purchase_item` per line (`unit: "un"`, `total`
+= `quantity × unitPrice`), and a single payment when `paymentMethod` is set. `store` is resolved by
+name against the `stores` table, so typing a store the history already knows reuses its row.
+
+There is no dedup key — nothing outside the description says two identical entries are the same
+purchase, so posting the same body twice records two purchases (slugs `…_01`, `…_02`).
+
+`data: Purchase` — the stored purchase, read back the way `GET /purchases/:id` returns it, so the
+client can mirror it without a second request.
 
 ### `GET /purchases/:id`
 

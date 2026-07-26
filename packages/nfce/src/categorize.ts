@@ -580,6 +580,12 @@ const RULES: Record<Category, string[]> = {
     "p mant",
     "papel manteiga",
   ],
+  // Nothing on a supermarket receipt line lands here — these categories exist for the typed
+  // lançamentos the app sends straight to the AI, which never pass through these rules.
+  transport: [],
+  dining: [],
+  health: [],
+  services: [],
   other: [],
 };
 

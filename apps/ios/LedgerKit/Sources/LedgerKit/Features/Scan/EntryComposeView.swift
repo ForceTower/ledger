@@ -4,65 +4,65 @@ import SwiftUI
 import UIKit
 #endif
 
-/// What the owner puts together before the AI reads it: the screenshot the bank produced, the text
-/// they copied out of it, or both. Either one on its own is enough to interpret.
-struct TransferComposeView: View {
+/// What the owner puts together before the AI reads it: their own account of what they spent, and —
+/// when they have one — a print backing it up. The words alone are enough.
+struct EntryComposeView: View {
     @Bindable var store: StoreOf<ScanFeature>
 
     @FocusState private var textFocused: Bool
 
     private var textBinding: Binding<String> {
         Binding(
-            get: { store.transferText },
-            set: { store.send(.transferTextChanged($0)) }
+            get: { store.entryText },
+            set: { store.send(.entryTextChanged($0)) }
         )
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Comprovante de transferência")
+                Text("Novo lançamento")
                     .font(.title2.weight(.heavy))
                     .foregroundStyle(.white)
 
-                Text("Anexe o print e cole o texto. A IA entende o valor, para quem foi e a data — e registra no histórico.")
+                Text("Descreva o gasto do seu jeito. A IA monta um rascunho com valor, categoria e data — você confere os itens antes de salvar.")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.58))
                     .padding(.top, 7)
 
-                attachBox
-                    .padding(.top, 20)
-
                 HStack {
-                    Text("TEXTO DO COMPROVANTE")
+                    Text("O QUE VOCÊ GASTOU")
                         .font(.caption2.weight(.bold))
                         .tracking(0.6)
                         .foregroundStyle(.white.opacity(0.46))
                     Spacer()
                     pasteButton
                 }
-                .padding(.top, 18)
+                .padding(.top, 20)
 
                 textBox
                     .padding(.top, 9)
 
-                Button { store.send(.interpretTransferTapped) } label: {
-                    Text("Interpretar com IA")
+                attachBox
+                    .padding(.top, 14)
+
+                Button { store.send(.interpretEntryTapped) } label: {
+                    Text("Criar rascunho com IA")
                         .font(.headline)
-                        .foregroundStyle(store.transferReady ? Color.appAccentForeground : .white.opacity(0.38))
+                        .foregroundStyle(store.entryReady ? Color.appAccentForeground : .white.opacity(0.38))
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
                         .background {
                             RoundedRectangle(cornerRadius: 15, style: .continuous)
                                 .fill(
-                                    store.transferReady
+                                    store.entryReady
                                         ? AnyShapeStyle(AppGradient.accent)
                                         : AnyShapeStyle(Color.white.opacity(0.1))
                                 )
                         }
                 }
                 .buttonStyle(.plain)
-                .disabled(!store.transferReady)
+                .disabled(!store.entryReady)
                 .padding(.top, 20)
                 .padding(.bottom, 8)
             }
@@ -70,7 +70,7 @@ struct TransferComposeView: View {
         }
         .scrollIndicators(.hidden)
         .scrollDismissesKeyboard(.interactively)
-        .animation(.easeInOut(duration: 0.2), value: store.transferImage == nil)
+        .animation(.easeInOut(duration: 0.2), value: store.entryImage == nil)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -79,30 +79,82 @@ struct TransferComposeView: View {
         }
     }
 
+    // MARK: - Description
+
+    private var pasteButton: some View {
+        Button {
+            if store.trimmedEntryText.isEmpty {
+                store.send(.entryTextChanged(Self.pasteboardText() ?? ""))
+            } else {
+                store.send(.entryTextChanged(""))
+            }
+        } label: {
+            Label(
+                store.trimmedEntryText.isEmpty ? "Colar" : "Limpar",
+                systemImage: store.trimmedEntryText.isEmpty ? "doc.on.clipboard" : "xmark.circle"
+            )
+            .font(.subheadline.weight(.bold))
+            .foregroundStyle(Color.appAccent)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var textBox: some View {
+        TextField(
+            "",
+            text: textBinding,
+            prompt: Text("Ex.: 37,00 de transporte no dia 24 de julho")
+                .foregroundColor(.white.opacity(0.42)),
+            axis: .vertical
+        )
+        .lineLimit(3...8)
+        .font(.subheadline)
+        .foregroundStyle(.white.opacity(0.88))
+        .tint(Color.appAccent)
+        .textFieldStyle(.plain)
+        .focused($textFocused)
+        .padding(14)
+        .frame(minHeight: 108, alignment: .top)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.white.opacity(store.trimmedEntryText.isEmpty ? 0.04 : 0.09))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(
+                    .white.opacity(store.trimmedEntryText.isEmpty ? 0.26 : 0.18),
+                    style: StrokeStyle(
+                        lineWidth: store.trimmedEntryText.isEmpty ? 1.5 : 1,
+                        dash: store.trimmedEntryText.isEmpty ? [6, 5] : []
+                    )
+                )
+        }
+    }
+
     // MARK: - Print
 
     private var attachBox: some View {
         Button { store.send(.choosePhotoTapped) } label: {
             Group {
-                if let image = store.transferImage {
+                if let image = store.entryImage {
                     attachedPrint(image)
                 } else {
                     emptyPrint
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(16)
+            .padding(14)
             .background {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(.white.opacity(store.transferImage == nil ? 0.04 : 0.09))
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.white.opacity(store.entryImage == nil ? 0.04 : 0.09))
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(
-                        .white.opacity(store.transferImage == nil ? 0.26 : 0.18),
+                        .white.opacity(store.entryImage == nil ? 0.2 : 0.18),
                         style: StrokeStyle(
-                            lineWidth: store.transferImage == nil ? 1.5 : 1,
-                            dash: store.transferImage == nil ? [6, 5] : []
+                            lineWidth: 1,
+                            dash: store.entryImage == nil ? [6, 5] : []
                         )
                     )
             }
@@ -111,19 +163,20 @@ struct TransferComposeView: View {
     }
 
     private var emptyPrint: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "photo.on.rectangle.angled")
-                .font(.system(size: 27, weight: .light))
+        HStack(spacing: 10) {
+            Image(systemName: "paperclip")
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.5))
-            Text("Anexar print da transferência")
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(.white.opacity(0.9))
-            Text("PNG · JPG · captura de tela")
-                .font(.system(.caption2, design: .monospaced))
-                .tracking(0.4)
-                .foregroundStyle(.white.opacity(0.4))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Anexar print (opcional)")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.9))
+                Text("Comprovante, nota ou etiqueta de preço")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.4))
+            }
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, 10)
     }
 
     private func attachedPrint(_ data: Data) -> some View {
@@ -131,7 +184,7 @@ struct TransferComposeView: View {
             printThumbnail(data)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("Print da transferência")
+                Text("Print anexado")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.white)
                 Text(Self.printDetails(data))
@@ -159,10 +212,10 @@ struct TransferComposeView: View {
             Color.white.opacity(0.12)
             #endif
         }
-        .frame(width: 46, height: 62)
+        .frame(width: 40, height: 54)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(alignment: .topTrailing) {
-            Button { store.send(.transferImageCleared) } label: {
+            Button { store.send(.entryImageCleared) } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 8, weight: .black))
                     .foregroundStyle(.black.opacity(0.8))
@@ -187,59 +240,6 @@ struct TransferComposeView: View {
         return size
     }
 
-    // MARK: - Text
-
-    private var pasteButton: some View {
-        Button {
-            if store.trimmedTransferText.isEmpty {
-                store.send(.transferTextChanged(Self.pasteboardText() ?? ""))
-            } else {
-                store.send(.transferTextChanged(""))
-            }
-        } label: {
-            Label(
-                store.trimmedTransferText.isEmpty ? "Colar" : "Limpar",
-                systemImage: store.trimmedTransferText.isEmpty ? "doc.on.clipboard" : "xmark.circle"
-            )
-            .font(.subheadline.weight(.bold))
-            .foregroundStyle(Color.appAccent)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var textBox: some View {
-        TextField(
-            "",
-            text: textBinding,
-            prompt: Text("Cole aqui o texto do comprovante — valor, destinatário, data. Também vale a mensagem que você recebeu do banco.")
-                .foregroundColor(.white.opacity(0.42)),
-            axis: .vertical
-        )
-        .lineLimit(4...10)
-        // Prose while it is a hint, monospaced once it holds what the bank wrote.
-        .font(store.transferText.isEmpty ? .subheadline : .system(.footnote, design: .monospaced))
-        .foregroundStyle(.white.opacity(0.88))
-        .tint(Color.appAccent)
-        .textFieldStyle(.plain)
-        .focused($textFocused)
-        .padding(14)
-        .frame(minHeight: 120, alignment: .top)
-        .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.white.opacity(store.trimmedTransferText.isEmpty ? 0.04 : 0.09))
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(
-                    .white.opacity(store.trimmedTransferText.isEmpty ? 0.26 : 0.18),
-                    style: StrokeStyle(
-                        lineWidth: store.trimmedTransferText.isEmpty ? 1.5 : 1,
-                        dash: store.trimmedTransferText.isEmpty ? [6, 5] : []
-                    )
-                )
-        }
-    }
-
     private static func pasteboardText() -> String? {
         #if canImport(UIKit)
         return UIPasteboard.general.string
@@ -252,21 +252,21 @@ struct TransferComposeView: View {
 @MainActor
 private func composeStore(text: String = "") -> StoreOf<ScanFeature> {
     var state = ScanFeature.State()
-    state.scanMode = .transfer
-    state.transferText = text
+    state.scanMode = .entry
+    state.entryText = text
     return Store(initialState: state) { ScanFeature() }
 }
 
 #Preview("Vazio") {
     ZStack {
         Color(hex: 0x080C0D).ignoresSafeArea()
-        TransferComposeView(store: composeStore()).padding(.horizontal, 20)
+        EntryComposeView(store: composeStore()).padding(.horizontal, 20)
     }
 }
 
-#Preview("Com texto") {
+#Preview("Com descrição") {
     ZStack {
         Color(hex: 0x080C0D).ignoresSafeArea()
-        TransferComposeView(store: composeStore(text: MockData.transferReceiptText)).padding(.horizontal, 20)
+        EntryComposeView(store: composeStore(text: MockData.entryDescription)).padding(.horizontal, 20)
     }
 }

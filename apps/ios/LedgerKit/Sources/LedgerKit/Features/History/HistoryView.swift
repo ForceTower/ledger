@@ -285,7 +285,7 @@ private struct EmptyHistoryView: View {
                 .multilineTextAlignment(.center)
 
             Text(
-                "Escaneie a nota fiscal, fotografe um recibo ou cole o print de uma transferência — tudo aparece organizado aqui."
+                "Escaneie a nota fiscal, fotografe um recibo ou escreva o que você gastou — tudo aparece organizado aqui."
             )
             .font(.subheadline)
             .foregroundStyle(.secondary)

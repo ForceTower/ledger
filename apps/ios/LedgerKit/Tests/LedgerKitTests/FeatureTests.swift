@@ -430,176 +430,212 @@ struct PhotoScanFeatureTests {
 }
 
 @MainActor
-struct TransferScanFeatureTests {
-    private static func transferStore(
-        interpret: @escaping @Sendable (Data?, String?) async throws -> TransferScanResult = { _, _ in
-            MockData.transferScan
+struct EntryFeatureTests {
+    private static func entryStore(
+        interpret: @escaping @Sendable (String?, Data?) async throws -> EntryDraft = { _, _ in
+            MockData.entryDraft
         },
-        save: @escaping @Sendable (TransferSaveRequest) async throws -> TransferSaveResult = { request in
-            TransferSaveResult(
-                transfer: request.transfer,
-                purchase: MockData.pixPurchase(request.transfer, category: request.category)
-            )
+        save: @escaping @Sendable (PurchaseCreateRequest) async throws -> Purchase = { request in
+            MockData.manualPurchase(request)
         }
     ) -> TestStoreOf<ScanFeature> {
         var state = ScanFeature.State()
-        state.scanMode = .transfer
+        state.scanMode = .entry
         return TestStore(initialState: state) {
             ScanFeature()
         } withDependencies: {
-            $0.transferScanRepository.interpret = interpret
-            $0.transferScanRepository.save = save
+            $0.entryRepository.interpret = interpret
+            $0.entryRepository.save = save
         }
     }
 
-    /// Reading is not saving: the owner reviews the AI's guess before anything is written down.
-    @Test
-    func readingAComprovanteThenSavingItTakesTwoSteps() async {
-        let scan = MockData.transferScan
-        let requests = LockIsolated<[TransferSaveRequest]>([])
-        let store = Self.transferStore(save: { request in
-            requests.withValue { $0.append(request) }
-            return TransferSaveResult(
-                transfer: request.transfer,
-                purchase: MockData.pixPurchase(request.transfer, category: request.category)
+    /// What the AI read lands in the draft fields, so every one of them is the owner's to correct.
+    private static func draftLanded(_ draft: EntryDraft) -> (inout ScanFeature.State) -> Void {
+        { state in
+            state.phase = .entry(draft)
+            state.entryDate = draft.date
+            state.entryStore = draft.store ?? draft.items.first?.description ?? ""
+            state.entryPaymentMethod = draft.paymentMethod
+            state.entryItems = IdentifiedArray(
+                uniqueElements: draft.items.enumerated().map { index, item in
+                    EntryItemDraft(
+                        id: index,
+                        description: item.description,
+                        category: item.category,
+                        quantity: max(1, item.quantity ?? 1),
+                        unitPrice: max(0, item.unitPrice ?? 0)
+                    )
+                }
             )
+        }
+    }
+
+    /// Drafting is not saving: the owner confirms the items before anything is written down.
+    @Test
+    func draftingALancamentoThenSavingItTakesTwoSteps() async {
+        let requests = LockIsolated<[PurchaseCreateRequest]>([])
+        let store = Self.entryStore(save: { request in
+            requests.withValue { $0.append(request) }
+            return MockData.manualPurchase(request)
         })
 
-        await store.send(.transferTextChanged(MockData.transferReceiptText)) {
-            $0.transferText = MockData.transferReceiptText
+        await store.send(.entryTextChanged(MockData.entryDescription)) {
+            $0.entryText = MockData.entryDescription
         }
-        await store.send(.interpretTransferTapped) { $0.phase = .processing }
-        await store.receive(\.transferScanResponse) {
-            $0.phase = .transfer(scan)
-            $0.transferCategory = scan.category
-            $0.transferLinked = true
-        }
+        await store.send(.interpretEntryTapped) { $0.phase = .processing }
+        await store.receive(\.entryScanResponse, assert: Self.draftLanded(MockData.entryDraft))
 
-        await store.send(.saveTransferTapped) { $0.transferSaving = true }
-        await store.receive(\.transferSaveResponse) {
-            $0.transferSaving = false
-            $0.phase = .transferSaved(TransferSaveResult(
-                transfer: scan.transfer,
-                purchase: MockData.pixPurchase(scan.transfer, category: scan.category)
-            ))
+        await store.send(.saveEntryTapped) { $0.entrySaving = true }
+        await store.receive(\.entrySaveResponse) {
+            $0.entrySaving = false
+            $0.phase = .entrySaved(MockData.manualPurchase(MockData.entrySaveRequest))
         }
 
         #expect(requests.value.count == 1)
-        #expect(requests.value.first?.linkedPurchaseId == scan.match?.purchaseId)
+        #expect(requests.value.first == MockData.entrySaveRequest)
     }
 
-    /// The AI needs a print or some text; with neither, the button does nothing.
+    /// The AI needs words or a print; with neither, the button does nothing.
     @Test
-    func anEmptyComprovanteIsNeverSentToTheAI() async {
-        let store = Self.transferStore(interpret: { _, _ in
+    func anEmptyDescriptionIsNeverSentToTheAI() async {
+        let store = Self.entryStore(interpret: { _, _ in
             Issue.record("nothing should be interpreted without an input")
-            return MockData.transferScan
+            return MockData.entryDraft
         })
 
-        #expect(store.state.transferReady == false)
-        await store.send(.interpretTransferTapped)
+        #expect(store.state.entryReady == false)
+        await store.send(.interpretEntryTapped)
 
-        await store.send(.transferTextChanged("   \n  ")) { $0.transferText = "   \n  " }
-        #expect(store.state.transferReady == false)
-        await store.send(.interpretTransferTapped)
+        await store.send(.entryTextChanged("   \n  ")) { $0.entryText = "   \n  " }
+        #expect(store.state.entryReady == false)
+        await store.send(.interpretEntryTapped)
     }
 
     @Test
     func theOwnersCorrectionsAreWhatGetSaved() async {
-        let requests = LockIsolated<[TransferSaveRequest]>([])
-        let store = Self.transferStore(save: { request in
-            requests.withValue { $0.append(request) }
-            return TransferSaveResult(
-                transfer: request.transfer,
-                purchase: MockData.pixPurchase(request.transfer, category: request.category)
-            )
-        })
+        let requests = LockIsolated<[PurchaseCreateRequest]>([])
+        let store = Self.entryStore(
+            interpret: { _, _ in MockData.entryDraftMultiple },
+            save: { request in
+                requests.withValue { $0.append(request) }
+                return MockData.manualPurchase(request)
+            }
+        )
 
-        await store.send(.transferTextChanged("Pix de R$ 128,40")) { $0.transferText = "Pix de R$ 128,40" }
-        await store.send(.interpretTransferTapped) { $0.phase = .processing }
-        await store.receive(\.transferScanResponse) {
-            $0.phase = .transfer(MockData.transferScan)
-            $0.transferCategory = MockData.transferScan.category
-            $0.transferLinked = true
+        await store.send(.entryTextChanged("gastos do dia")) { $0.entryText = "gastos do dia" }
+        await store.send(.interpretEntryTapped) { $0.phase = .processing }
+        await store.receive(\.entryScanResponse, assert: Self.draftLanded(MockData.entryDraftMultiple))
+
+        await store.send(.entryStoreChanged("Feira")) { $0.entryStore = "Feira" }
+        await store.send(.entryDateChanged("2026-07-25")) { $0.entryDate = "2026-07-25" }
+        await store.send(.entryItemCategoryChanged(id: 0, category: .services)) {
+            $0.entryItems[id: 0]?.category = .services
+        }
+        await store.send(.entryItemPriceChanged(id: 0, price: 40)) { $0.entryItems[id: 0]?.unitPrice = 40 }
+        await store.send(.entryItemQuantityChanged(id: 1, quantity: 5)) { $0.entryItems[id: 1]?.quantity = 5 }
+        await store.send(.entryItemSelectionToggled(id: 2)) { $0.entryItems[id: 2]?.selected = false }
+
+        await store.send(.saveEntryTapped) { $0.entrySaving = true }
+        await store.receive(\.entrySaveResponse) {
+            $0.entrySaving = false
+            $0.phase = .entrySaved(MockData.manualPurchase(requests.value[0]))
         }
 
-        await store.send(.transferCategoryChanged(.bakery)) { $0.transferCategory = .bakery }
-        await store.send(.transferLinkToggled) { $0.transferLinked = false }
-        await store.send(.saveTransferTapped) { $0.transferSaving = true }
-        await store.receive(\.transferSaveResponse) {
-            $0.transferSaving = false
-            $0.phase = .transferSaved(TransferSaveResult(
-                transfer: MockData.transferScan.transfer,
-                purchase: MockData.pixPurchase(MockData.transferScan.transfer, category: .bakery)
-            ))
-        }
-
-        #expect(requests.value.first?.category == .bakery)
-        #expect(requests.value.first?.linkedPurchaseId == nil)
+        let saved = requests.value.first
+        #expect(saved?.store == "Feira")
+        #expect(saved?.date == "2026-07-25")
+        #expect(saved?.items.count == 2)
+        #expect(saved?.items.first?.category == .services)
+        #expect(saved?.items.first?.unitPrice == 40)
+        #expect(saved?.items.last?.quantity == 5)
     }
 
-    /// A note the AI could not read is worth another try — the owner should not have to paste it again.
+    /// An item added by hand starts blank, and a blank line is not something we can file.
     @Test
-    func aFailedReadingKeepsTheDraft() async {
-        let store = Self.transferStore(interpret: { _, _ in throw TransferScanFailure.notATransfer })
+    func anUnnamedItemBlocksSaving() async {
+        let store = Self.entryStore(save: { request in
+            Issue.record("an incomplete draft should never be saved")
+            return MockData.manualPurchase(request)
+        })
 
-        await store.send(.transferTextChanged("nada disso")) { $0.transferText = "nada disso" }
-        await store.send(.interpretTransferTapped) { $0.phase = .processing }
-        await store.receive(\.transferScanResponse) { $0.phase = .transferFailure(.notATransfer) }
+        await store.send(.entryTextChanged(MockData.entryDescription)) {
+            $0.entryText = MockData.entryDescription
+        }
+        await store.send(.interpretEntryTapped) { $0.phase = .processing }
+        await store.receive(\.entryScanResponse, assert: Self.draftLanded(MockData.entryDraft))
+
+        await store.send(.addEntryItemTapped) {
+            $0.entryItems.append(EntryItemDraft(id: 1, description: ""))
+        }
+        #expect(store.state.entrySavable == false)
+        await store.send(.saveEntryTapped)
+
+        await store.send(.entryItemDescriptionChanged(id: 1, description: "Estacionamento")) {
+            $0.entryItems[id: 1]?.description = "Estacionamento"
+        }
+        #expect(store.state.entrySavable)
+    }
+
+    /// Text the AI could not read is worth another try — the owner should not have to retype it.
+    @Test
+    func aFailedReadingKeepsWhatWasTyped() async {
+        let store = Self.entryStore(interpret: { _, _ in throw EntryScanFailure.notAnEntry })
+
+        await store.send(.entryTextChanged("nada disso")) { $0.entryText = "nada disso" }
+        await store.send(.interpretEntryTapped) { $0.phase = .processing }
+        await store.receive(\.entryScanResponse) { $0.phase = .entryFailure(.notAnEntry) }
 
         await store.send(.scanAgainTapped) { $0.phase = .idle }
-        #expect(store.state.transferText == "nada disso")
+        #expect(store.state.entryText == "nada disso")
     }
 
     @Test
     func discardingClearsTheDraft() async {
-        let store = Self.transferStore()
+        let store = Self.entryStore()
 
-        await store.send(.transferTextChanged(MockData.transferReceiptText)) {
-            $0.transferText = MockData.transferReceiptText
+        await store.send(.entryTextChanged(MockData.entryDescription)) {
+            $0.entryText = MockData.entryDescription
         }
-        await store.send(.interpretTransferTapped) { $0.phase = .processing }
-        await store.receive(\.transferScanResponse) {
-            $0.phase = .transfer(MockData.transferScan)
-            $0.transferCategory = MockData.transferScan.category
-            $0.transferLinked = true
-        }
+        await store.send(.interpretEntryTapped) { $0.phase = .processing }
+        await store.receive(\.entryScanResponse, assert: Self.draftLanded(MockData.entryDraft))
 
-        await store.send(.discardTransferTapped) {
+        await store.send(.discardEntryTapped) {
             $0.phase = .idle
-            $0.transferText = ""
-            $0.transferCategory = .other
-            $0.transferLinked = false
+            $0.entryText = ""
+            $0.entryItems = []
+            $0.entryStore = ""
+            $0.entryDate = ""
         }
     }
 
     /// The gallery is shared with the photo mode, but here a pick attaches rather than identifies.
     @Test
-    func aGalleryPickInTransferModeAttachesThePrint() async {
+    func aGalleryPickInEntryModeAttachesThePrint() async {
         let print = Data("png".utf8)
-        let store = Self.transferStore()
+        let store = Self.entryStore()
 
         await store.send(.choosePhotoTapped) { $0.photoPickerPresented = true }
         await store.send(.photoPickerPresented(false)) { $0.photoPickerPresented = false }
-        await store.send(.photoPicked(print)) { $0.transferImage = print }
+        await store.send(.photoPicked(print)) { $0.entryImage = print }
 
-        #expect(store.state.transferReady)
-        await store.send(.transferImageCleared) { $0.transferImage = nil }
-        #expect(store.state.transferReady == false)
+        #expect(store.state.entryReady)
+        await store.send(.entryImageCleared) { $0.entryImage = nil }
+        #expect(store.state.entryReady == false)
     }
 
     /// Nothing to light up once the camera is off.
     @Test
-    func switchingToTransferTurnsTheTorchOff() async {
+    func switchingToEntryTurnsTheTorchOff() async {
         let store = TestStore(initialState: ScanFeature.State()) { ScanFeature() }
 
         await store.send(.flashTapped) { $0.flashOn = true }
-        await store.send(.modeChanged(.transfer)) {
-            $0.scanMode = .transfer
+        await store.send(.modeChanged(.entry)) {
+            $0.scanMode = .entry
             $0.flashOn = false
         }
     }
 }
+
 
 struct PhotoScanRepositoryTests {
     @Test
@@ -690,72 +726,69 @@ struct PhotoScanRepositoryTests {
     }
 }
 
-struct TransferScanRepositoryTests {
+struct EntryRepositoryTests {
     @Test
-    func thePrintAndTheTextTravelInTheSameMultipartBody() async throws {
+    func theDescriptionAndThePrintTravelInTheSameMultipartBody() async throws {
         let png = try sampleImageData()
         let result = try await withDependencies {
             $0.apiClient.send = { request in
                 #expect(request.method == "POST")
-                #expect(request.path == "scan/transfer")
+                #expect(request.path == "scan/entry")
                 #expect((request.timeout ?? 0) > 60)
 
                 let body = try #require(request.body)
                 let text = try #require(String(data: body, encoding: .isoLatin1))
                 #expect(text.contains(#"name="text""#))
-                #expect(text.contains("Comprovante de Pix"))
+                #expect(text.contains("de transporte"))
                 #expect(text.contains(#"name="image""#))
                 #expect(text.contains("Content-Type: image/jpeg"))
                 #expect(body.range(of: Data([0xFF, 0xD8, 0xFF])) != nil)
 
-                return try envelope(MockData.transferScan)
+                return try envelope(MockData.entryDraft)
             }
         } operation: {
-            try await TransferScanRepository.liveValue.interpret(
-                imageData: png,
-                text: MockData.transferReceiptText
-            )
+            try await EntryRepository.liveValue.interpret(text: MockData.entryDescription, imageData: png)
         }
 
-        #expect(result == MockData.transferScan)
+        #expect(result == MockData.entryDraft)
     }
 
-    /// Banks put the amount in the screenshot, in the text, or both — one of the two is enough.
+    /// The words are the point; the print is optional evidence.
     @Test
-    func textOnItsOwnIsEnoughToInterpret() async throws {
+    func theDescriptionOnItsOwnIsEnough() async throws {
         let result = try await withDependencies {
             $0.apiClient.send = { request in
                 let body = try #require(request.body)
                 let text = try #require(String(data: body, encoding: .utf8))
                 #expect(!text.contains(#"name="image""#))
-                return try envelope(MockData.transferScan)
+                return try envelope(MockData.entryDraft)
             }
         } operation: {
-            try await TransferScanRepository.liveValue.interpret(imageData: nil, text: "Pix de R$ 128,40")
+            try await EntryRepository.liveValue.interpret(text: MockData.entryDescription, imageData: nil)
         }
 
-        #expect(result == MockData.transferScan)
+        #expect(result == MockData.entryDraft)
     }
 
     @Test
     func nothingToReadNeverReachesTheServer() async throws {
-        await #expect(throws: TransferScanFailure.invalidInput) {
+        await #expect(throws: EntryScanFailure.invalidInput) {
             try await withDependencies {
                 $0.apiClient.send = { _ in
-                    Issue.record("the client should not upload an empty comprovante")
+                    Issue.record("the client should not upload an empty lançamento")
                     return Data()
                 }
             } operation: {
-                try await TransferScanRepository.liveValue.interpret(imageData: nil, text: nil)
+                try await EntryRepository.liveValue.interpret(text: nil, imageData: nil)
             }
         }
     }
 
     @Test
-    func serverErrorCodesMapToTransferFailures() async throws {
+    func serverErrorCodesMapToEntryFailures() async throws {
         for (errorCode, expected) in [
-            ("invalid_input", TransferScanFailure.invalidInput),
-            ("not_a_transfer", .notATransfer),
+            ("invalid_input", EntryScanFailure.invalidInput),
+            ("not_an_entry", .notAnEntry),
             ("ai_invalid_output", .aiInvalidOutput),
             ("ai_unavailable", .aiUnavailable),
         ] {
@@ -765,38 +798,34 @@ struct TransferScanRepositoryTests {
                         throw APIError.server(status: 502, errorCode: errorCode, message: nil)
                     }
                 } operation: {
-                    try await TransferScanRepository.liveValue.interpret(imageData: nil, text: "Pix")
+                    try await EntryRepository.liveValue.interpret(text: "37 de transporte", imageData: nil)
                 }
             }
         }
     }
 
     @Test
-    func aSavedTransferLandsInTheLocalMirror() async throws {
+    func aSavedLancamentoLandsInTheLocalMirror() async throws {
         let database = try inMemoryDatabase()
-        let purchase = MockData.pixPurchase(MockData.transfer, category: .grocery)
-        let request = TransferSaveRequest(
-            transfer: MockData.transfer,
-            category: .grocery,
-            linkedPurchaseId: nil
-        )
+        let purchase = MockData.manualPurchase(MockData.entrySaveRequest)
 
         let result = try await withDependencies {
             $0.database = database
             $0.apiClient.send = { apiRequest in
                 #expect(apiRequest.method == "POST")
-                #expect(apiRequest.path == "transfers")
-                return try envelope(TransferSaveResult(transfer: MockData.transfer, purchase: purchase))
+                #expect(apiRequest.path == "purchases")
+                return try envelope(purchase)
             }
         } operation: {
-            try await TransferScanRepository.liveValue.save(request: request)
+            try await EntryRepository.liveValue.save(request: MockData.entrySaveRequest)
         }
 
-        #expect(result.purchase == purchase)
+        #expect(result == purchase)
         let mirrored = try await MirrorStore(writer: database).purchase(id: purchase.id)
         #expect(mirrored == purchase)
     }
 }
+
 
 struct ScanRepositoryTests {
     @Test

@@ -98,7 +98,7 @@ extension InsightsSnapshot {
 
     private static let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "America/Sao_Paulo") ?? .current
+        calendar.timeZone = TimeZone(identifier: "America/Bahia") ?? .current
         return calendar
     }()
 

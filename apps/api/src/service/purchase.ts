@@ -1,7 +1,12 @@
-import type { PricePoint, Purchase, PurchasePage } from "@ledger/shared-types";
+import type { PricePoint, Purchase, PurchaseCreateRequest, PurchasePage } from "@ledger/shared-types";
+import status from "http-status";
 import { type InferResult, sql } from "kysely";
 import { jsonArrayFrom } from "kysely/helpers/postgres";
+import { type CacheClient, withLock } from "../cache";
 import type { LedgerDb } from "../db";
+import { LedgerError } from "../error";
+import { useLog } from "../logger";
+import { saveManualPurchase, WRITE_LOCK } from "./ingest";
 
 // The history feed exists so the app can mirror the whole dataset into its local store; full
 // purchases are heavy, so the page is deliberately small.
@@ -15,7 +20,20 @@ export interface PurchaseFilters {
 }
 
 export class PurchaseService {
-  constructor(private readonly deps: { db: LedgerDb }) {}
+  constructor(private readonly deps: { db: LedgerDb; cache: CacheClient }) {}
+
+  /** Store a purchase the owner typed in rather than scanned, and read it back the way clients see it. */
+  async create(request: PurchaseCreateRequest): Promise<Purchase> {
+    const { slug } = await withLock(this.deps.cache, WRITE_LOCK, () => saveManualPurchase(this.deps.db, request));
+
+    const purchase = await this.get(slug);
+    if (!purchase) {
+      throw new LedgerError(status.INTERNAL_SERVER_ERROR, `Saved purchase ${slug} could not be read back`);
+    }
+
+    useLog().withMetadata({ slug, itemCount: request.items.length }).info("Manual purchase saved");
+    return purchase;
+  }
 
   async list(filters: PurchaseFilters): Promise<PurchasePage> {
     const page = filters.page ?? 1;

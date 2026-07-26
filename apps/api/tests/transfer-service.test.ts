@@ -52,7 +52,7 @@ function stubAi(answer: unknown): AiRunner & { requests: AiRequest[] } {
 describe.skipIf(!connectionString)("TransferService", () => {
   const db: LedgerDb = makeDb(connectionString ?? "");
   const cache = createCacheClient(redisUrl);
-  const purchase = new PurchaseService({ db });
+  const purchase = new PurchaseService({ db, cache });
 
   /** `answer` is the union the model picks; the wire shape nests it under `result`. */
   function makeService(answer: unknown) {

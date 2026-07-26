@@ -10,8 +10,8 @@ struct ScanView: View {
 
     private var detecting: Bool { store.phase == .detecting }
     private var photoMode: Bool { store.scanMode == .photo }
-    private var transferMode: Bool { store.scanMode == .transfer }
-    /// The transfer receipt comes from the photo library, so the camera stays off for it.
+    private var entryMode: Bool { store.scanMode == .entry }
+    /// A lançamento is typed rather than framed, so the camera stays off for it.
     private var showsCamera: Bool { store.scanMode.usesCamera }
     private var cameraReady: Bool { store.cameraAvailable && store.cameraAuthorized }
     /// True only when this mode needs a camera it cannot have.
@@ -60,7 +60,7 @@ struct ScanView: View {
                     .offset(y: photoMode ? -52 : -12)
             }
 
-            // Below the controls, so the mode switch stays reachable — Transferência needs no camera.
+            // Below the controls, so the mode switch stays reachable — Lançamento needs no camera.
             if cameraBlocked {
                 Group {
                     if store.cameraAvailable {
@@ -84,8 +84,8 @@ struct ScanView: View {
                     }
                 }
 
-                if transferMode {
-                    TransferComposeView(store: store)
+                if entryMode {
+                    EntryComposeView(store: store)
                         .padding(.top, 16)
                 } else {
                     Spacer()
@@ -95,9 +95,9 @@ struct ScanView: View {
                 }
 
                 modeToggle
-                    .padding(.top, transferMode ? 14 : 24)
+                    .padding(.top, entryMode ? 14 : 24)
 
-                if !transferMode && !cameraBlocked {
+                if !entryMode && !cameraBlocked {
                     Group {
                         if photoMode {
                             captureRow
@@ -263,8 +263,8 @@ private func scanStore(mode: ScanMode) -> StoreOf<ScanFeature> {
     ScanView(store: scanStore(mode: .photo))
 }
 
-#Preview("Transferência") {
-    ScanView(store: scanStore(mode: .transfer))
+#Preview("Lançamento") {
+    ScanView(store: scanStore(mode: .entry))
 }
 
 private struct ScanBackground: View {

@@ -50,6 +50,17 @@ scanRoutes.post("/photo", async (c) => {
   return ok(message, result);
 });
 
+// The owner describing a purchase in their own words. The print is optional evidence, so either
+// field alone is enough and the service rejects the request that carries neither.
+scanRoutes.post("/entry", async (c) => {
+  const body = await c.req.parseBody();
+  const draft = await c.env.service.entry.interpret({
+    image: body.image instanceof File ? body.image : undefined,
+    text: typeof body.text === "string" ? body.text : undefined,
+  });
+  return ok("Entry drafted.", draft);
+});
+
 // Banks put the amount in the screenshot, in the text the owner copied, or both — either field
 // alone is enough, and the service rejects the request that carries neither.
 scanRoutes.post("/transfer", async (c) => {

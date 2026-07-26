@@ -229,8 +229,8 @@ extension Category {
     /// Whether the Portuguese label conjugates as plural ("Carnes subiram" vs. "Mercearia subiu").
     fileprivate var pluralLabel: Bool {
         switch self {
-        case .meat, .dairyDeli, .beverages, .snacksSweets, .frozen, .household, .other: true
-        case .produce, .bakery, .grocery, .cleaning, .hygiene, .pet: false
+        case .meat, .dairyDeli, .beverages, .snacksSweets, .frozen, .household, .dining, .services, .other: true
+        case .produce, .bakery, .grocery, .cleaning, .hygiene, .pet, .transport, .health: false
         }
     }
 }

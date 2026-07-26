@@ -914,6 +914,35 @@ struct HistoryFeatureTests {
     }
 
     @Test
+    func syncPrunesPurchasesTheServerNoLongerReturns() async throws {
+        let database = try inMemoryDatabase()
+        var stale = MockData.atacadao
+        stale.id = "2026-03-26_atacadao_legacy"
+        try await MirrorStore(writer: database).save([stale, MockData.carrefour])
+        var state = HistoryFeature.State()
+        state.didStartInitialSync = true
+        state.didLoad = true
+        let store = TestStore(initialState: state) {
+            HistoryFeature()
+        } withDependencies: {
+            $0.purchasesRepository = .liveValue
+            $0.database = database
+            $0.apiClient.send = { _ in
+                try envelope(PurchasePage(items: [MockData.carrefour], page: 1, pageSize: 1, total: 1, hasMore: false))
+            }
+        }
+
+        await store.send(.refresh) { $0.isSyncing = true }
+        await store.receive(\.localLoaded) {
+            $0.summaries = [MockData.carrefour.summary]
+        }
+        await store.receive(\.syncFinished) { $0.isSyncing = false }
+        await store.receive(\.categorySpendingLoaded) {
+            $0.monthCategorySpending = categorySpending(of: [MockData.carrefour])
+        }
+    }
+
+    @Test
     func aFailedSyncKeepsWhatTheMirrorHolds() async throws {
         let database = try inMemoryDatabase()
         try await MirrorStore(writer: database).save(MockData.purchases)

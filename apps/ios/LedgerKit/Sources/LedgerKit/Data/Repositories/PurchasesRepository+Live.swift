@@ -29,15 +29,18 @@ extension PurchasesRepository: DependencyKey {
             @Dependency(\.apiClient) var apiClient
             let mirror = MirrorStore(writer: database)
             var page = 1
+            var serverSlugs: Set<String> = []
             while true {
                 let feed: PurchasePage = try await apiClient.get(
                     from: "purchases",
                     query: [URLQueryItem(name: "page", value: "\(page)")]
                 )
                 try await mirror.save(feed.items)
+                serverSlugs.formUnion(feed.items.map(\.id))
                 guard feed.hasMore else { break }
                 page += 1
             }
+            try await mirror.prune(keepingSlugs: serverSlugs)
         }
     )
 }

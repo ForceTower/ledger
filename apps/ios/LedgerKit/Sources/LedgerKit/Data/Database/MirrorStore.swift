@@ -72,6 +72,14 @@ struct MirrorStore: Sendable {
         return String(format: "%04d-%02d-01", index / 12, index % 12 + 1)
     }
 
+    /// Removes purchases the server no longer returns, e.g. rows re-slugged by
+    /// a server-side re-import. Items and payments follow via cascade.
+    func prune(keepingSlugs slugs: Set<String>) async throws {
+        try await writer.write { db in
+            _ = try PurchaseRecord.filter(!slugs.contains(Column("slug"))).deleteAll(db)
+        }
+    }
+
     func save(_ purchases: [Purchase]) async throws {
         try await writer.write { db in
             for purchase in purchases {

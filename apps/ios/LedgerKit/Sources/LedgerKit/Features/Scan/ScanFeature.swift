@@ -17,23 +17,30 @@ struct ScanFeature {
         var flashOn = false
         var itemsExpanded = false
         var productQuantity = 1
+        var productUnitPrice = 0.0
         var productSaved = false
+        var photoPickerPresented = false
+        /// The still we sent to the AI, echoed back next to its guess.
+        var capturedPhoto: Data?
         var cameraAvailable = true
         @Shared(.inMemory("cameraAuthorized")) var cameraAuthorized = true
 
         enum Phase: Equatable {
             case idle
             case detecting
+            case capturing
             case processing
             case result(ScanResponse)
-            case product(ProductGuess)
+            case product(PhotoScanIdentified)
+            case rejected(PhotoScanRejected)
             case failure(ScanFailure)
+            case photoFailure(PhotoScanFailure)
         }
 
         var isSheetPresented: Bool {
             switch phase {
-            case .processing, .result, .product, .failure: true
-            case .idle, .detecting: false
+            case .processing, .result, .product, .rejected, .failure, .photoFailure: true
+            case .idle, .detecting, .capturing: false
             }
         }
     }
@@ -46,14 +53,18 @@ struct ScanFeature {
         case scanResponse(Result<ScanResponse, ScanFailure>)
         case modeChanged(ScanMode)
         case shutterTapped
-        case productIdentified(ProductGuess)
+        case photoCaptured(Data?)
+        case photoPicked(Data?)
+        case photoScanResponse(Result<PhotoScanResult, PhotoScanFailure>)
         case productQuantityChanged(Int)
+        case productPriceChanged(Double)
         case addProductTapped
         case flashTapped
         case toggleItems
         case scanAgainTapped
         case sheetDismissed
         case choosePhotoTapped
+        case photoPickerPresented(Bool)
         case settingsTapped
         case openSystemSettings
         case showInHistoryTapped
@@ -66,11 +77,27 @@ struct ScanFeature {
     }
 
     @Dependency(\.scanRepository) var scanRepository
+    @Dependency(\.photoScanRepository) var photoScanRepository
     @Dependency(\.cameraClient) var cameraClient
     @Dependency(\.continuousClock) var clock
     @Dependency(\.openURL) var openURL
 
     private enum CancelID { case scan }
+
+    private func identify(_ imageData: Data, _ state: inout State) -> Effect<Action> {
+        state.capturedPhoto = imageData
+        state.phase = .processing
+        return .run { send in
+            do {
+                let result = try await photoScanRepository.identify(imageData: imageData)
+                await send(.photoScanResponse(.success(result)))
+            } catch let failure as PhotoScanFailure {
+                await send(.photoScanResponse(.failure(failure)))
+            } catch {
+            }
+        }
+        .cancellable(id: CancelID.scan)
+    }
 
     static func nfceURL(from raw: String) -> String? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -138,22 +165,47 @@ struct ScanFeature {
 
             case .shutterTapped:
                 guard state.phase == .idle, state.scanMode == .photo else { return .none }
-                state.phase = .processing
-                // Stubbed identification until POST /scan-image lands (api-contract "Future").
-                return .run { send in
-                    try await clock.sleep(for: .seconds(1.6))
-                    await send(.productIdentified(MockData.productGuess))
-                }
-                .cancellable(id: CancelID.scan)
+                state.phase = .capturing
+                return .none
 
-            case let .productIdentified(guess):
-                state.phase = .product(guess)
+            case let .photoCaptured(data):
+                guard state.phase == .capturing else { return .none }
+                guard let data else {
+                    state.phase = .photoFailure(.captureFailed)
+                    return .none
+                }
+                return identify(data, &state)
+
+            case let .photoPicked(data):
+                // The picker dismisses itself before the image finishes loading, so this lands on .idle.
+                guard state.phase == .idle else { return .none }
+                guard let data else {
+                    state.phase = .photoFailure(.invalidImage)
+                    return .none
+                }
+                return identify(data, &state)
+
+            case let .photoScanResponse(.success(.identified(identified))):
+                state.phase = .product(identified)
                 state.productQuantity = 1
+                state.productUnitPrice = 0
                 state.productSaved = false
+                return .none
+
+            case let .photoScanResponse(.success(.rejected(rejected))):
+                state.phase = .rejected(rejected)
+                return .none
+
+            case let .photoScanResponse(.failure(failure)):
+                state.phase = .photoFailure(failure)
                 return .none
 
             case let .productQuantityChanged(quantity):
                 state.productQuantity = max(1, quantity)
+                return .none
+
+            case let .productPriceChanged(price):
+                state.productUnitPrice = max(0, price)
                 return .none
 
             case .addProductTapped:
@@ -172,10 +224,18 @@ struct ScanFeature {
                 state.phase = .idle
                 state.itemsExpanded = false
                 state.productQuantity = 1
+                state.productUnitPrice = 0
                 state.productSaved = false
+                state.capturedPhoto = nil
                 return .cancel(id: CancelID.scan)
 
             case .choosePhotoTapped:
+                guard state.phase == .idle else { return .none }
+                state.photoPickerPresented = true
+                return .none
+
+            case let .photoPickerPresented(presented):
+                state.photoPickerPresented = presented
                 return .none
 
             case .settingsTapped:
@@ -191,6 +251,7 @@ struct ScanFeature {
             case .showInHistoryTapped:
                 state.phase = .idle
                 state.productSaved = false
+                state.capturedPhoto = nil
                 return .concatenate(
                     .cancel(id: CancelID.scan),
                     .send(.delegate(.showHistory))

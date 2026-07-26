@@ -1,6 +1,8 @@
 import ComposableArchitecture
 import Foundation
+import ImageIO
 import Testing
+import UniformTypeIdentifiers
 
 @testable import LedgerKit
 
@@ -12,6 +14,32 @@ private struct TestEnvelope<T: Encodable>: Encodable {
 
 func envelope(_ value: some Encodable) throws -> Data {
     try JSONEncoder().encode(TestEnvelope(data: value))
+}
+
+/// A real (tiny) PNG, so the upload path exercises the same decode/re-encode the app does.
+func sampleImageData(width: Int = 8, height: Int = 8) throws -> Data {
+    let context = try #require(
+        CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )
+    )
+    context.setFillColor(red: 0.2, green: 0.7, blue: 0.3, alpha: 1)
+    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+
+    let image = try #require(context.makeImage())
+    let output = try #require(CFDataCreateMutable(nil, 0))
+    let destination = try #require(
+        CGImageDestinationCreateWithData(output, UTType.png.identifier as CFString, 1, nil)
+    )
+    CGImageDestinationAddImage(destination, image, nil)
+    #expect(CGImageDestinationFinalize(destination))
+    return output as Data
 }
 
 func categorySpending(of purchases: [Purchase]) -> [LedgerKit.Category: Double] {
@@ -106,6 +134,208 @@ struct ScanFeatureTests {
         let store = TestStore(initialState: ScanFeature.State()) { ScanFeature() }
         await store.send(.settingsTapped)
         await store.receive(\.delegate)
+    }
+}
+
+@MainActor
+struct PhotoScanFeatureTests {
+    private static func photoStore(
+        identify: @escaping @Sendable (Data) async throws -> PhotoScanResult
+    ) -> TestStoreOf<ScanFeature> {
+        var state = ScanFeature.State()
+        state.scanMode = .photo
+        return TestStore(initialState: state) {
+            ScanFeature()
+        } withDependencies: {
+            $0.continuousClock = ImmediateClock()
+            $0.photoScanRepository.identify = identify
+        }
+    }
+
+    @Test
+    func theShutterCapturesThenIdentifiesTheItem() async {
+        let photo = Data("jpeg".utf8)
+        let identified = MockData.photoScanIdentified
+        let store = Self.photoStore { data in
+            #expect(data == photo)
+            return .identified(identified)
+        }
+
+        await store.send(.shutterTapped) { $0.phase = .capturing }
+        await store.send(.photoCaptured(photo)) {
+            $0.capturedPhoto = photo
+            $0.phase = .processing
+        }
+        await store.receive(\.photoScanResponse) { $0.phase = .product(identified) }
+
+        await store.send(.scanAgainTapped) {
+            $0.phase = .idle
+            $0.capturedPhoto = nil
+        }
+        await store.finish()
+    }
+
+    @Test
+    func aRejectionIsAResultRatherThanAnError() async {
+        let rejected = PhotoScanRejected(reason: .noItem, comment: "Não há nenhum produto na foto.")
+        let store = Self.photoStore { _ in .rejected(rejected) }
+
+        await store.send(.shutterTapped) { $0.phase = .capturing }
+        await store.send(.photoCaptured(Data("jpeg".utf8))) {
+            $0.capturedPhoto = Data("jpeg".utf8)
+            $0.phase = .processing
+        }
+        await store.receive(\.photoScanResponse) { $0.phase = .rejected(rejected) }
+    }
+
+    @Test
+    func anAIFailureShowsThePhotoErrorPhase() async {
+        let store = Self.photoStore { _ in throw PhotoScanFailure.aiUnavailable }
+
+        await store.send(.shutterTapped) { $0.phase = .capturing }
+        await store.send(.photoCaptured(Data("jpeg".utf8))) {
+            $0.capturedPhoto = Data("jpeg".utf8)
+            $0.phase = .processing
+        }
+        await store.receive(\.photoScanResponse) { $0.phase = .photoFailure(.aiUnavailable) }
+    }
+
+    @Test
+    func aCameraThatReturnsNothingReportsACaptureFailure() async {
+        let store = Self.photoStore { _ in .identified(MockData.photoScanIdentified) }
+
+        await store.send(.shutterTapped) { $0.phase = .capturing }
+        await store.send(.photoCaptured(nil)) { $0.phase = .photoFailure(.captureFailed) }
+    }
+
+    @Test
+    func theShutterIsIgnoredInReceiptMode() async {
+        let store = TestStore(initialState: ScanFeature.State()) { ScanFeature() }
+        await store.send(.shutterTapped)
+    }
+
+    @Test
+    func aGalleryPickIdentifiesWithoutTheCamera() async {
+        let photo = Data("png".utf8)
+        let identified = MockData.photoScanIdentified
+        let store = Self.photoStore { _ in .identified(identified) }
+
+        await store.send(.choosePhotoTapped) { $0.photoPickerPresented = true }
+        // The picker dismisses itself before the image finishes loading.
+        await store.send(.photoPickerPresented(false)) { $0.photoPickerPresented = false }
+        await store.send(.photoPicked(photo)) {
+            $0.capturedPhoto = photo
+            $0.phase = .processing
+        }
+        await store.receive(\.photoScanResponse) { $0.phase = .product(identified) }
+    }
+
+    @Test
+    func anUnreadableGalleryImageReportsAnInvalidImage() async {
+        let store = Self.photoStore { _ in .identified(MockData.photoScanIdentified) }
+
+        await store.send(.choosePhotoTapped) { $0.photoPickerPresented = true }
+        await store.send(.photoPickerPresented(false)) { $0.photoPickerPresented = false }
+        await store.send(.photoPicked(nil)) { $0.phase = .photoFailure(.invalidImage) }
+    }
+
+    @Test
+    func theQuantityAndPriceDriveTheTotal() async {
+        let store = TestStore(initialState: ScanFeature.State()) { ScanFeature() }
+
+        await store.send(.productQuantityChanged(3)) { $0.productQuantity = 3 }
+        await store.send(.productQuantityChanged(0)) { $0.productQuantity = 1 }
+        await store.send(.productPriceChanged(8.90)) { $0.productUnitPrice = 8.90 }
+        await store.send(.productPriceChanged(-2)) { $0.productUnitPrice = 0 }
+    }
+}
+
+struct PhotoScanRepositoryTests {
+    @Test
+    func theImageIsUploadedAsMultipartJPEG() async throws {
+        let png = try sampleImageData()
+        let result = try await withDependencies {
+            $0.apiClient.send = { request in
+                #expect(request.method == "POST")
+                #expect(request.path == "scan/photo")
+                let contentType = try #require(request.contentType)
+                #expect(contentType.hasPrefix("multipart/form-data; boundary="))
+                #expect((request.timeout ?? 0) > 60)
+
+                let body = try #require(request.body)
+                let separator = try #require(body.range(of: Data("\r\n\r\n".utf8)))
+                let header = try #require(String(data: body[..<separator.lowerBound], encoding: .utf8))
+                #expect(header.contains(#"name="image""#))
+                #expect(header.contains("Content-Type: image/jpeg"))
+                // The camera hands back HEIC/PNG; the server only takes JPEG, PNG or WebP.
+                #expect(body.range(of: Data([0xFF, 0xD8, 0xFF])) != nil)
+
+                return try envelope(PhotoScanResult.identified(MockData.photoScanIdentified))
+            }
+        } operation: {
+            try await PhotoScanRepository.liveValue.identify(imageData: png)
+        }
+
+        #expect(result == .identified(MockData.photoScanIdentified))
+    }
+
+    @Test
+    func aRejectionDecodesFromTheSameEnvelope() async throws {
+        let png = try sampleImageData()
+        let rejected = PhotoScanRejected(reason: .multipleItems, comment: "Há vários produtos na foto.")
+        let result = try await withDependencies {
+            $0.apiClient.send = { _ in try envelope(PhotoScanResult.rejected(rejected)) }
+        } operation: {
+            try await PhotoScanRepository.liveValue.identify(imageData: png)
+        }
+
+        #expect(result == .rejected(rejected))
+    }
+
+    @Test
+    func dataThatIsNotAnImageNeverReachesTheServer() async throws {
+        await #expect(throws: PhotoScanFailure.invalidImage) {
+            try await withDependencies {
+                $0.apiClient.send = { _ in
+                    Issue.record("the client should not upload undecodable data")
+                    return Data()
+                }
+            } operation: {
+                try await PhotoScanRepository.liveValue.identify(imageData: Data("not an image".utf8))
+            }
+        }
+    }
+
+    @Test
+    func serverErrorCodesMapToPhotoScanFailures() async throws {
+        let png = try sampleImageData()
+        for (errorCode, expected) in [
+            ("invalid_image", PhotoScanFailure.invalidImage),
+            ("ai_invalid_output", .aiInvalidOutput),
+            ("ai_unavailable", .aiUnavailable),
+        ] {
+            await #expect(throws: expected) {
+                try await withDependencies {
+                    $0.apiClient.send = { _ in
+                        throw APIError.server(status: 502, errorCode: errorCode, message: nil)
+                    }
+                } operation: {
+                    try await PhotoScanRepository.liveValue.identify(imageData: png)
+                }
+            }
+        }
+    }
+
+    @Test
+    func transportFailuresReadAsAIUnavailable() async throws {
+        let png = try sampleImageData()
+        await #expect(throws: PhotoScanFailure.aiUnavailable) {
+            try await withDependencies {
+                $0.apiClient.send = { _ in throw URLError(.timedOut) }
+            } operation: {
+                try await PhotoScanRepository.liveValue.identify(imageData: png)
+            }
+        }
     }
 }
 

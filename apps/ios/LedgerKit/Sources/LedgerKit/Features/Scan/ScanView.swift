@@ -1,9 +1,12 @@
 import ComposableArchitecture
+import PhotosUI
 import SwiftUI
 
 struct ScanView: View {
-    let store: StoreOf<ScanFeature>
+    @Bindable var store: StoreOf<ScanFeature>
     var isActive = true
+
+    @State private var pickedItem: PhotosPickerItem?
 
     private var detecting: Bool { store.phase == .detecting }
     private var photoMode: Bool { store.scanMode == .photo }
@@ -25,8 +28,10 @@ struct ScanView: View {
                 LiveScannerView(
                     isActive: isActive,
                     idle: store.phase == .idle && store.scanMode == .receipt,
+                    capturing: store.phase == .capturing,
                     flashOn: store.flashOn,
-                    onCode: { store.send(.codeScanned($0)) }
+                    onCode: { store.send(.codeScanned($0)) },
+                    onPhoto: { store.send(.photoCaptured($0)) }
                 )
                 .ignoresSafeArea()
             } else {
@@ -113,6 +118,19 @@ struct ScanView: View {
             ScanResultView(store: store)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .photosPicker(
+            isPresented: $store.photoPickerPresented.sending(\.photoPickerPresented),
+            selection: $pickedItem,
+            matching: .images
+        )
+        .onChange(of: pickedItem) { _, item in
+            guard let item else { return }
+            pickedItem = nil
+            Task {
+                let data = try? await item.loadTransferable(type: Data.self)
+                store.send(.photoPicked(data))
+            }
         }
     }
 

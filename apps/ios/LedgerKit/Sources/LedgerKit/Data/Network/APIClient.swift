@@ -6,6 +6,9 @@ struct APIRequest: Sendable {
     var path: String
     var query: [URLQueryItem] = []
     var body: Data?
+    var contentType: String?
+    /// Overrides the session default, which is too short for calls that wait on the AI.
+    var timeout: TimeInterval?
 }
 
 @DependencyClient
@@ -34,7 +37,30 @@ extension APIClient {
         to path: String,
         body: some Encodable & Sendable
     ) async throws -> T {
-        try Self.unwrap(await send(APIRequest(method: "POST", path: path, body: JSONEncoder().encode(body))))
+        let request = APIRequest(
+            method: "POST",
+            path: path,
+            body: try JSONEncoder().encode(body),
+            contentType: "application/json"
+        )
+        return try Self.unwrap(await send(request))
+    }
+
+    func upload<T: Decodable>(
+        _ type: T.Type = T.self,
+        to path: String,
+        file: MultipartFile,
+        timeout: TimeInterval
+    ) async throws -> T {
+        let boundary = "ledger-\(UUID().uuidString)"
+        let request = APIRequest(
+            method: "POST",
+            path: path,
+            body: file.multipartBody(boundary: boundary),
+            contentType: "multipart/form-data; boundary=\(boundary)",
+            timeout: timeout
+        )
+        return try Self.unwrap(await send(request))
     }
 
     private static func unwrap<T: Decodable>(_ data: Data) throws -> T {
@@ -70,9 +96,12 @@ extension APIClient {
             var request = URLRequest(url: url)
             request.httpMethod = apiRequest.method
             request.setValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
-            if let body = apiRequest.body {
-                request.httpBody = body
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = apiRequest.body
+            if let contentType = apiRequest.contentType {
+                request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+            }
+            if let timeout = apiRequest.timeout {
+                request.timeoutInterval = timeout
             }
 
             let (data, response) = try await session.data(for: request)

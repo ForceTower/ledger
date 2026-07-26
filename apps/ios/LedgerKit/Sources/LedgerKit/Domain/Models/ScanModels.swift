@@ -49,22 +49,126 @@ public enum ScanFailure: Error, Equatable, Sendable {
     }
 }
 
-/// AI product identification from a photo. UI-only stub for now — see
-/// "Future (stub in UI only)" in docs/api-contract.md.
-public struct ProductGuess: Equatable, Sendable {
-    public struct Alternative: Equatable, Sendable, Identifiable {
-        public var name: String
-        public var unitPrice: Double
+/// One item the AI recognized in a photo. Mirrors `PhotoScanItem` from `POST /scan/photo`.
+public struct PhotoScanItem: Codable, Equatable, Sendable {
+    public var description: String
+    public var category: Category
+    /// Model self-assessment, 0..1.
+    public var confidence: Double
+}
 
-        public var id: String { name }
+public struct PhotoScanIdentified: Codable, Equatable, Sendable {
+    public var item: PhotoScanItem
+    public var comment: String
+
+    public var confidencePercent: Int { Int((item.confidence * 100).rounded()) }
+}
+
+public enum PhotoScanRejectionReason: String, Codable, Equatable, Sendable {
+    case noItem = "no_item"
+    case unclearImage = "unclear_image"
+    case multipleItems = "multiple_items"
+    case inappropriate
+
+    var title: String {
+        switch self {
+        case .noItem: "Nenhum item na foto"
+        case .unclearImage: "Foto pouco nítida"
+        case .multipleItems: "Vários itens na foto"
+        case .inappropriate: "Isso não parece um item de compra"
+        }
     }
 
-    public var name: String
-    public var detail: String
-    public var category: Category
-    public var unitPrice: Double
-    public var confidencePercent: Int
-    public var alternatives: [Alternative]
+    var symbol: String {
+        switch self {
+        case .noItem: "questionmark.circle"
+        case .unclearImage: "eye.trianglebadge.exclamationmark"
+        case .multipleItems: "square.stack.3d.up"
+        case .inappropriate: "hand.raised"
+        }
+    }
+}
+
+public struct PhotoScanRejected: Codable, Equatable, Sendable {
+    public var reason: PhotoScanRejectionReason
+    /// Why the AI could not identify the item, in pt-BR.
+    public var comment: String
+}
+
+/// A rejection is a normal 200 result, not an error — the AI declining to guess.
+public enum PhotoScanResult: Equatable, Sendable {
+    case identified(PhotoScanIdentified)
+    case rejected(PhotoScanRejected)
+}
+
+extension PhotoScanResult: Codable {
+    private enum CodingKeys: String, CodingKey { case status }
+    private enum Status: String, Codable { case identified, rejected }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(Status.self, forKey: .status) {
+        case .identified: self = .identified(try PhotoScanIdentified(from: decoder))
+        case .rejected: self = .rejected(try PhotoScanRejected(from: decoder))
+        }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .identified(identified):
+            try container.encode(Status.identified, forKey: .status)
+            try identified.encode(to: encoder)
+        case let .rejected(rejected):
+            try container.encode(Status.rejected, forKey: .status)
+            try rejected.encode(to: encoder)
+        }
+    }
+}
+
+public enum PhotoScanFailure: Error, Equatable, Sendable {
+    case captureFailed
+    case invalidImage
+    case aiUnavailable
+    case aiInvalidOutput
+
+    var title: String {
+        switch self {
+        case .captureFailed: "Não deu pra usar essa foto"
+        case .invalidImage: "Essa imagem não serve"
+        case .aiUnavailable: "A IA não respondeu"
+        case .aiInvalidOutput: "Resposta inesperada da IA"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .captureFailed:
+            "A câmera não conseguiu capturar a imagem. Tente novamente."
+        case .invalidImage:
+            "Use uma foto de até 10 MB. Tente tirar outra ou escolher uma imagem diferente na galeria."
+        case .aiUnavailable:
+            "O servidor não conseguiu falar com a IA agora. Verifique sua conexão e o servidor em Ajustes."
+        case .aiInvalidOutput:
+            "A IA respondeu em um formato que não reconhecemos. Tente tirar a foto de novo."
+        }
+    }
+
+    var code: String {
+        switch self {
+        case .captureFailed: "erro · CAPTURA_FALHOU"
+        case .invalidImage: "erro · 400 · IMAGEM_INVÁLIDA"
+        case .aiUnavailable: "erro · 502 · IA_INDISPONÍVEL"
+        case .aiInvalidOutput: "erro · 502 · SAÍDA_INVÁLIDA"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .captureFailed, .invalidImage: "camera.badge.ellipsis"
+        case .aiUnavailable, .aiInvalidOutput: "sparkles"
+        }
+    }
 }
 
 public struct ConnectionInfo: Equatable, Sendable {

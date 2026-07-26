@@ -14,14 +14,18 @@ final class CameraSessionController: NSObject, AVCaptureMetadataOutputObjectsDel
     private var armed = true
     private var torchOn = false
     private var wantsRunning = false
+    private weak var previewView: CameraPreviewView?
+    private var pendingCaptures: [UUID: PhotoCaptureDelegate] = [:]
 
     private let sessionQueue = DispatchQueue(label: "dev.forcetower.ledger.camera.session")
     nonisolated(unsafe) private let session = AVCaptureSession()
     nonisolated(unsafe) private var device: AVCaptureDevice?
+    nonisolated(unsafe) private let photoOutput = AVCapturePhotoOutput()
 
     func attach(to view: CameraPreviewView) {
         view.previewLayer.session = session
         view.previewLayer.videoGravity = .resizeAspectFill
+        previewView = view
     }
 
     func setArmed(_ value: Bool) { armed = value }
@@ -64,6 +68,10 @@ final class CameraSessionController: NSObject, AVCaptureMetadataOutputObjectsDel
         session.beginConfiguration()
         defer { session.commitConfiguration() }
 
+        if session.canSetSessionPreset(.photo) {
+            session.sessionPreset = .photo
+        }
+
         guard
             let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
             let input = try? AVCaptureDeviceInput(device: camera),
@@ -72,12 +80,45 @@ final class CameraSessionController: NSObject, AVCaptureMetadataOutputObjectsDel
         session.addInput(input)
         device = camera
 
+        if session.canAddOutput(photoOutput) {
+            session.addOutput(photoOutput)
+        }
+
         let metadata = AVCaptureMetadataOutput()
         guard session.canAddOutput(metadata) else { return }
         session.addOutput(metadata)
         metadata.setMetadataObjectsDelegate(self, queue: .main)
         metadata.metadataObjectTypes =
             metadata.availableMetadataObjectTypes.contains(.qr) ? [.qr] : []
+    }
+
+    /// Returns the still as HEIC/JPEG file data, or nil when there is nothing to capture from
+    /// (simulator, no camera, session not running) so the caller can surface a failure instead of hanging.
+    func capturePhoto() async -> Data? {
+        guard wantsRunning, session.isRunning, photoOutput.connection(with: .video) != nil else { return nil }
+
+        let previewAngle = previewView?.previewLayer.connection?.videoRotationAngle
+        let id = UUID()
+        return await withCheckedContinuation { continuation in
+            let delegate = PhotoCaptureDelegate { [weak self] data in
+                Task { @MainActor in
+                    guard let self, self.pendingCaptures.removeValue(forKey: id) != nil else { return }
+                    continuation.resume(returning: data)
+                }
+            }
+            pendingCaptures[id] = delegate
+
+            sessionQueue.async { [self] in
+                if
+                    let connection = photoOutput.connection(with: .video),
+                    let previewAngle,
+                    connection.isVideoRotationAngleSupported(previewAngle)
+                {
+                    connection.videoRotationAngle = previewAngle
+                }
+                photoOutput.capturePhoto(with: AVCapturePhotoSettings(), delegate: delegate)
+            }
+        }
     }
 
     nonisolated func metadataOutput(
@@ -99,6 +140,22 @@ final class CameraSessionController: NSObject, AVCaptureMetadataOutputObjectsDel
     }
 }
 
+private final class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate, @unchecked Sendable {
+    private let completion: @Sendable (Data?) -> Void
+
+    init(completion: @escaping @Sendable (Data?) -> Void) {
+        self.completion = completion
+    }
+
+    func photoOutput(
+        _ output: AVCapturePhotoOutput,
+        didFinishProcessingPhoto photo: AVCapturePhoto,
+        error: (any Error)?
+    ) {
+        completion(error == nil ? photo.fileDataRepresentation() : nil)
+    }
+}
+
 struct CameraPreviewLayerView: UIViewRepresentable {
     let controller: CameraSessionController
 
@@ -114,8 +171,10 @@ struct CameraPreviewLayerView: UIViewRepresentable {
 struct LiveScannerView: View {
     var isActive: Bool
     var idle: Bool
+    var capturing: Bool
     var flashOn: Bool
     var onCode: (String) -> Void
+    var onPhoto: (Data?) -> Void
 
     @State private var controller = CameraSessionController()
     @Environment(\.scenePhase) private var scenePhase
@@ -136,6 +195,10 @@ struct LiveScannerView: View {
             }
             .onChange(of: idle) { _, value in controller.setArmed(value) }
             .onChange(of: flashOn) { _, value in controller.setTorch(on: value) }
+            .onChange(of: capturing) { _, value in
+                guard value else { return }
+                Task { onPhoto(await controller.capturePhoto()) }
+            }
             .onDisappear { controller.stop() }
     }
 }

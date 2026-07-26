@@ -1,5 +1,8 @@
 import ComposableArchitecture
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 private let resultGreen = Color(hex: 0x28A745)
 private let resultBlue = Color(hex: 0x2F7BE5)
@@ -21,15 +24,19 @@ struct ScanResultView: View {
                 } else {
                     WarningResultView(store: store, purchase: response.purchase, warnings: response.warnings)
                 }
-            case let .product(guess):
+            case let .product(identified):
                 if store.productSaved {
-                    ProductSavedView(store: store, guess: guess)
+                    ProductSavedView(store: store, identified: identified)
                 } else {
-                    ProductResultView(store: store, guess: guess)
+                    ProductResultView(store: store, identified: identified)
                 }
+            case let .rejected(rejected):
+                RejectedResultView(store: store, rejected: rejected)
             case let .failure(failure):
                 ErrorResultView(store: store, failure: failure)
-            case .idle, .detecting:
+            case let .photoFailure(failure):
+                PhotoErrorResultView(store: store, failure: failure)
+            case .idle, .detecting, .capturing:
                 Color.clear
             }
         }
@@ -491,20 +498,19 @@ private struct ErrorResultView: View {
 // MARK: - Product (photo mode)
 
 private struct ProductResultView: View {
-    let store: StoreOf<ScanFeature>
-    let guess: ProductGuess
+    @Bindable var store: StoreOf<ScanFeature>
+    let identified: PhotoScanIdentified
 
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                Label("Identificado com IA · \(guess.confidencePercent)%", systemImage: "sparkles")
+                Label("Identificado com IA · \(identified.confidencePercent)%", systemImage: "sparkles")
                     .font(.footnote.weight(.bold))
                     .foregroundStyle(Color.appAccent)
                     .padding(.top, 24)
 
                 productCard
                 detailsCard
-                alternativesCard
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
@@ -523,25 +529,27 @@ private struct ProductResultView: View {
 
     private var productCard: some View {
         HStack(spacing: 14) {
-            PhotoPlaceholder(size: 82, cornerRadius: 16, caption: "sua foto")
+            CapturedPhotoView(data: store.capturedPhoto, size: 82, cornerRadius: 16)
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 6) {
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(guess.category.color)
+                        .fill(identified.item.category.color)
                         .frame(width: 8, height: 8)
-                    Text(guess.category.label.uppercased())
+                    Text(identified.item.category.label.uppercased())
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(.secondary)
                         .tracking(0.4)
                 }
-                Text(guess.name)
+                Text(identified.item.description)
                     .font(.title3.weight(.heavy))
                     .padding(.top, 7)
-                Text(guess.detail)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 3)
+                if !identified.comment.isEmpty {
+                    Text(identified.comment)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 3)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -557,10 +565,21 @@ private struct ProductResultView: View {
             }
             .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 10)
 
+            // The AI identifies the item but never prices it — that part is the owner's to fill in.
             HStack {
-                Text("Preço estimado").font(.subheadline)
+                Text("Preço").font(.subheadline)
                 Spacer()
-                Text(Format.brl(guess.unitPrice)).font(.subheadline.weight(.bold))
+                TextField(
+                    "R$ 0,00",
+                    value: $store.productUnitPrice.sending(\.productPriceChanged),
+                    format: .currency(code: "BRL").locale(Locale(identifier: "pt_BR"))
+                )
+                .multilineTextAlignment(.trailing)
+                .font(.subheadline.weight(.bold))
+                #if os(iOS)
+                .keyboardType(.decimalPad)
+                #endif
+                .frame(maxWidth: 120)
                 Text("/un").font(.caption).foregroundStyle(Color.label3)
             }
             .padding(.horizontal, 16).padding(.vertical, 11)
@@ -590,7 +609,7 @@ private struct ProductResultView: View {
             HStack {
                 Text("Total").font(.subheadline.weight(.bold))
                 Spacer()
-                Text(Format.brl(guess.unitPrice * Double(store.productQuantity)))
+                Text(Format.brl(store.productUnitPrice * Double(store.productQuantity)))
                     .font(.body.weight(.heavy))
                     .monospacedDigit()
             }
@@ -616,43 +635,11 @@ private struct ProductResultView: View {
         .buttonStyle(.plain)
     }
 
-    private var alternativesCard: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("NÃO É ISSO?").font(.caption.weight(.semibold)).foregroundStyle(.secondary).tracking(0.4)
-                Spacer()
-            }
-            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 6)
-
-            ForEach(guess.alternatives) { alternative in
-                HStack(spacing: 12) {
-                    PhotoPlaceholder(size: 38, cornerRadius: 10)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(alternative.name).font(.subheadline.weight(.semibold))
-                        Text("unidade · \(Format.brl(alternative.unitPrice))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Color.appAccent)
-                        .frame(width: 26, height: 26)
-                        .overlay(Circle().strokeBorder(Color.appAccent, lineWidth: 1.6))
-                }
-                .padding(.horizontal, 16).padding(.vertical, 10)
-                if alternative.id != guess.alternatives.last?.id {
-                    Divider().padding(.leading, 44)
-                }
-            }
-        }
-        .card(cornerRadius: 20)
-    }
 }
 
 private struct ProductSavedView: View {
     let store: StoreOf<ScanFeature>
-    let guess: ProductGuess
+    let identified: PhotoScanIdentified
 
     var body: some View {
         VStack(spacing: 0) {
@@ -668,7 +655,7 @@ private struct ProductSavedView: View {
                 .font(.title2.weight(.bold))
                 .multilineTextAlignment(.center)
 
-            Text("Registramos **\(store.productQuantity)× \(guess.name)** na sua compra de hoje.")
+            Text("Registramos **\(store.productQuantity)× \(identified.item.description)** na sua compra de hoje.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -676,13 +663,13 @@ private struct ProductSavedView: View {
                 .frame(maxWidth: 300)
 
             HStack(spacing: 13) {
-                PhotoPlaceholder(size: 44, cornerRadius: 12)
+                CapturedPhotoView(data: store.capturedPhoto, size: 44, cornerRadius: 12)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(guess.name).font(.callout.weight(.bold))
-                    Text("\(guess.category.label) · hoje").font(.footnote).foregroundStyle(.secondary)
+                    Text(identified.item.description).font(.callout.weight(.bold))
+                    Text("\(identified.item.category.label) · hoje").font(.footnote).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text(Format.brl(guess.unitPrice * Double(store.productQuantity)))
+                Text(Format.brl(store.productUnitPrice * Double(store.productQuantity)))
                     .font(.callout.weight(.heavy))
             }
             .padding(14)
@@ -702,6 +689,126 @@ private struct ProductSavedView: View {
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 26)
+    }
+}
+
+// MARK: - Photo rejected / failed
+
+/// The AI declining to guess is a normal 200 result, so it reads as an outcome rather than an error.
+private struct RejectedResultView: View {
+    let store: StoreOf<ScanFeature>
+    let rejected: PhotoScanRejected
+
+    var body: some View {
+        VStack(spacing: 0) {
+            CapturedPhotoView(data: store.capturedPhoto, size: 96, cornerRadius: 22)
+                .overlay(alignment: .bottomTrailing) {
+                    Image(systemName: rejected.reason.symbol)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 34, height: 34)
+                        .background(resultOrange, in: Circle())
+                        .overlay(Circle().strokeBorder(Color.appElevated, lineWidth: 3))
+                        .offset(x: 7, y: 7)
+                }
+                .padding(.top, 54).padding(.bottom, 22)
+
+            Text(rejected.reason.title)
+                .font(.title2.weight(.bold))
+                .multilineTextAlignment(.center)
+
+            Text(rejected.comment)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+                .frame(maxWidth: 300)
+
+            Spacer()
+
+            Button { store.send(.scanAgainTapped) } label: {
+                PrimaryButtonLabel("Tentar outra foto")
+            }
+
+            Button("Escolher da galeria") { store.send(.choosePhotoTapped) }
+                .font(.callout.weight(.medium))
+                .tint(Color.appAccent)
+                .padding(.top, 14)
+        }
+        .padding(.horizontal, 28)
+        .padding(.bottom, 26)
+    }
+}
+
+private struct PhotoErrorResultView: View {
+    let store: StoreOf<ScanFeature>
+    let failure: PhotoScanFailure
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Image(systemName: failure.symbol)
+                .font(.system(size: 30))
+                .foregroundStyle(resultOrange)
+                .frame(width: 74, height: 74)
+                .background(resultOrange.opacity(0.14), in: Circle())
+                .padding(.top, 54).padding(.bottom, 20)
+
+            Text(failure.title)
+                .font(.title2.weight(.bold))
+                .multilineTextAlignment(.center)
+
+            Text(failure.message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+                .frame(maxWidth: 300)
+
+            Text(failure.code)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(Color.label3)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(Color.appFill, in: Capsule())
+                .padding(.top, 16)
+
+            Spacer()
+
+            Button { store.send(.scanAgainTapped) } label: {
+                PrimaryButtonLabel("Tentar novamente")
+            }
+
+            Button("Abrir Ajustes") { store.send(.settingsTapped) }
+                .font(.callout.weight(.medium))
+                .tint(Color.appAccent)
+                .padding(.top, 14)
+        }
+        .padding(.horizontal, 28)
+        .padding(.bottom, 26)
+    }
+}
+
+/// The photo the owner just sent to the AI, falling back to the placeholder when it cannot be decoded.
+private struct CapturedPhotoView: View {
+    var data: Data?
+    var size: CGFloat
+    var cornerRadius: CGFloat
+
+    var body: some View {
+        Group {
+            #if canImport(UIKit)
+            if let data, let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: size, height: size)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            } else {
+                PhotoPlaceholder(size: size, cornerRadius: cornerRadius)
+            }
+            #else
+            PhotoPlaceholder(size: size, cornerRadius: cornerRadius)
+            #endif
+        }
     }
 }
 
@@ -751,6 +858,7 @@ private func scanResultStore(phase: ScanFeature.State.Phase, productSaved: Bool 
     var state = ScanFeature.State()
     state.phase = phase
     state.productSaved = productSaved
+    state.productUnitPrice = 8.90
     return Store(initialState: state) { ScanFeature() }
 }
 
@@ -791,9 +899,24 @@ private func scanResultStore(phase: ScanFeature.State.Phase, productSaved: Bool 
 }
 
 #Preview("Produto identificado") {
-    ScanResultView(store: scanResultStore(phase: .product(MockData.productGuess)))
+    ScanResultView(store: scanResultStore(phase: .product(MockData.photoScanIdentified)))
 }
 
 #Preview("Produto adicionado") {
-    ScanResultView(store: scanResultStore(phase: .product(MockData.productGuess), productSaved: true))
+    ScanResultView(store: scanResultStore(phase: .product(MockData.photoScanIdentified), productSaved: true))
+}
+
+#Preview("Foto recusada") {
+    ScanResultView(
+        store: scanResultStore(
+            phase: .rejected(PhotoScanRejected(
+                reason: .unclearImage,
+                comment: "A foto está desfocada demais para identificar o produto."
+            ))
+        )
+    )
+}
+
+#Preview("Erro da IA") {
+    ScanResultView(store: scanResultStore(phase: .photoFailure(.aiUnavailable)))
 }

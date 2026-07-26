@@ -93,14 +93,6 @@ extension View {
         background(Color.appElevated, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .shadow(color: .black.opacity(0.05), radius: 9, y: 3)
     }
-
-    func insetGroupedListStyle() -> some View {
-        #if os(iOS)
-        listStyle(.insetGrouped)
-        #else
-        listStyle(.automatic)
-        #endif
-    }
 }
 
 struct PrimaryButtonLabel: View {

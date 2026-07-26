@@ -11,43 +11,33 @@ struct HistoryView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                if let hero = store.hero {
-                    Section {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    if let hero = store.hero {
                         HeroSpendCard(stats: hero)
+                            .padding(.top, 6)
                         if !hero.topCategories.isEmpty {
                             CategoryQuickStrip(categories: hero.topCategories)
+                                .padding(.top, 12)
                         }
                     }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
-                }
 
-                ForEach(store.sections) { section in
-                    Section {
-                        ForEach(section.purchases) { purchase in
-                            Button { store.send(.purchaseTapped(purchase)) } label: {
-                                PurchaseCard(summary: purchase)
+                    ForEach(store.sections) { section in
+                        sectionHeader(section)
+
+                        VStack(spacing: 10) {
+                            ForEach(section.purchases) { purchase in
+                                Button { store.send(.purchaseTapped(purchase)) } label: {
+                                    PurchaseCard(summary: purchase)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
-                    } header: {
-                        HStack {
-                            Text(section.title).textCase(nil)
-                            Spacer()
-                            Text(Format.brl(section.total)).foregroundStyle(Color.label3)
-                        }
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
             }
-            .insetGroupedListStyle()
-            .scrollContentBackground(.hidden)
             .background(Color.appBackground)
             .navigationTitle("Histórico")
             .searchable(text: searchBinding, prompt: "Buscar loja ou item")
@@ -67,6 +57,22 @@ struct HistoryView: View {
             }
         }
         .task { store.send(.onAppear) }
+    }
+
+    private func sectionHeader(_ section: HistoryFeature.MonthSection) -> some View {
+        HStack {
+            Text(section.title.uppercased())
+                .font(.footnote.weight(.bold))
+                .tracking(0.5)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(Format.brl(section.total))
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(Color.label3)
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 20)
+        .padding(.bottom, 10)
     }
 }
 
@@ -120,6 +126,7 @@ private struct HeroSpendCard: View {
                 Color.clear.frame(height: 14)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(AppGradient.hero, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: Color(hex: 0x0A6E66, alpha: 0.32), radius: 15, y: 5)
     }
@@ -192,7 +199,6 @@ private struct CategoryQuickStrip: View {
                 .card(cornerRadius: 14)
             }
         }
-        .padding(.top, 7)
     }
 }
 

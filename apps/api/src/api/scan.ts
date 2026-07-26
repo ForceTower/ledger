@@ -27,3 +27,14 @@ scanRoutes.post("/photo", async (c) => {
       : "Photo rejected by the AI.";
   return ok(message, result);
 });
+
+// Banks put the amount in the screenshot, in the text the owner copied, or both — either field
+// alone is enough, and the service rejects the request that carries neither.
+scanRoutes.post("/transfer", async (c) => {
+  const body = await c.req.parseBody();
+  const result = await c.env.service.transfer.interpret({
+    image: body.image instanceof File ? body.image : undefined,
+    text: typeof body.text === "string" ? body.text : undefined,
+  });
+  return ok("Transfer receipt interpreted.", result);
+});

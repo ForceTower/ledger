@@ -7,6 +7,7 @@ import { authMiddleware } from "./api/middleware";
 import { productRoutes } from "./api/products";
 import { purchaseRoutes } from "./api/purchases";
 import { scanRoutes } from "./api/scan";
+import { transferRoutes } from "./api/transfers";
 import { getEnv } from "./env";
 import { LedgerError } from "./error";
 import { loggerContext, useLog } from "./logger";
@@ -41,6 +42,7 @@ app.use("*", (c, next) => {
 app.get("/", () => ok("ledger API"));
 app.route("/health", healthRoutes);
 app.route("/scan", scanRoutes);
+app.route("/transfers", transferRoutes);
 app.route("/purchases", purchaseRoutes);
 app.route("/products", productRoutes);
 app.route("/devices", deviceRoutes);

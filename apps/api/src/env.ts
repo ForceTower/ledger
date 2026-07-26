@@ -8,6 +8,7 @@ import { NotificationService } from "./service/notification";
 import { DEFAULT_PHOTO_PROMPT, PhotoScanService } from "./service/photo-scan";
 import { PurchaseService } from "./service/purchase";
 import { ScanService } from "./service/scan";
+import { DEFAULT_TRANSFER_PROMPT, TransferService } from "./service/transfer";
 
 const envVarsSchema = z.object({
   NODE_ENV: z.enum(["development", "production"]).default("development"),
@@ -18,12 +19,13 @@ const envVarsSchema = z.object({
   SEFAZ_BASE_URL: z.string().default("http://nfe.sefaz.ba.gov.br/servicos/nfce/modulos/geral/"),
   // Optional: base64 Firebase service account JSON. When unset, push notifications are disabled.
   FIREBASE_SERVICE_ACCOUNT_BASE64: z.string().optional(),
-  // AI reads (POST /scan/photo): when ANTHROPIC_API_KEY is set the Anthropic API is used;
-  // otherwise the Claude CLI (CLAUDE_BIN) is invoked on the host.
+  // AI reads (POST /scan/photo, POST /scan/transfer): when ANTHROPIC_API_KEY is set the Anthropic
+  // API is used; otherwise the Claude CLI (CLAUDE_BIN) is invoked on the host.
   ANTHROPIC_API_KEY: z.string().optional(),
   CLAUDE_BIN: z.string().default("claude"),
   CLAUDE_MODEL: z.string().default("claude-haiku-4-5"),
   CLAUDE_PHOTO_PROMPT: z.string().default(DEFAULT_PHOTO_PROMPT),
+  CLAUDE_TRANSFER_PROMPT: z.string().default(DEFAULT_TRANSFER_PROMPT),
   CLAUDE_TIMEOUT_MS: z.coerce.number().default(60_000),
 });
 
@@ -36,6 +38,7 @@ export interface LedgerEnv {
   service: {
     scan: ScanService;
     photoScan: PhotoScanService;
+    transfer: TransferService;
     purchase: PurchaseService;
     notifications: NotificationService;
   };
@@ -68,13 +71,14 @@ export async function getEnv(): Promise<LedgerEnv> {
     timeoutMs: vars.CLAUDE_TIMEOUT_MS,
   });
   const photoScan = new PhotoScanService({ ai, prompt: vars.CLAUDE_PHOTO_PROMPT });
+  const transfer = new TransferService({ db, cache, ai, purchase, prompt: vars.CLAUDE_TRANSFER_PROMPT });
   const notifications = new NotificationService({ db, serviceAccountBase64: vars.FIREBASE_SERVICE_ACCOUNT_BASE64 });
 
   cached = {
     vars,
     db,
     cache,
-    service: { scan, photoScan, purchase, notifications },
+    service: { scan, photoScan, transfer, purchase, notifications },
     isDev: vars.NODE_ENV === "development",
     cleanup: async () => {
       await db.destroy();

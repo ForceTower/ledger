@@ -1,9 +1,16 @@
 import type { ParsedItem, ParsedReceipt } from "@ledger/nfce";
+import type { TransferSaveRequest } from "@ledger/shared-types";
 import type { Transaction } from "kysely";
 import type { LedgerDb } from "../db";
 import type { Database } from "../db";
 
 type Trx = Transaction<Database>;
+
+/**
+ * The slug sequence is read-then-insert, so every writer that mints one has to be serialized
+ * against the others. Scans and transfers share the lock because they share the sequence.
+ */
+export const WRITE_LOCK = "scan:write-lock";
 
 export interface IngestResult {
   status: "saved" | "duplicate";
@@ -92,6 +99,130 @@ export async function saveParsedReceipt(
 
     return { status: "saved", slug, warnings: parsed.warnings };
   });
+}
+
+export interface TransferIngestResult {
+  status: "saved" | "duplicate";
+  /** Slug of the purchase the transfer is attached to — the linked note, or the one just created. */
+  slug: string;
+}
+
+/**
+ * Persist a reviewed transfer. The bank's transaction ID is the dedup key, so re-posting the same
+ * receipt returns what is already stored rather than counting it twice.
+ *
+ * An unlinked transfer materializes its own single-item purchase (`source: "pix"`) so it shows up
+ * in the history feed. A linked one attaches to the note it paid for and materializes nothing —
+ * that note already accounts for the money.
+ *
+ * Callers must hold {@link WRITE_LOCK}: the unlinked path mints a slug.
+ */
+export async function saveTransfer(db: LedgerDb, request: TransferSaveRequest): Promise<TransferIngestResult> {
+  const { transfer, category, linkedPurchaseId } = request;
+
+  return await db.transaction().execute(async (trx) => {
+    const existing = await trx
+      .selectFrom("transfers")
+      .leftJoin("purchases", "purchases.id", "transfers.purchaseId")
+      .select(["transfers.id as transferId", "purchases.slug"])
+      .where("transfers.transactionId", "=", transfer.transactionId)
+      .executeTakeFirst();
+    if (existing?.slug) return { status: "duplicate", slug: existing.slug };
+
+    const linked = linkedPurchaseId
+      ? await trx.selectFrom("purchases").select(["id", "slug"]).where("slug", "=", linkedPurchaseId).executeTakeFirst()
+      : undefined;
+
+    const purchase = linked ?? (await materializeTransferPurchase(trx, transfer, category));
+
+    // The transfer outlived the purchase it pointed at (a deleted note nulls the FK). Re-attach it
+    // instead of inserting into the unique transaction_id again.
+    if (existing) {
+      await trx
+        .updateTable("transfers")
+        .set({ purchaseId: purchase.id })
+        .where("id", "=", existing.transferId)
+        .execute();
+      return { status: "saved", slug: purchase.slug };
+    }
+
+    await trx
+      .insertInto("transfers")
+      .values({
+        transactionId: transfer.transactionId,
+        transferType: transfer.type,
+        amount: transfer.amount,
+        date: transfer.date,
+        time: transfer.time,
+        destinationName: transfer.destination.name,
+        destinationInstitution: transfer.destination.institution,
+        destinationAgency: transfer.destination.agency,
+        destinationAccount: transfer.destination.account,
+        originName: transfer.origin?.name ?? null,
+        originInstitution: transfer.origin?.institution ?? null,
+        purchaseId: purchase.id,
+        extracted: JSON.stringify(request),
+      })
+      .execute();
+
+    return { status: "saved", slug: purchase.slug };
+  });
+}
+
+async function materializeTransferPurchase(
+  trx: Trx,
+  transfer: TransferSaveRequest["transfer"],
+  category: TransferSaveRequest["category"],
+): Promise<{ id: string; slug: string }> {
+  const store = await resolveStore(trx, {
+    name: transfer.destination.name,
+    legalName: null,
+    cnpj: null,
+    address: null,
+  });
+  const slug = await nextSlug(trx, transfer.date, slugifyStore(store.name));
+
+  const purchase = await trx
+    .insertInto("purchases")
+    .values({
+      slug,
+      date: transfer.date,
+      time: transfer.time,
+      source: "pix",
+      storeId: store.id,
+      grossTotal: transfer.amount,
+      paidTotal: transfer.amount,
+      itemCount: 1,
+    })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+
+  // A transfer buys one unnamed thing: the destination is all the receipt says about it.
+  await trx
+    .insertInto("purchaseItems")
+    .values({
+      purchaseId: purchase.id,
+      seq: 1,
+      description: transfer.destination.name,
+      code: transfer.transactionId,
+      quantity: 1,
+      unit: "un",
+      unitPrice: transfer.amount,
+      total: transfer.amount,
+      category,
+    })
+    .execute();
+
+  await trx
+    .insertInto("payments")
+    .values({
+      purchaseId: purchase.id,
+      method: transfer.type === "pix" ? "Pix" : transfer.type,
+      amount: transfer.amount,
+    })
+    .execute();
+
+  return { id: purchase.id, slug };
 }
 
 async function findSlugByAccessKey(trx: Trx, accessKey: string): Promise<string | null> {

@@ -7,10 +7,8 @@ import type { LedgerDb } from "../db";
 import type { ScanRequestStatus } from "../db";
 import { LedgerError, ledgerErrorFromNfce } from "../error";
 import { useLog } from "../logger";
-import { saveParsedReceipt } from "./ingest";
+import { saveParsedReceipt, WRITE_LOCK } from "./ingest";
 import type { PurchaseService } from "./purchase";
-
-const SCAN_WRITE_LOCK = "scan:write-lock";
 
 interface ScanOutcome {
   status: ScanRequestStatus;
@@ -75,7 +73,7 @@ export class ScanService {
       parsed.receipt.accessKey = fetched.accessKey;
     }
 
-    const saved = await withLock(this.deps.cache, SCAN_WRITE_LOCK, () =>
+    const saved = await withLock(this.deps.cache, WRITE_LOCK, () =>
       saveParsedReceipt(this.deps.db, parsed, { sourceHtml: fetched.simpleHtml }),
     );
 

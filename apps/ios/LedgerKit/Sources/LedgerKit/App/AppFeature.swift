@@ -46,7 +46,7 @@ struct AppFeature {
                 state.tab = .history
                 return .none
 
-            case .history(.delegate(.switchToScan)):
+            case .history(.delegate(.switchToScan)), .insights(.delegate(.switchToScan)):
                 state.tab = .scan
                 return .none
 

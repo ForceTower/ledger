@@ -54,6 +54,35 @@ public enum Format {
         return f
     }()
 
+    /// "2026-03-01" → "mar" — the axis-label form of a month.
+    static func monthShort(fromISO iso: String) -> String {
+        guard let date = date(fromISO: iso) else { return iso }
+        return monthShortFormatter.string(from: date)
+            .replacingOccurrences(of: ".", with: "")
+            .lowercased(with: locale)
+    }
+
+    private static let monthShortFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = locale
+        f.dateFormat = "LLL"
+        return f
+    }()
+
+    /// "yyyy-MM" of a date in the ledger's home timezone.
+    public static func monthKey(of date: Date) -> String {
+        monthKeyFormatter.string(from: date)
+    }
+
+    private static let monthKeyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "America/Sao_Paulo")
+        f.dateFormat = "yyyy-MM"
+        return f
+    }()
+
     static func monthName(fromISO iso: String) -> String {
         guard let date = date(fromISO: iso) else { return iso }
         return monthNameFormatter.string(from: date)

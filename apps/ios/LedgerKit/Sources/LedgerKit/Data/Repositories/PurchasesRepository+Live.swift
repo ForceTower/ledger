@@ -20,6 +20,10 @@ extension PurchasesRepository: DependencyKey {
             try await mirror.save([fetched])
             return fetched
         },
+        recentPurchases: { monthCount in
+            @Dependency(\.database) var database
+            return try await MirrorStore(writer: database).recentPurchases(monthCount: monthCount)
+        },
         refresh: {
             @Dependency(\.database) var database
             @Dependency(\.apiClient) var apiClient

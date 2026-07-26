@@ -34,8 +34,9 @@ function stubAi(answer: unknown): AiRunner & { requests: AiRequest[] } {
   };
 }
 
+/** `answer` is the union the model picks; the wire shape nests it under `result` (see the service). */
 function makeService(answer: unknown) {
-  const ai = stubAi(answer);
+  const ai = stubAi({ result: answer });
   return { ai, service: new PhotoScanService({ ai, prompt: "identify it" }) };
 }
 
@@ -69,6 +70,19 @@ describe("PhotoScanService", () => {
     if (result.status !== "identified") throw new Error("expected an identified result");
     expect(result.items[0]).toEqual({ ...item, unitPrice: null, quantity: null });
     expect(result.items[1]).toEqual({ ...item, unitPrice: 8, quantity: null });
+  });
+
+  test("asks for a schema the Agent SDK can hand to the model as a tool input_schema", async () => {
+    // A tool input_schema must be an object and rejects a top-level anyOf/oneOf/allOf, so the union
+    // travels nested. Sending one flat made every photo scan fail with ai_invalid_output.
+    const { ai, service } = makeService({ status: "identified", items: [item], comment: "" });
+
+    await service.identify(jpeg);
+    const schema = ai.requests[0]?.outputSchema;
+    expect(schema?.["type"]).toBe("object");
+    expect(schema?.["anyOf"]).toBeUndefined();
+    expect(schema?.["oneOf"]).toBeUndefined();
+    expect(schema?.["allOf"]).toBeUndefined();
   });
 
   test("readings the model could not make arrive as null", async () => {

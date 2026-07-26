@@ -38,9 +38,16 @@ const rejectedSchema = z.object({
 
 const photoScanResultSchema = z.discriminatedUnion("status", [identifiedSchema, rejectedSchema]);
 
-// JSON Schema mirror of photoScanResultSchema for the API's structured outputs. Structured outputs
-// forbids numeric/length constraints (min/max) and requires additionalProperties: false everywhere.
-const PHOTO_SCAN_JSON_SCHEMA = {
+// The answer is a union, but it travels nested under `result` rather than at the top level: the
+// Agent SDK feeds this schema to the model as a tool input_schema, and a tool input_schema must be
+// an object and rejects a top-level anyOf/oneOf/allOf outright ("input_schema does not support
+// oneOf, allOf, or anyOf at the top level"). Nesting one level satisfies that and the Anthropic
+// API's structured outputs equally, so both transports can share the one schema.
+const photoScanEnvelopeSchema = z.object({ result: photoScanResultSchema });
+
+// JSON Schema mirror of photoScanEnvelopeSchema. Structured outputs forbids numeric/length
+// constraints (min/max) and requires additionalProperties: false everywhere.
+const PHOTO_SCAN_UNION = {
   anyOf: [
     {
       type: "object",
@@ -79,6 +86,13 @@ const PHOTO_SCAN_JSON_SCHEMA = {
   ],
 };
 
+const PHOTO_SCAN_JSON_SCHEMA = {
+  type: "object",
+  properties: { result: PHOTO_SCAN_UNION },
+  required: ["result"],
+  additionalProperties: false,
+};
+
 export class PhotoScanService {
   constructor(private readonly deps: { ai: AiRunner; prompt: string }) {}
 
@@ -92,7 +106,7 @@ export class PhotoScanService {
       image: validated,
       outputSchema: PHOTO_SCAN_JSON_SCHEMA,
     });
-    const result = normalizeReadings(this.deps.ai.parse(response.text, photoScanResultSchema));
+    const result = normalizeReadings(this.deps.ai.parse(response.text, photoScanEnvelopeSchema).result);
 
     useLog()
       .withMetadata({
@@ -131,7 +145,8 @@ export class PhotoScanService {
       "- quantity: how many units, as a whole number — the receipt's quantity column or the copies you can",
       "  count in the picture. Null when unsure.",
       "",
-      "Respond with ONLY one JSON object, no markdown fences and no extra text:",
+      'Respond with ONLY one JSON object, no markdown fences and no extra text, shaped {"result":<answer>}',
+      "where <answer> is one of:",
       `- If you can identify at least one item: {"status":"identified","items":[{"description":<string, item`,
       `  name as it would appear on a Brazilian receipt line, pt-BR>,"category":<category>,"confidence":`,
       `  <number 0..1>,"unitPrice":<number|null>,"quantity":<integer|null>}, ...],"comment":<string, pt-BR>}`,

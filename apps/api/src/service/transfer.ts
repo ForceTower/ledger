@@ -52,6 +52,10 @@ const notATransferSchema = z.object({
 
 export const transferExtractionSchema = z.discriminatedUnion("status", [extractedSchema, notATransferSchema]);
 
+// Nested under `result` for the same reason as the photo scan: a tool input_schema, which is how the
+// Agent SDK hands this to the model, must be an object and rejects a top-level anyOf.
+const transferEnvelopeSchema = z.object({ result: transferExtractionSchema });
+
 type TransferExtraction = z.infer<typeof transferExtractionSchema>;
 
 // JSON Schema mirror of transferExtractionSchema for the API's structured outputs. Structured
@@ -68,7 +72,7 @@ const PARTY_JSON_SCHEMA = {
   additionalProperties: false,
 };
 
-const TRANSFER_JSON_SCHEMA = {
+const TRANSFER_UNION = {
   anyOf: [
     {
       type: "object",
@@ -108,6 +112,13 @@ const TRANSFER_JSON_SCHEMA = {
       additionalProperties: false,
     },
   ],
+};
+
+const TRANSFER_JSON_SCHEMA = {
+  type: "object",
+  properties: { result: TRANSFER_UNION },
+  required: ["result"],
+  additionalProperties: false,
 };
 
 export interface TransferInput {
@@ -150,7 +161,7 @@ export class TransferService {
       image,
       outputSchema: TRANSFER_JSON_SCHEMA,
     });
-    const extraction = this.deps.ai.parse(response.text, transferExtractionSchema);
+    const extraction = this.deps.ai.parse(response.text, transferEnvelopeSchema).result;
 
     useLog()
       .withMetadata({
@@ -261,7 +272,8 @@ export class TransferService {
       '  masking the bank used (e.g. "····1234") rather than guessing the digits.',
       "- Refuse if this is a receipt for something else, an invoice, or unreadable — do not guess an amount.",
       "",
-      "Respond with ONLY one JSON object, no markdown fences and no extra text:",
+      'Respond with ONLY one JSON object, no markdown fences and no extra text, shaped {"result":<answer>}',
+      "where <answer> is one of:",
       `- If it is a transfer receipt: {"status":"transfer","transactionId":<string>,"type":"pix","amount":`,
       `  <number>,"date":<string>,"time":<string|null>,"destination":{"name":<string>,"institution":`,
       `  <string|null>,"agency":<string|null>,"account":<string|null>},"origin":<same shape|null>,`,

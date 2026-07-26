@@ -1,6 +1,13 @@
 import ComposableArchitecture
 import Foundation
 
+/// Ingesting a receipt can wait on the model: any line the keyword rules and the barcode history
+/// both fail to place is categorized by Claude before the purchase is saved, and that call runs on
+/// the Agent SDK, which pays a full agent startup. The session default (10s) cuts those scans off
+/// while the server is still working — and it saves the purchase anyway, so the app reported a
+/// failure for a receipt that had in fact landed. Matches the budget the photo/transfer scans use.
+private let ingestTimeout: TimeInterval = 75
+
 private struct ScanBody: Encodable {
     let url: String
 }
@@ -21,7 +28,7 @@ extension ScanRepository: DependencyKey {
             @Dependency(\.database) var database
 
             let response: ScanResponse = try await mapToScanFailure {
-                try await apiClient.post(to: "scan", body: ScanBody(url: url))
+                try await apiClient.post(to: "scan", body: ScanBody(url: url), timeout: ingestTimeout)
             }
             try? await MirrorStore(writer: database).save([response.purchase])
             return response
@@ -38,7 +45,11 @@ extension ScanRepository: DependencyKey {
             @Dependency(\.database) var database
 
             let response: ScanResponse = try await mapToScanFailure {
-                try await apiClient.post(to: "scan/key", body: KeyScanBody(challengeId: challengeId, captcha: captcha))
+                try await apiClient.post(
+                    to: "scan/key",
+                    body: KeyScanBody(challengeId: challengeId, captcha: captcha),
+                    timeout: ingestTimeout
+                )
             }
             try? await MirrorStore(writer: database).save([response.purchase])
             return response

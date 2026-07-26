@@ -35,13 +35,15 @@ extension APIClient {
     func post<T: Decodable>(
         _ type: T.Type = T.self,
         to path: String,
-        body: some Encodable & Sendable
+        body: some Encodable & Sendable,
+        timeout: TimeInterval? = nil
     ) async throws -> T {
         let request = APIRequest(
             method: "POST",
             path: path,
             body: try JSONEncoder().encode(body),
-            contentType: "application/json"
+            contentType: "application/json",
+            timeout: timeout
         )
         return try Self.unwrap(await send(request))
     }
@@ -136,7 +138,10 @@ extension APIClient {
 extension URLSession {
     static let api: URLSession = {
         let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 10
+        // The server is a home box behind a tunnel and most reads cross the open internet, so a
+        // 10s budget cut off perfectly healthy requests. Calls that wait on the model override this
+        // with their own, longer, timeout.
+        config.timeoutIntervalForRequest = 30
         return URLSession(configuration: config)
     }()
 }

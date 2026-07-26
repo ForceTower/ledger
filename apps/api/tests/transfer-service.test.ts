@@ -54,8 +54,9 @@ describe.skipIf(!connectionString)("TransferService", () => {
   const cache = createCacheClient(redisUrl);
   const purchase = new PurchaseService({ db });
 
+  /** `answer` is the union the model picks; the wire shape nests it under `result`. */
   function makeService(answer: unknown) {
-    const ai = stubAi(answer);
+    const ai = stubAi({ result: answer });
     return { ai, service: new TransferService({ db, cache, ai, purchase, prompt: "read it" }) };
   }
 

@@ -266,16 +266,17 @@ private struct EmptyHistoryView: View {
                 .background(Color.appFill, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
                 .padding(.bottom, 22)
 
-            Text("Nenhuma nota por aqui ainda")
+            Text("Nada registrado por aqui ainda")
                 .font(.title3.weight(.bold))
                 .multilineTextAlignment(.center)
 
-            Text("Escaneie o QR code da sua primeira compra e ela aparece organizada aqui.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.top, 8)
-                .frame(maxWidth: 280)
+            Text(
+                "Escaneie a nota fiscal, fotografe um recibo ou cole o print de uma transferência — tudo aparece organizado aqui."
+            )
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .padding(.top, 8)
 
             Button(action: scanFirst) {
                 Text("Escanear primeira nota")

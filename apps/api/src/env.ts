@@ -3,6 +3,7 @@ import { type CacheClient, createCacheClient } from "./cache";
 import { type LedgerDb, makeDb } from "./db";
 import { useLog } from "./logger";
 import { shutdownOtel } from "./otel";
+import { AiClient } from "./service/ai";
 import { NotificationService } from "./service/notification";
 import { DEFAULT_PHOTO_PROMPT, PhotoScanService } from "./service/photo-scan";
 import { PurchaseService } from "./service/purchase";
@@ -17,7 +18,7 @@ const envVarsSchema = z.object({
   SEFAZ_BASE_URL: z.string().default("http://nfe.sefaz.ba.gov.br/servicos/nfce/modulos/geral/"),
   // Optional: base64 Firebase service account JSON. When unset, push notifications are disabled.
   FIREBASE_SERVICE_ACCOUNT_BASE64: z.string().optional(),
-  // Photo scan (POST /scan/photo): when ANTHROPIC_API_KEY is set the Anthropic API is used;
+  // AI reads (POST /scan/photo): when ANTHROPIC_API_KEY is set the Anthropic API is used;
   // otherwise the Claude CLI (CLAUDE_BIN) is invoked on the host.
   ANTHROPIC_API_KEY: z.string().optional(),
   CLAUDE_BIN: z.string().default("claude"),
@@ -60,13 +61,13 @@ export async function getEnv(): Promise<LedgerEnv> {
   const cache = createCacheClient(vars.REDIS_URL);
   const purchase = new PurchaseService({ db });
   const scan = new ScanService({ db, cache, purchase, sefazBaseUrl: vars.SEFAZ_BASE_URL });
-  const photoScan = new PhotoScanService({
+  const ai = new AiClient({
     apiKey: vars.ANTHROPIC_API_KEY || undefined,
     bin: vars.CLAUDE_BIN,
     model: vars.CLAUDE_MODEL,
-    prompt: vars.CLAUDE_PHOTO_PROMPT,
     timeoutMs: vars.CLAUDE_TIMEOUT_MS,
   });
+  const photoScan = new PhotoScanService({ ai, prompt: vars.CLAUDE_PHOTO_PROMPT });
   const notifications = new NotificationService({ db, serviceAccountBase64: vars.FIREBASE_SERVICE_ACCOUNT_BASE64 });
 
   cached = {

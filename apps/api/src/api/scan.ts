@@ -21,6 +21,9 @@ scanRoutes.post("/photo", async (c) => {
     throw new LedgerError(status.BAD_REQUEST, "Multipart field 'image' with a photo is required", "invalid_image");
   }
   const result = await c.env.service.photoScan.identify(image);
-  const message = result.status === "identified" ? "Item identified." : "Item rejected by the AI.";
+  const message =
+    result.status === "identified"
+      ? `${result.items.length} ${result.items.length === 1 ? "item" : "items"} identified.`
+      : "Photo rejected by the AI.";
   return ok(message, result);
 });

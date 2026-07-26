@@ -173,29 +173,39 @@ Genuine failures use the failure envelope with an `errorCode`:
 
 ### `POST /scan/photo`
 
-AI item identification: take a photo of any item and the server asks Claude to identify and
-categorize it. Body: `multipart/form-data` with an `image` field (JPEG, PNG, or WebP, ≤ 10 MB).
+AI item identification: take a photo of one or more items and the server asks Claude to identify and
+categorize them. Body: `multipart/form-data` with an `image` field (JPEG, PNG, or WebP, ≤ 10 MB).
 
 Server configuration (env vars): `ANTHROPIC_API_KEY` (when set, the Anthropic API is used; otherwise
 the server falls back to the local `claude` CLI), `CLAUDE_BIN` (default `claude`), `CLAUDE_MODEL`
 (default `claude-haiku-4-5`), `CLAUDE_PHOTO_PROMPT` (the identification instruction; the strict
 output format is always enforced server-side), `CLAUDE_TIMEOUT_MS` (default `60000`).
 
-A rejection is a normal result, not an error — the AI declines when it cannot identify the item:
+`items` carries one entry per distinct product, most prominent first, and is never empty (several
+copies of the same product are one entry — the app asks the owner for the quantity). At most 20
+entries. A rejection is a normal result, not an error — the AI declines when it cannot identify
+anything:
 
 ```jsonc
 // 200 — identified
 {
   "ok": true,
-  "message": "Item identified.",
+  "message": "2 items identified.",
   "data": {
     "status": "identified",
-    "item": {
-      "description": "Café Torrado e Moído 500g", // pt-BR, like a receipt line
-      "category": "grocery",
-      "confidence": 0.92, // 0..1
-    },
-    "comment": "Parece ser um pacote de café da marca Pilão.",
+    "items": [
+      {
+        "description": "Café Torrado e Moído 500g", // pt-BR, like a receipt line
+        "category": "grocery",
+        "confidence": 0.92, // 0..1
+      },
+      {
+        "description": "Leite Integral 1L",
+        "category": "dairy_deli",
+        "confidence": 0.81,
+      },
+    ],
+    "comment": "O café parece ser da marca Pilão.",
   },
   "error": null,
 }
@@ -203,10 +213,10 @@ A rejection is a normal result, not an error — the AI declines when it cannot 
 // 200 — rejected
 {
   "ok": true,
-  "message": "Item rejected by the AI.",
+  "message": "Photo rejected by the AI.",
   "data": {
     "status": "rejected",
-    "reason": "unclear_image", // "no_item" | "unclear_image" | "multiple_items" | "inappropriate"
+    "reason": "unclear_image", // "no_item" | "unclear_image" | "inappropriate"
     "comment": "A foto está desfocada demais para identificar o produto.",
   },
   "error": null,

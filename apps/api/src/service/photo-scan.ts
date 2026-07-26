@@ -17,11 +17,14 @@ const IMAGE_EXTENSIONS: Record<string, string> = {
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
-const MAX_OUTPUT_TOKENS = 1024;
+const MAX_OUTPUT_TOKENS = 4096;
+
+/** A photo of a full haul could list dozens of items; cap the output so it stays within MAX_OUTPUT_TOKENS. */
+const MAX_ITEMS = 20;
 
 export const DEFAULT_PHOTO_PROMPT =
-  "Identify the single household/grocery item in the picture and map it to the expected fields, " +
-  "plus a short comment with anything worth noting about the item.";
+  "Identify every household/grocery item in the picture and map each one to the expected fields, " +
+  "plus a short comment with anything worth noting about what you see.";
 
 const CATEGORIES = [
   "produce",
@@ -39,18 +42,22 @@ const CATEGORIES = [
   "other",
 ] as const;
 
-const REJECTION_REASONS = ["no_item", "unclear_image", "multiple_items", "inappropriate"] as const;
+const REJECTION_REASONS = ["no_item", "unclear_image", "inappropriate"] as const;
 
 // Only the base64-source media types the Anthropic API accepts, narrowed from a validated image.type.
 const apiMediaTypeSchema = z.enum(["image/jpeg", "image/png", "image/webp"]);
 
 const identifiedSchema = z.object({
   status: z.literal("identified"),
-  item: z.object({
-    description: z.string().min(1),
-    category: z.enum(CATEGORIES),
-    confidence: z.number().min(0).max(1),
-  }),
+  items: z
+    .array(
+      z.object({
+        description: z.string().min(1),
+        category: z.enum(CATEGORIES),
+        confidence: z.number().min(0).max(1),
+      }),
+    )
+    .min(1),
   comment: z.string(),
 });
 
@@ -70,19 +77,22 @@ const PHOTO_SCAN_JSON_SCHEMA = {
       type: "object",
       properties: {
         status: { type: "string", const: "identified" },
-        item: {
-          type: "object",
-          properties: {
-            description: { type: "string" },
-            category: { type: "string", enum: [...CATEGORIES] },
-            confidence: { type: "number" },
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              description: { type: "string" },
+              category: { type: "string", enum: [...CATEGORIES] },
+              confidence: { type: "number" },
+            },
+            required: ["description", "category", "confidence"],
+            additionalProperties: false,
           },
-          required: ["description", "category", "confidence"],
-          additionalProperties: false,
         },
         comment: { type: "string" },
       },
-      required: ["status", "item", "comment"],
+      required: ["status", "items", "comment"],
       additionalProperties: false,
     },
     {
@@ -173,6 +183,7 @@ export class PhotoScanService {
     useLog()
       .withMetadata({
         status: result.status,
+        itemCount: result.status === "identified" ? result.items.length : 0,
         durationMs: Date.now() - startedAt,
         model: this.config.model,
         transport,
@@ -244,14 +255,18 @@ export class PhotoScanService {
       "",
       `Valid categories: ${CATEGORIES.join(", ")}.`,
       `Valid rejection reasons: ${REJECTION_REASONS.join(", ")} — use "no_item" when there is no product in`,
-      `frame, "unclear_image" when it is too blurry/dark/cropped to tell, "multiple_items" when you cannot`,
-      `tell which item is intended, "inappropriate" for people, documents, or anything that is not a`,
-      "household item.",
+      `frame, "unclear_image" when it is too blurry/dark/cropped to tell, "inappropriate" for people,`,
+      "documents, or anything that is not a household item.",
+      "",
+      `List one entry per distinct product, most prominent first, at most ${MAX_ITEMS} entries. Several copies of`,
+      "the same product are one entry — the owner fills in the quantity afterwards. Skip anything you cannot",
+      "name with reasonable confidence rather than guessing; if that leaves nothing, refuse instead of",
+      "returning an empty list.",
       "",
       "Respond with ONLY one JSON object, no markdown fences and no extra text:",
-      `- If you can identify the item: {"status":"identified","item":{"description":<string, item name as it`,
-      `  would appear on a Brazilian receipt line, pt-BR>,"category":<category>,"confidence":<number 0..1>},`,
-      `  "comment":<string, pt-BR>}`,
+      `- If you can identify at least one item: {"status":"identified","items":[{"description":<string, item`,
+      `  name as it would appear on a Brazilian receipt line, pt-BR>,"category":<category>,"confidence":`,
+      `  <number 0..1>}, ...],"comment":<string, pt-BR>}`,
       `- If you must refuse: {"status":"rejected","reason":<rejection reason>,"comment":<string explaining`,
       "  why, pt-BR>}",
     );

@@ -112,11 +112,7 @@ export interface Transfer {
 
 export type PhotoScanErrorCode = "invalid_image" | "ai_unavailable" | "ai_invalid_output";
 
-export type PhotoScanRejectionReason =
-  | "no_item"
-  | "unclear_image"
-  | "multiple_items"
-  | "inappropriate";
+export type PhotoScanRejectionReason = "no_item" | "unclear_image" | "inappropriate";
 
 export interface PhotoScanItem {
   /** Item name as it would appear on a receipt line (pt-BR). */
@@ -128,8 +124,9 @@ export interface PhotoScanItem {
 
 export interface PhotoScanIdentified {
   status: "identified";
-  item: PhotoScanItem;
-  /** Free-form remark the AI wants to surface about the item (pt-BR). */
+  /** One entry per distinct product in the photo, most prominent first. Never empty. */
+  items: PhotoScanItem[];
+  /** Free-form remark the AI wants to surface about the photo (pt-BR). */
   comment: string;
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { NfceError, validateNfceUrl } from "../src/index";
+import { NfceError, validateAccessKey, validateNfceUrl } from "../src/index";
 
 // Synthetic BA key: cUF 29, dummy CNPJ/series/number, check digit (0) computed for this body.
 const VALID_KEY = "29261111111111111111650010000000011123456780";
@@ -57,5 +57,25 @@ describe("validateNfceUrl", () => {
 
   test("rejects a value that is not a URL", () => {
     expectInvalidUrl(() => validateNfceUrl("not a url"));
+  });
+});
+
+describe("validateAccessKey", () => {
+  test("accepts a well-formed Bahia key, trimming whitespace", () => {
+    const { accessKey, portal } = validateAccessKey(` ${VALID_KEY} `);
+    expect(accessKey).toBe(VALID_KEY);
+    expect(portal.uf).toBe("BA");
+  });
+
+  test("rejects a key that is not 44 digits", () => {
+    expectInvalidUrl(() => validateAccessKey("12345"));
+  });
+
+  test("rejects a key from an unsupported state", () => {
+    expectInvalidUrl(() => validateAccessKey(`35${VALID_KEY.slice(2)}`));
+  });
+
+  test("rejects a key whose check digit is wrong", () => {
+    expectInvalidUrl(() => validateAccessKey(`${VALID_KEY.slice(0, 43)}9`));
   });
 });

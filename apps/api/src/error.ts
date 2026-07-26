@@ -17,6 +17,8 @@ const NFCE_STATUS: Record<NfceErrorCode, number> = {
   expired: 502,
   unavailable: 502,
   parse_failed: 422,
+  qr_rejected: 502,
+  captcha_rejected: 422,
 };
 
 /** Translate a pipeline error into the HTTP envelope the contract documents for `/scan`. */

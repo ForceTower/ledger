@@ -52,6 +52,7 @@ func categorySpending(of purchases: [Purchase]) -> [LedgerKit.Category: Double] 
 
 @MainActor
 struct ScanFeatureTests {
+    nonisolated static let validKey = "12345678901234567890123456789012345678901234"
     nonisolated static let validURL =
         "http://nfe.sefaz.ba.gov.br/.../NFCEC_consulta_chave_acesso.aspx?p=12345678901234567890123456789012345678901234|2|1|1|A1B2C3"
 
@@ -69,10 +70,16 @@ struct ScanFeatureTests {
         }
 
         await store.send(.codeScanned(Self.validURL)) { $0.phase = .detecting }
-        await store.receive(\.detected) { $0.phase = .processing }
+        await store.receive(\.detected) {
+            $0.phase = .processing
+            $0.scannedAccessKey = Self.validKey
+        }
         await store.receive(\.scanResponse) { $0.phase = .result(response) }
 
-        await store.send(.scanAgainTapped) { $0.phase = .idle }
+        await store.send(.scanAgainTapped) {
+            $0.phase = .idle
+            $0.scannedAccessKey = nil
+        }
         await store.finish()
     }
 
@@ -86,8 +93,90 @@ struct ScanFeatureTests {
         }
 
         await store.send(.codeScanned(Self.validURL)) { $0.phase = .detecting }
-        await store.receive(\.detected) { $0.phase = .processing }
+        await store.receive(\.detected) {
+            $0.phase = .processing
+            $0.scannedAccessKey = Self.validKey
+        }
         await store.receive(\.scanResponse) { $0.phase = .failure(.expired) }
+    }
+
+    @Test
+    func aRejectedQRFallsBackToTheKeyConsultation() async {
+        let imageBytes = Data("jpeg-bytes".utf8)
+        let challenge = KeyScanChallenge(
+            challengeId: "ch1",
+            captchaImage: imageBytes.base64EncodedString(),
+            expiresIn: 300
+        )
+        let response = ScanResponse(status: .saved, purchase: MockData.atacadao, warnings: [])
+        let store = TestStore(initialState: ScanFeature.State()) {
+            ScanFeature()
+        } withDependencies: {
+            $0.continuousClock = ImmediateClock()
+            $0.scanRepository.scan = { _ in throw ScanFailure.qrRejected }
+            $0.scanRepository.startKeyChallenge = { key in
+                #expect(key == Self.validKey)
+                return challenge
+            }
+            $0.scanRepository.completeKeyChallenge = { challengeId, captcha in
+                #expect(challengeId == "ch1")
+                #expect(captcha == "AB12")
+                return response
+            }
+        }
+
+        await store.send(.codeScanned(Self.validURL)) { $0.phase = .detecting }
+        await store.receive(\.detected) {
+            $0.phase = .processing
+            $0.scannedAccessKey = Self.validKey
+        }
+        await store.receive(\.scanResponse) { $0.phase = .failure(.qrRejected) }
+
+        await store.send(.consultByKeyTapped) { $0.phase = .processing }
+        await store.receive(\.keyChallengeResponse) {
+            $0.phase = .captcha(CaptchaChallenge(challengeId: "ch1", image: imageBytes))
+        }
+
+        await store.send(.captchaAnswerChanged("AB12")) { $0.captchaAnswer = "AB12" }
+        await store.send(.submitCaptchaTapped) { $0.captchaBusy = true }
+        await store.receive(\.keyScanResponse) {
+            $0.captchaBusy = false
+            $0.captchaAnswer = ""
+            $0.phase = .result(response)
+        }
+        await store.finish()
+    }
+
+    @Test
+    func aWrongCaptchaFetchesAFreshImageAndComplains() async {
+        let freshImage = Data("fresh".utf8)
+        var state = ScanFeature.State()
+        state.phase = .captcha(CaptchaChallenge(challengeId: "spent", image: Data("stale".utf8)))
+        state.scannedAccessKey = Self.validKey
+        state.captchaAnswer = "WRONG"
+        let store = TestStore(initialState: state) {
+            ScanFeature()
+        } withDependencies: {
+            $0.scanRepository.completeKeyChallenge = { _, _ in throw ScanFailure.captchaRejected }
+            $0.scanRepository.startKeyChallenge = { _ in
+                KeyScanChallenge(
+                    challengeId: "ch2",
+                    captchaImage: freshImage.base64EncodedString(),
+                    expiresIn: 300
+                )
+            }
+        }
+
+        await store.send(.submitCaptchaTapped) { $0.captchaBusy = true }
+        await store.receive(\.keyScanResponse) {
+            $0.captchaError = "Código incorreto. Tente de novo com a nova imagem."
+        }
+        await store.receive(\.keyChallengeResponse) {
+            $0.captchaBusy = false
+            $0.captchaAnswer = ""
+            $0.phase = .captcha(CaptchaChallenge(challengeId: "ch2", image: freshImage))
+        }
+        await store.finish()
     }
 
     @Test

@@ -193,12 +193,61 @@ Outcomes are normal results, not errors:
 
 Genuine failures use the failure envelope with an `errorCode`:
 
-| errorCode      | HTTP | meaning                                                 |
-| -------------- | ---- | ------------------------------------------------------- |
-| `invalid_url`  | 400  | URL has no `p=` with a 44-digit key (bad/incomplete QR) |
-| `expired`      | 502  | SEFAZ link expired / receipt not found                  |
-| `unavailable`  | 502  | SEFAZ unreachable or returned no products               |
-| `parse_failed` | 422  | fetched the page but could not parse it                 |
+| errorCode      | HTTP | meaning                                                    |
+| -------------- | ---- | ---------------------------------------------------------- |
+| `invalid_url`  | 400  | URL has no `p=` with a 44-digit key (bad/incomplete QR)    |
+| `expired`      | 502  | SEFAZ link expired / receipt not found                     |
+| `unavailable`  | 502  | SEFAZ unreachable or returned no products                  |
+| `parse_failed` | 422  | fetched the page but could not parse it                    |
+| `qr_rejected`  | 502  | SEFAZ refused the QR signature — offer the access-key flow |
+
+`qr_rejected` means the store's POS signs its QR codes with a CSC the SEFAZ no longer recognizes
+(e.g. `[QRCode v2.00]: 103 - Identificador de CSC inexistente`). Rescanning never helps, but the
+receipt itself exists — clients should offer the access-key consultation below.
+
+### `POST /scan/key/challenge`
+
+Start an access-key consultation — the fallback when `/scan` answered `qr_rejected`. The portal
+serves any authorized receipt by bare 44-digit key, but gates that flow behind an image captcha,
+so the server opens the SEFAZ session and relays the image for the owner to read.
+
+Body: `{ "accessKey": string }` — the 44-digit key (the digits in the QR's `p=` parameter).
+
+```jsonc
+// 200
+{
+  "ok": true,
+  "message": "Captcha challenge created.",
+  "data": {
+    "challengeId": "6f0f…", // opaque; answer via POST /scan/key
+    "captchaImage": "/9j/4AAQ…", // JPEG bytes, base64 (~180×50, 4–5 characters)
+    "expiresIn": 300, // seconds before the challenge lapses
+  },
+  "error": null,
+}
+```
+
+Failures: `invalid_url` (400) for a malformed key or unsupported state; `unavailable` (502) when
+SEFAZ won't serve the form or the captcha.
+
+### `POST /scan/key`
+
+Answer the captcha and complete the consultation. On success the receipt runs through the same
+pipeline as `/scan` — the response body (and the `scan_requests` audit row, recorded under
+`access-key:<key>`) is identical to `POST /scan`'s.
+
+Body: `{ "challengeId": string, "captcha": string }` — the characters the owner read.
+
+Each challenge accepts exactly one answer: SEFAZ invalidates the shown image on every attempt, so
+after any failure below the client must request a fresh challenge (and show the new image).
+
+| errorCode           | HTTP | meaning                                             |
+| ------------------- | ---- | --------------------------------------------------- |
+| `challenge_expired` | 410  | unknown or lapsed `challengeId` — request a new one |
+| `captcha_rejected`  | 422  | wrong captcha answer — request a new challenge      |
+| `expired`           | 502  | SEFAZ does not know this key (yet) — retry later    |
+| `unavailable`       | 502  | SEFAZ unreachable or refused the consultation       |
+| `parse_failed`      | 422  | fetched the page but could not parse it             |
 
 ### `POST /scan/photo`
 

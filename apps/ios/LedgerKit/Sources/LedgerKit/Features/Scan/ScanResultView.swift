@@ -34,6 +34,8 @@ struct ScanResultView: View {
                 RejectedResultView(store: store, rejected: rejected)
             case let .failure(failure):
                 ErrorResultView(store: store, failure: failure)
+            case let .captcha(challenge):
+                CaptchaResultView(store: store, challenge: challenge)
             case let .photoFailure(failure):
                 PhotoErrorResultView(store: store, failure: failure)
             case let .transfer(result):
@@ -481,6 +483,8 @@ private struct ErrorResultView: View {
         case .invalidQR: "qrcode"
         case .expired: "clock.badge.exclamationmark"
         case .unavailable, .parseFailed: "exclamationmark.icloud"
+        case .qrRejected: "qrcode.viewfinder"
+        case .captchaRejected, .challengeExpired: "textformat.abc"
         }
     }
 
@@ -513,17 +517,148 @@ private struct ErrorResultView: View {
 
             Spacer()
 
-            Button { store.send(.scanAgainTapped) } label: {
-                PrimaryButtonLabel(failure.retryLabel)
+            if failure == .qrRejected {
+                Button { store.send(.consultByKeyTapped) } label: {
+                    PrimaryButtonLabel("Buscar pela chave de acesso")
+                }
+
+                Button(failure.retryLabel) { store.send(.scanAgainTapped) }
+                    .font(.callout.weight(.medium))
+                    .tint(Color.appAccent)
+                    .padding(.top, 14)
+            } else {
+                Button { store.send(.scanAgainTapped) } label: {
+                    PrimaryButtonLabel(failure.retryLabel)
+                }
+
+                Button("Abrir Ajustes") { store.send(.settingsTapped) }
+                    .font(.callout.weight(.medium))
+                    .tint(Color.appAccent)
+                    .padding(.top, 14)
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.bottom, 26)
+    }
+}
+
+// MARK: - Captcha (access-key consultation)
+
+/// The SEFAZ anti-robot gate: show the relayed image, let the owner type its characters.
+private struct CaptchaResultView: View {
+    let store: StoreOf<ScanFeature>
+    let challenge: CaptchaChallenge
+
+    private var trimmedAnswer: String {
+        store.captchaAnswer.trimmingCharacters(in: .whitespaces)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Image(systemName: "textformat.abc")
+                .font(.system(size: 30))
+                .foregroundStyle(Color.appAccent)
+                .frame(width: 74, height: 74)
+                .background(Color.appAccentTint, in: Circle())
+                .padding(.top, 44).padding(.bottom, 20)
+
+            Text("Digite o código da imagem")
+                .font(.title2.weight(.bold))
+                .multilineTextAlignment(.center)
+
+            Text("A SEFAZ pede esta verificação para buscar a nota pela chave de acesso.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+                .frame(maxWidth: 300)
+
+            captchaImage
+                .padding(.top, 24)
+
+            if let error = store.captchaError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(resultOrange)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 12)
             }
 
-            Button("Abrir Ajustes") { store.send(.settingsTapped) }
-                .font(.callout.weight(.medium))
+            TextField("Código", text: Binding(
+                get: { store.captchaAnswer },
+                set: { store.send(.captchaAnswerChanged($0)) }
+            ))
+            .font(.system(.title3, design: .monospaced).weight(.bold))
+            .multilineTextAlignment(.center)
+            .autocorrectionDisabled()
+            #if os(iOS)
+            .textInputAutocapitalization(.characters)
+            .keyboardType(.asciiCapable)
+            #endif
+            .onSubmit { store.send(.submitCaptchaTapped) }
+            .padding(.vertical, 13)
+            .background(Color.appFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .frame(maxWidth: 220)
+            .padding(.top, 14)
+
+            Button("Não consigo ler · nova imagem") { store.send(.newCaptchaTapped) }
+                .font(.footnote.weight(.medium))
                 .tint(Color.appAccent)
+                .disabled(store.captchaBusy)
+                .padding(.top, 12)
+
+            Spacer()
+
+            Button { store.send(.submitCaptchaTapped) } label: {
+                if store.captchaBusy {
+                    ProgressView()
+                        .tint(Color.appAccentForeground)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(AppGradient.accent, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                } else {
+                    PrimaryButtonLabel("Buscar nota")
+                }
+            }
+            .disabled(store.captchaBusy || trimmedAnswer.isEmpty)
+            .opacity(!store.captchaBusy && trimmedAnswer.isEmpty ? 0.5 : 1)
+
+            Button("Cancelar") { store.send(.scanAgainTapped) }
+                .font(.callout.weight(.medium))
+                .tint(.secondary)
                 .padding(.top, 14)
         }
         .padding(.horizontal, 28)
         .padding(.bottom, 26)
+    }
+
+    private var captchaImage: some View {
+        Group {
+            #if canImport(UIKit)
+            if let image = UIImage(data: challenge.image) {
+                Image(uiImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(height: 64)
+            } else {
+                captchaPlaceholder
+            }
+            #else
+            captchaPlaceholder
+            #endif
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .background(.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appSeparator, lineWidth: 0.5))
+    }
+
+    private var captchaPlaceholder: some View {
+        Text("? ? ? ?")
+            .font(.system(.title3, design: .monospaced).weight(.bold))
+            .foregroundStyle(Color.label3)
+            .frame(height: 64)
     }
 }
 
@@ -1431,6 +1566,16 @@ private func transferResultStore(phase: ScanFeature.State.Phase, linked: Bool = 
 
 #Preview("Erro") {
     ScanResultView(store: scanResultStore(phase: .failure(.expired)))
+}
+
+#Preview("QR recusado") {
+    ScanResultView(store: scanResultStore(phase: .failure(.qrRejected)))
+}
+
+#Preview("Captcha") {
+    ScanResultView(
+        store: scanResultStore(phase: .captcha(CaptchaChallenge(challengeId: "preview", image: Data())))
+    )
 }
 
 #Preview("Processando") {

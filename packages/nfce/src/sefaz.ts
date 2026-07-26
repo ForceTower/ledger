@@ -55,9 +55,27 @@ export function validateNfceUrl(raw: string): NfceLink {
   }
 
   const param = url.searchParams.get("p") ?? extractPParam(trimmed) ?? "";
-  const accessKey = /^\d{44}/.exec(param)?.[0] ?? "";
-  if (accessKey.length !== 44) {
+  const candidate = /^\d{44}/.exec(param)?.[0] ?? "";
+  if (candidate.length !== 44) {
     throw new NfceError("invalid_url", "URL is missing the 44-digit NFC-e access key");
+  }
+
+  const { accessKey, portal } = validateAccessKey(candidate);
+
+  const host = url.hostname.toLowerCase();
+  if (!portal.hosts.includes(host)) {
+    throw new NfceError("invalid_url", `Host ${host} is not a recognized ${portal.uf} SEFAZ endpoint`);
+  }
+
+  return { url: trimmed, accessKey, portal };
+}
+
+/** Validate a bare 44-digit access key and resolve its portal — the entry point for consulting a
+ * receipt without its QR payload. Throws `NfceError("invalid_url")` on any failure. */
+export function validateAccessKey(raw: string): { accessKey: string; portal: SefazPortal } {
+  const accessKey = raw.trim();
+  if (!/^\d{44}$/.test(accessKey)) {
+    throw new NfceError("invalid_url", "NFC-e access key must be exactly 44 digits");
   }
 
   const cUF = accessKey.slice(0, 2);
@@ -66,16 +84,11 @@ export function validateNfceUrl(raw: string): NfceLink {
     throw new NfceError("invalid_url", `Unsupported SEFAZ state (cUF ${cUF})`);
   }
 
-  const host = url.hostname.toLowerCase();
-  if (!portal.hosts.includes(host)) {
-    throw new NfceError("invalid_url", `Host ${host} is not a recognized ${portal.uf} SEFAZ endpoint`);
-  }
-
   if (!hasValidCheckDigit(accessKey)) {
     throw new NfceError("invalid_url", "NFC-e access key failed its check-digit validation");
   }
 
-  return { url: trimmed, accessKey, portal };
+  return { accessKey, portal };
 }
 
 // Fallback for the rare case `new URL` keeps the literal `|` but `searchParams` can't isolate `p`.

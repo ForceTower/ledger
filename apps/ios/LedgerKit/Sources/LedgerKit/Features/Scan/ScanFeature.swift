@@ -19,6 +19,14 @@ enum ScanMode: String, CaseIterable, Equatable, Sendable {
     var usesCamera: Bool { self != .transfer }
 }
 
+/// An open SEFAZ access-key consultation: the anti-robot image the owner must read so the server
+/// can fetch a note whose QR the SEFAZ refused.
+struct CaptchaChallenge: Equatable, Sendable {
+    var challengeId: String
+    /// JPEG bytes of the captcha image.
+    var image: Data
+}
+
 /// One item the AI found in a photo, plus the price and quantity only the owner can supply.
 struct ProductDraft: Equatable, Identifiable, Sendable {
     /// Position in the AI's list, which is also the row's identity.
@@ -48,6 +56,14 @@ struct ScanFeature {
         var capturedPhoto: Data?
         var cameraAvailable = true
         @Shared(.inMemory("cameraAuthorized")) var cameraAuthorized = true
+
+        /// The 44-digit key from the last scanned QR, kept for the access-key fallback.
+        var scannedAccessKey: String?
+        var captchaAnswer = ""
+        /// A challenge request or answer is in flight.
+        var captchaBusy = false
+        /// Inline complaint after a wrong or lapsed captcha answer, shown next to the fresh image.
+        var captchaError: String?
 
         /// The Pix receipt being put together: the screenshot, the text the bank gave the owner, or both.
         var transferImage: Data?
@@ -85,6 +101,7 @@ struct ScanFeature {
             case product(PhotoScanIdentified)
             case rejected(PhotoScanRejected)
             case failure(ScanFailure)
+            case captcha(CaptchaChallenge)
             case photoFailure(PhotoScanFailure)
             case transfer(TransferScanResult)
             case transferSaved(TransferSaveResult)
@@ -93,7 +110,7 @@ struct ScanFeature {
 
         var isSheetPresented: Bool {
             switch phase {
-            case .processing, .result, .product, .rejected, .failure, .photoFailure,
+            case .processing, .result, .product, .rejected, .failure, .captcha, .photoFailure,
                  .transfer, .transferSaved, .transferFailure:
                 true
             case .idle, .detecting, .capturing:
@@ -110,6 +127,10 @@ struct ScanFeature {
             capturedPhoto = nil
             transferSaving = false
             transferTextExpanded = false
+            scannedAccessKey = nil
+            captchaAnswer = ""
+            captchaBusy = false
+            captchaError = nil
         }
 
         mutating func clearTransferDraft() {
@@ -126,6 +147,12 @@ struct ScanFeature {
         case codeScanned(String)
         case detected(String)
         case scanResponse(Result<ScanResponse, ScanFailure>)
+        case consultByKeyTapped
+        case keyChallengeResponse(Result<KeyScanChallenge, ScanFailure>)
+        case captchaAnswerChanged(String)
+        case newCaptchaTapped
+        case submitCaptchaTapped
+        case keyScanResponse(Result<ScanResponse, ScanFailure>)
         case modeChanged(ScanMode)
         case shutterTapped
         case photoCaptured(Data?)
@@ -191,6 +218,23 @@ struct ScanFeature {
         return trimmed.firstMatch(of: /[?&]p=[0-9]{44}(?:[^0-9]|$)/) != nil ? trimmed : nil
     }
 
+    static func accessKey(from url: String) -> String? {
+        url.firstMatch(of: /[?&]p=([0-9]{44})/).map { String($0.1) }
+    }
+
+    private func startChallenge(_ accessKey: String) -> Effect<Action> {
+        .run { send in
+            do {
+                let challenge = try await scanRepository.startKeyChallenge(accessKey: accessKey)
+                await send(.keyChallengeResponse(.success(challenge)))
+            } catch let failure as ScanFailure {
+                await send(.keyChallengeResponse(.failure(failure)))
+            } catch {
+            }
+        }
+        .cancellable(id: CancelID.scan)
+    }
+
     var body: some ReducerOf<Self> {
         Reduce { state, action in
             switch action {
@@ -226,6 +270,7 @@ struct ScanFeature {
 
             case let .detected(url):
                 state.phase = .processing
+                state.scannedAccessKey = Self.accessKey(from: url)
                 return .run { send in
                     do {
                         let response = try await scanRepository.scan(url: url)
@@ -242,6 +287,82 @@ struct ScanFeature {
                 return .none
 
             case let .scanResponse(.failure(failure)):
+                state.phase = .failure(failure)
+                return .none
+
+            case .consultByKeyTapped:
+                guard case .failure(.qrRejected) = state.phase, let key = state.scannedAccessKey else { return .none }
+                state.phase = .processing
+                state.captchaError = nil
+                return startChallenge(key)
+
+            case .newCaptchaTapped:
+                guard case .captcha = state.phase, !state.captchaBusy, let key = state.scannedAccessKey else {
+                    return .none
+                }
+                state.captchaBusy = true
+                state.captchaError = nil
+                return startChallenge(key)
+
+            case let .keyChallengeResponse(.success(challenge)):
+                state.captchaBusy = false
+                guard let image = challenge.captchaImageData else {
+                    state.phase = .failure(.unavailable)
+                    return .none
+                }
+                state.captchaAnswer = ""
+                state.phase = .captcha(CaptchaChallenge(challengeId: challenge.challengeId, image: image))
+                return .none
+
+            case let .keyChallengeResponse(.failure(failure)):
+                state.captchaBusy = false
+                state.phase = .failure(failure)
+                return .none
+
+            case let .captchaAnswerChanged(answer):
+                state.captchaAnswer = answer
+                return .none
+
+            case .submitCaptchaTapped:
+                guard case let .captcha(challenge) = state.phase, !state.captchaBusy else { return .none }
+                let answer = state.captchaAnswer.trimmingCharacters(in: .whitespaces)
+                guard !answer.isEmpty else { return .none }
+                state.captchaBusy = true
+                state.captchaError = nil
+                return .run { send in
+                    do {
+                        let response = try await scanRepository.completeKeyChallenge(
+                            challengeId: challenge.challengeId,
+                            captcha: answer
+                        )
+                        await send(.keyScanResponse(.success(response)))
+                    } catch let failure as ScanFailure {
+                        await send(.keyScanResponse(.failure(failure)))
+                    } catch {
+                    }
+                }
+                .cancellable(id: CancelID.scan)
+
+            case let .keyScanResponse(.success(response)):
+                state.captchaBusy = false
+                state.captchaAnswer = ""
+                state.phase = .result(response)
+                return .none
+
+            // SEFAZ spends the image on every attempt, so a wrong or lapsed answer means fetching a
+            // fresh challenge before the owner can try again — the sheet stays up, only complaining.
+            case .keyScanResponse(.failure(.captchaRejected)):
+                guard let key = state.scannedAccessKey else { return .none }
+                state.captchaError = "Código incorreto. Tente de novo com a nova imagem."
+                return startChallenge(key)
+
+            case .keyScanResponse(.failure(.challengeExpired)):
+                guard let key = state.scannedAccessKey else { return .none }
+                state.captchaError = "A verificação expirou. Digite o código da nova imagem."
+                return startChallenge(key)
+
+            case let .keyScanResponse(.failure(failure)):
+                state.captchaBusy = false
                 state.phase = .failure(failure)
                 return .none
 

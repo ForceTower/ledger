@@ -1,6 +1,7 @@
 import { NfceError } from "./errors";
 import type { FetchedReceipt } from "./index";
-import type { NfceLink } from "./sefaz";
+import type { NfceLink, SefazPortal } from "./sefaz";
+import { validateAccessKey } from "./sefaz";
 
 // SEFAZ blocks generic clients; the prototype impersonates mobile Safari and it works.
 const USER_AGENT =
@@ -29,17 +30,137 @@ export async function fetchReceipt(link: NfceLink, options?: FetchOptions): Prom
   const fetchImpl = options?.fetchImpl ?? fetch;
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const danfeUrl = `${link.portal.consultBase}NFCEC_consulta_danfe.aspx`;
-  const printUrl = `${link.portal.consultBase}Frm_Imprimir_parcial.aspx?imprimir_nfe=1&print=true`;
-
   const cookies = new Map<string, string>();
-  const request = (url: string, body?: string) =>
-    sefazRequest(fetchImpl, url, { body, referer: danfeUrl, cookies, timeoutMs });
 
   // The `|` separators in the scanned payload must be percent-encoded for the GET to resolve.
-  const simpleHtml = await request(link.url.replace(/\|/g, "%7C"));
+  const simpleHtml = await sefazRequest(fetchImpl, link.url.replace(/\|/g, "%7C"), {
+    referer: danfeUrl,
+    cookies,
+    timeoutMs,
+  });
   if (!simpleHtml.includes("btn_visualizar_abas")) {
+    // The portal validates the QR's CSC signature before showing anything; a store signing with a
+    // bad CSC gets its whole payload refused (e.g. "[QRCode v2.00]: 103 - Identificador de CSC
+    // inexistente."). The receipt itself usually exists — only this door is closed.
+    const qrRejection = /\[QRCode[^\]]*\][:\s]*([^<]+)/.exec(simpleHtml)?.[1]?.trim();
+    if (qrRejection !== undefined) {
+      throw new NfceError("qr_rejected", `SEFAZ rejected the QR code: ${qrRejection}`);
+    }
     throw new NfceError("expired", "SEFAZ did not return the receipt (link expired or not found)");
   }
+
+  return await fetchDetailPages(fetchImpl, link.portal, cookies, timeoutMs, link.accessKey, simpleHtml);
+}
+
+/** A live SEFAZ cookie session opened by `startKeyConsult`, waiting for the captcha answer. The
+ * API holds it between the challenge and completion requests; it is process-local state. */
+export interface KeyConsultSession {
+  accessKey: string;
+  portal: SefazPortal;
+  /** ASP.NET session cookies — the captcha answer is only valid inside this session. */
+  cookies: Map<string, string>;
+  /** Hidden `__*` form fields captured from the consultation form, replayed on completion. */
+  fields: Map<string, string>;
+}
+
+export interface KeyConsultChallenge {
+  session: KeyConsultSession;
+  /** The anti-robot image (JPEG) whose characters the owner must read. */
+  captchaImage: Uint8Array;
+}
+
+/**
+ * Open the portal's consulta-por-chave form and grab its anti-robot captcha.
+ *
+ * This is the fallback for `qr_rejected` links: the portal serves any authorized receipt by bare
+ * access key, but gates that flow behind an image captcha only the owner can read. The captcha
+ * answer is minted server-side when the image is requested and stored in the ASP.NET session, so
+ * the image GET must reuse the form's cookies — and `completeKeyConsult` must reuse both.
+ */
+export async function startKeyConsult(rawAccessKey: string, options?: FetchOptions): Promise<KeyConsultChallenge> {
+  const { accessKey, portal } = validateAccessKey(rawAccessKey);
+  const fetchImpl = options?.fetchImpl ?? fetch;
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const consultUrl = `${portal.consultBase}NFCEC_consulta_chave_acesso.aspx`;
+  const cookies = new Map<string, string>();
+
+  const formHtml = await sefazRequest(fetchImpl, consultUrl, { referer: consultUrl, cookies, timeoutMs });
+  if (!formHtml.includes("txt_chave_acesso")) {
+    throw new NfceError("unavailable", "SEFAZ did not return the access-key consultation form");
+  }
+
+  const captchaUrl = new URL("../AntiRobo/NFCEC_anti_robo.aspx", consultUrl).toString();
+  const captchaResponse = await sefazFetch(fetchImpl, captchaUrl, { referer: consultUrl, cookies, timeoutMs });
+  const captchaImage = new Uint8Array(await captchaResponse.arrayBuffer());
+  if (captchaImage.length === 0) {
+    throw new NfceError("unavailable", "SEFAZ returned an empty captcha image");
+  }
+
+  return { session: { accessKey, portal, cookies, fields: hiddenFields(formHtml) }, captchaImage };
+}
+
+/**
+ * Answer the captcha and download the receipt pages, mirroring `fetchReceipt`'s output.
+ *
+ * A wrong answer throws `captcha_rejected`; the portal invalidates the shown image on every
+ * attempt, so retrying requires a fresh `startKeyConsult`. A key the portal does not know yet
+ * throws `expired` — same meaning as the QR flow's "not found".
+ */
+export async function completeKeyConsult(
+  session: KeyConsultSession,
+  captchaAnswer: string,
+  options?: FetchOptions,
+): Promise<FetchedReceipt> {
+  const fetchImpl = options?.fetchImpl ?? fetch;
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const consultUrl = `${session.portal.consultBase}NFCEC_consulta_chave_acesso.aspx`;
+
+  const fields = new Map(session.fields);
+  fields.set("__EVENTTARGET", "");
+  fields.set("__EVENTARGUMENT", "");
+  fields.set("__LASTFOCUS", "");
+  fields.set("txt_chave_acesso", session.accessKey);
+  fields.set("txt_cod_antirobo", captchaAnswer.trim());
+  fields.set("btn_consulta_completa", "Consultar");
+
+  // Success 302s into the DANFE page; failures re-render the form with the reason in lbl_invalido.
+  const landing = await sefazRequest(fetchImpl, consultUrl, {
+    body: new URLSearchParams([...fields]).toString(),
+    referer: consultUrl,
+    cookies: session.cookies,
+    timeoutMs,
+  });
+  if (!landing.includes("btn_visualizar_abas")) {
+    throw keyConsultError(landing);
+  }
+
+  return await fetchDetailPages(fetchImpl, session.portal, session.cookies, timeoutMs, session.accessKey, landing);
+}
+
+function keyConsultError(html: string): NfceError {
+  const reason = /id="lbl_invalido"[^>]*>([^<]*)/.exec(html)?.[1]?.trim() ?? "";
+  if (/código incorreto/i.test(reason)) {
+    return new NfceError("captcha_rejected", "SEFAZ refused the captcha answer");
+  }
+  if (/não foi encontrada/i.test(reason)) {
+    return new NfceError("expired", "SEFAZ has no receipt under this access key (yet)");
+  }
+  return new NfceError("unavailable", `SEFAZ refused the access-key consultation: ${reason || "unknown reason"}`);
+}
+
+/** The back half both flows share: reveal the detailed tabs, then grab the print page. */
+async function fetchDetailPages(
+  fetchImpl: FetchImpl,
+  portal: SefazPortal,
+  cookies: Map<string, string>,
+  timeoutMs: number,
+  accessKey: string,
+  simpleHtml: string,
+): Promise<FetchedReceipt> {
+  const danfeUrl = `${portal.consultBase}NFCEC_consulta_danfe.aspx`;
+  const printUrl = `${portal.consultBase}Frm_Imprimir_parcial.aspx?imprimir_nfe=1&print=true`;
+  const request = (url: string, body?: string) =>
+    sefazRequest(fetchImpl, url, { body, referer: danfeUrl, cookies, timeoutMs });
 
   const fields = hiddenFields(simpleHtml);
   fields.set("__EVENTTARGET", "btn_visualizar_abas");
@@ -51,7 +172,7 @@ export async function fetchReceipt(link: NfceLink, options?: FetchOptions): Prom
     throw new NfceError("unavailable", "SEFAZ detailed page returned no products");
   }
 
-  return { accessKey: link.accessKey, simpleHtml, fullHtml };
+  return { accessKey, simpleHtml, fullHtml };
 }
 
 interface RequestState {
@@ -61,9 +182,14 @@ interface RequestState {
   timeoutMs: number;
 }
 
+async function sefazRequest(fetchImpl: FetchImpl, url: string, state: RequestState): Promise<string> {
+  const response = await sefazFetch(fetchImpl, url, state);
+  return await response.text();
+}
+
 // Bun's fetch has no cookie jar, so carry the session by hand: capture `Set-Cookie` from every hop
 // (including redirects) and replay it as a single `Cookie` header.
-async function sefazRequest(fetchImpl: FetchImpl, url: string, state: RequestState): Promise<string> {
+async function sefazFetch(fetchImpl: FetchImpl, url: string, state: RequestState): Promise<Response> {
   const { body, referer, cookies, timeoutMs } = state;
   let currentUrl = url;
 
@@ -97,7 +223,7 @@ async function sefazRequest(fetchImpl: FetchImpl, url: string, state: RequestSta
     if (!response.ok) {
       throw new NfceError("unavailable", `SEFAZ returned HTTP ${response.status} for ${currentUrl}`);
     }
-    return await response.text();
+    return response;
   }
 
   throw new NfceError("unavailable", `Too many redirects fetching ${url}`);

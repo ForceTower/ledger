@@ -30,7 +30,28 @@ export interface ApiResponse<T> {
   errorCode?: string | null;
 }
 
-export type ScanErrorCode = "invalid_url" | "expired" | "unavailable" | "parse_failed";
+export type ScanErrorCode =
+  | "invalid_url"
+  | "expired"
+  | "unavailable"
+  | "parse_failed"
+  /** SEFAZ refused the QR payload's CSC signature (store-side misconfiguration). The client should
+   * offer the access-key consultation (`POST /scan/key/challenge`) instead. */
+  | "qr_rejected"
+  /** The captcha answer was wrong. The challenge is spent — request a new one. */
+  | "captcha_rejected"
+  /** The challenge id is unknown or past its TTL — request a new one. */
+  | "challenge_expired";
+
+/** An open SEFAZ access-key consultation: the server holds the portal session, the owner answers
+ * the captcha. Returned by `POST /scan/key/challenge`, consumed by `POST /scan/key`. */
+export interface KeyScanChallenge {
+  challengeId: string;
+  /** The anti-robot image (JPEG bytes, base64-encoded) whose characters the owner must type. */
+  captchaImage: string;
+  /** Seconds before the challenge stops being answerable. */
+  expiresIn: number;
+}
 
 export interface PurchaseSummary {
   id: string;

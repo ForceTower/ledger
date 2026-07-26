@@ -4,12 +4,34 @@ import { LedgerError } from "../error";
 import { createHono, ok, zValidator } from "./index";
 
 const scanBody = z.object({ url: z.string().min(1) });
+const keyChallengeBody = z.object({
+  accessKey: z
+    .string()
+    .trim()
+    .regex(/^\d{44}$/),
+});
+const keyScanBody = z.object({ challengeId: z.string().min(1), captcha: z.string().trim().min(1) });
 
 export const scanRoutes = createHono();
 
 scanRoutes.post("/", zValidator("json", scanBody), async (c) => {
   const { url } = c.req.valid("json");
   const result = await c.env.service.scan.scan(url);
+  const message = result.status === "duplicate" ? "Purchase already recorded." : "Purchase saved.";
+  return ok(message, result);
+});
+
+// The fallback for `qr_rejected` scans: consult by bare access key, with the owner answering the
+// SEFAZ anti-robot captcha the automated QR flow never sees.
+scanRoutes.post("/key/challenge", zValidator("json", keyChallengeBody), async (c) => {
+  const { accessKey } = c.req.valid("json");
+  const challenge = await c.env.service.scan.startKeyChallenge(accessKey);
+  return ok("Captcha challenge created.", challenge);
+});
+
+scanRoutes.post("/key", zValidator("json", keyScanBody), async (c) => {
+  const { challengeId, captcha } = c.req.valid("json");
+  const result = await c.env.service.scan.completeKeyChallenge(challengeId, captcha);
   const message = result.status === "duplicate" ? "Purchase already recorded." : "Purchase saved.";
   return ok(message, result);
 });

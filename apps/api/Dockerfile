@@ -1,18 +1,11 @@
 FROM oven/bun:1.3.12 AS runtime
 WORKDIR /app
 
-# curl: used by the Claude Code installer below and by the container healthcheck.
+# curl: used by the container healthcheck. The AI features need no extra binaries — the Claude
+# Agent SDK dependency bundles its own runtime, and `bun install` below picks the platform build.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends curl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
-
-# The photo-scan endpoint (POST /scan/photo) shells out to the `claude` CLI.
-# Bake it in early (as the runtime user) so it caches across source changes.
-# Auth is via ANTHROPIC_API_KEY passed at runtime.
-USER bun
-RUN curl -fsSL https://claude.ai/install.sh | bash
-ENV PATH="/home/bun/.local/bin:${PATH}"
-USER root
 
 # Install deps with only the manifests present so this layer caches until a
 # package.json / lockfile changes. bun places each workspace's deps in that

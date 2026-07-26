@@ -1,9 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 import { LedgerError } from "../src/error";
-import { AiClient, MAX_IMAGE_BYTES, validateImage } from "../src/service/ai";
+import { agentSubprocessEnv, AiClient, MAX_IMAGE_BYTES, validateImage } from "../src/service/ai";
 
-const client = new AiClient({ apiKey: undefined, bin: "claude", model: "claude-haiku-4-5", timeoutMs: 1000 });
+const client = new AiClient({
+  apiKey: undefined,
+  subscriptionToken: undefined,
+  model: "claude-haiku-4-5",
+  timeoutMs: 1000,
+});
 const schema = z.object({ status: z.literal("ok"), count: z.number() });
 
 const HEADERS: Record<string, number[]> = {
@@ -43,6 +48,20 @@ describe("AiClient.parse", () => {
 
   test("JSON that misses the contract is an invalid output", () => {
     expect(() => client.parse('{"status":"ok","count":"two"}', schema)).toThrow(LedgerError);
+  });
+});
+
+describe("agentSubprocessEnv", () => {
+  test("a subscription token drops the API key from the subprocess", () => {
+    const env = agentSubprocessEnv({ CLAUDE_CODE_OAUTH_TOKEN: "tok", ANTHROPIC_API_KEY: "key", PATH: "/bin" });
+    expect(env).toBeDefined();
+    expect(env?.CLAUDE_CODE_OAUTH_TOKEN).toBe("tok");
+    expect(env?.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(env?.PATH).toBe("/bin");
+  });
+
+  test("without a token the environment is inherited untouched", () => {
+    expect(agentSubprocessEnv({ ANTHROPIC_API_KEY: "key" })).toBeUndefined();
   });
 });
 

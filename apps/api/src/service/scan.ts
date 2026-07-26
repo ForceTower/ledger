@@ -15,6 +15,7 @@ import type { LedgerDb } from "../db";
 import type { ScanRequestStatus } from "../db";
 import { LedgerError, ledgerErrorFromNfce } from "../error";
 import { useLog } from "../logger";
+import type { CategorizerService } from "./categorize";
 import { saveParsedReceipt, WRITE_LOCK } from "./ingest";
 import type { PurchaseService } from "./purchase";
 
@@ -43,7 +44,13 @@ export class ScanService {
 
   // `cache` is for a Redis lock around the write (the slug sequence must be computed serially).
   constructor(
-    private readonly deps: { db: LedgerDb; cache: CacheClient; purchase: PurchaseService; sefazBaseUrl: string },
+    private readonly deps: {
+      db: LedgerDb;
+      cache: CacheClient;
+      purchase: PurchaseService;
+      categorizer: CategorizerService;
+      sefazBaseUrl: string;
+    },
   ) {}
 
   /** Process a scanned QR URL, recording every attempt (and how it went) in `scan_requests`. */
@@ -134,6 +141,8 @@ export class ScanService {
     if (!/^\d{44}$/.test(parsed.receipt.accessKey)) {
       parsed.receipt.accessKey = fetched.accessKey;
     }
+
+    parsed.items = await this.deps.categorizer.resolve(parsed.items);
 
     const saved = await withLock(this.deps.cache, WRITE_LOCK, () =>
       saveParsedReceipt(this.deps.db, parsed, { sourceHtml: fetched.simpleHtml }),

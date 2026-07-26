@@ -132,8 +132,33 @@ Tricky parts to port carefully:
 - **parse** (`parse.ts`): items, totals, payments (compute `change` when paid > total), emission
   date/time, the 44-digit key (derive number/series from it), BRL money parsing. Match EAN to items by
   position (the detailed page lists products in receipt order); fall back to a code→EAN map.
-- **categorize** (`categorize.ts`): de-accent, whole-word match, longest key wins. English slugs above.
+- **categorize** (`categorize.ts`): de-accent, whole-word match against Portuguese keywords, English
+  slugs above. Competing matches are scored rather than simply "longest wins": word count dominates
+  (so `leite coco` beats `leite`), then a match at the head of the line — receipts lead with the
+  product noun and trail with brand, size and flavour, so `DET LIQ YPE 500ML CAP LIMAO` is detergent
+  rather than lime — then a brand from `BRANDS`, which pins a category when a misleading generic noun
+  leads (`TOMATE POMAROLA` is passata). Some issuers prefix their internal code and NCM onto the
+  description (`#1700900#18069000#TRU PIST`); that is stripped before matching.
 - **validate**: item count and the sum of item totals vs. the receipt total → warnings, not failures.
+
+## Categorization at ingest
+
+The keyword rules above are only the first of three layers. `apps/api/src/service/categorize.ts`
+settles each item cheapest signal first:
+
+1. **rules** — anything but `other` means they recognised the line, and they win outright;
+2. **barcode memory** — `products.default_category`, so a product keeps one category across receipts
+   even when stores print it differently. An item that nothing could place is not a memory, so a
+   product stays open to learning until something categorizes it;
+3. **the model** — one batched call per receipt covering only the lines the first two could not place.
+
+Every layer is optional: with no barcode, no history and `CATEGORIZE_WITH_AI=false`, an item simply
+stays `other`. A model outage is logged and ignored rather than failing the scan.
+
+`apps/api/scripts/recategorize.ts` replays this chain over items already stored, so rule improvements
+reach history. It prints a diff and writes nothing without `--apply`; it covers `nfce` purchases only
+unless given `--all`, because `manual` and `pix` categories were chosen by the owner or the photo scan
+rather than by the rules.
 
 ## Migration
 

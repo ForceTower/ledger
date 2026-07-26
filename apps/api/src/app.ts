@@ -1,6 +1,7 @@
 import { cors } from "hono/cors";
 import status from "http-status";
 import { createHono, errFromOptions, errStatus, ok } from "./api";
+import { chatRoutes } from "./api/chat";
 import { deviceRoutes } from "./api/devices";
 import { healthRoutes } from "./api/health";
 import { authMiddleware } from "./api/middleware";
@@ -44,6 +45,7 @@ app.route("/health", healthRoutes);
 app.route("/scan", scanRoutes);
 app.route("/transfers", transferRoutes);
 app.route("/purchases", purchaseRoutes);
+app.route("/chat", chatRoutes);
 app.route("/products", productRoutes);
 app.route("/devices", deviceRoutes);
 

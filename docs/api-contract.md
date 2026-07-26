@@ -259,11 +259,18 @@ AI item identification: take a photo of one or more items — or of a printed re
 and the server asks Claude to identify and categorize them. Body: `multipart/form-data` with an
 `image` field (JPEG, PNG, or WebP, ≤ 10 MB).
 
-Server configuration (env vars, shared by every AI read): `ANTHROPIC_API_KEY` (when set, the
-Anthropic API is used; otherwise the server falls back to the local `claude` CLI), `CLAUDE_BIN`
-(default `claude`), `CLAUDE_MODEL` (default `claude-haiku-4-5`), `CLAUDE_PHOTO_PROMPT` (the
-identification instruction; the strict output format is always enforced server-side),
-`CLAUDE_TIMEOUT_MS` (default `60000`).
+Server configuration (env vars, shared by every AI read): `CLAUDE_CODE_OAUTH_TOKEN` (from
+`claude setup-token`; when set, every AI feature runs through the bundled Claude Agent SDK and
+bills the owner's Claude subscription — an API key is ignored), `ANTHROPIC_API_KEY` (without a
+token, one-shot reads like this one use the Anthropic API, billed per token),
+`CLAUDE_MODEL` (default `claude-haiku-4-5`),
+`CLAUDE_PHOTO_PROMPT` (the identification instruction; the strict output format is always enforced
+server-side on both backends), `CLAUDE_CATEGORIZE_PROMPT` (the instruction for the last-resort item
+categorizer), `CLAUDE_CATEGORIZE_MODEL` (default `claude-sonnet-5` — deciphering a receipt
+abbreviation is world knowledge about Brazilian brands, so it runs stronger than the extraction
+reads), `CLAUDE_TIMEOUT_MS` (default `60000`), `CATEGORIZE_WITH_AI` (default `true`; set `false` to
+leave items the keyword rules and barcode history cannot place as `other` instead of asking the
+model).
 
 `items` carries one entry per distinct product, most prominent first, and is never empty (several
 copies of the same product are one entry whose `quantity` carries the count). At most 20 entries.
@@ -390,7 +397,43 @@ Register the device's FCM push token. Body: `{ "token": string, "platform"?: "io
 (defaults to `ios`). Idempotent — re-registering the same token just refreshes `lastSeenAt`. If the
 server has no Firebase credentials, push is disabled and registration is still accepted (no-op sends).
 
+### `POST /chat`
+
+The AI assistant: a natural-language question over the whole dataset, answered by Claude running
+read-only SQL against the server's Postgres. Unlike every other endpoint, the response is a
+**Server-Sent Events stream** (`Content-Type: text/event-stream`), not the JSON envelope — a turn
+runs several model/SQL round-trips and the app renders the answer as it streams.
+
+Body: `{ "message": string (≤ 4000 chars), "sessionId"?: string }`.
+
+Conversation memory lives server-side: the first turn creates a session and streams its id back;
+the client stores it (plus its own copy of the transcript, for display) and sends only the new
+message plus `sessionId` on follow-ups. Omit `sessionId` to start a fresh conversation.
+
+Each SSE frame's `event:` field matches the JSON `type` in its `data:`. The shapes are the
+`ChatStreamEvent` union in `packages/shared-types`:
+
+| event     | data                                                                             | meaning                                         |
+| --------- | -------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `session` | `{ type, sessionId }`                                                            | conversation id to send on the next message     |
+| `text`    | `{ type, text }`                                                                 | a chunk of the answer, in order (pt-BR)         |
+| `tool`    | `{ type, sql }`                                                                  | the SQL the assistant is running (read-only)    |
+| `done`    | `{ type, sessionId, usage: { inputTokens, outputTokens, costUsd }, durationMs }` | the turn finished                               |
+| `error`   | `{ type, message, errorCode: "ai_unavailable" }`                                 | the turn failed; `message` is presentable pt-BR |
+
+A normal turn streams `session`, zero or more interleaved `tool`/`text` events, then exactly one
+`done`. On failure the stream ends with a single `error` event instead of `done` (the HTTP status
+is already 200 by then — clients key off the event, not the status). Validation failures before
+the stream opens (empty/oversized `message`) use the regular `400` envelope.
+
+The assistant's SQL runs inside a `READ ONLY` transaction with a statement timeout, capped at 200
+rows per query — it can read everything and write nothing.
+
+Server configuration: `CLAUDE_CHAT_MODEL` (default `claude-opus-5` — chat quality is the product,
+scans stay on the cheaper `CLAUDE_MODEL`), `CLAUDE_CHAT_TIMEOUT_MS` (default `180000`). The chat
+always runs on the Claude Agent SDK, with whichever credential is configured — same precedence as
+every AI feature: `CLAUDE_CODE_OAUTH_TOKEN` when set, else `ANTHROPIC_API_KEY`.
+
 ### Future (stub in UI only)
 
 - `POST /scan-image` — multipart photo fallback (server decodes the QR, then `/scan`).
-- `POST /ask` — natural-language question over the whole dataset (Anthropic API + SQL tools).

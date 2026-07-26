@@ -1,9 +1,8 @@
 import type { Category } from "@ledger/shared-types";
 
 // NFC-e item descriptions are abbreviated Portuguese (e.g. "QJO PARMESAO", "BISC.L.MALTADO"), so the
-// keywords stay Portuguese; the returned category is English. Matching mirrors the prototype's
-// categorize.py: de-accent, turn punctuation into spaces, then match whole words/phrases. When several
-// keywords match, the LONGEST (most specific) wins; ties break by the category order below.
+// keywords stay Portuguese; the returned category is English. Matching de-accents, turns punctuation
+// into spaces, then matches whole words/phrases — see `score` for how competing matches are ranked.
 const RULES: Record<Category, string[]> = {
   produce: [
     "kiwi",
@@ -37,6 +36,7 @@ const RULES: Record<Category, string[]> = {
     "cenoura",
     "alface",
     "alf",
+    "acelga",
     "couve",
     "repolho",
     "pimentao",
@@ -106,10 +106,15 @@ const RULES: Record<Category, string[]> = {
     "carre",
     "musculo",
     "figado",
+    "figad",
+    "coracao",
+    "corac",
     "peixe",
     "tilapia",
+    "tilap",
     "corvina",
     "posta",
+    "post",
     "camarao",
     "salmao",
     "peru",
@@ -136,9 +141,11 @@ const RULES: Record<Category, string[]> = {
     "muss",
     "requeijao",
     "req",
+    "rq",
     "iog",
     "iogurte",
     "manteiga",
+    "mant",
     "margarina",
     "marg",
     "presunto",
@@ -147,6 +154,7 @@ const RULES: Record<Category, string[]> = {
     "lactea",
     "leite",
     "leit",
+    "lte",
     "leite ferm",
     "danone",
     "activia",
@@ -187,6 +195,7 @@ const RULES: Record<Category, string[]> = {
     "macarrao",
     "mac",
     "massa",
+    "lasanha",
     "espaguete",
     "espag",
     "oleo",
@@ -205,8 +214,11 @@ const RULES: Record<Category, string[]> = {
     "ac crist",
     "sal",
     "cafe",
+    "cap",
+    "cappuccino",
     "farinha",
     "far",
+    "f t",
     "flocao",
     "f milho",
     "fuba",
@@ -241,12 +253,15 @@ const RULES: Record<Category, string[]> = {
     "psyllium",
     "lentilha",
     "grao de bico",
+    "grao bico",
     "milho verde",
     "ervilha",
     "sardinha",
     "atum",
+    "coco",
     "leite coco",
     "leite de coco",
+    "lte coco",
     "leite em po",
     "aveia",
     "granola",
@@ -283,7 +298,10 @@ const RULES: Record<Category, string[]> = {
     "pepsi",
     "soda",
     "suco",
+    "s uva",
     "nectar",
+    "agua",
+    "ag",
     "agua mineral",
     "agua mine",
     "agua com gas",
@@ -313,6 +331,12 @@ const RULES: Record<Category, string[]> = {
     "chocolate",
     "choc",
     "ch po",
+    "ach",
+    "ach po",
+    "tab",
+    "tru",
+    "trufa",
+    "cubo",
     "bombom",
     "bala",
     "chicle",
@@ -330,15 +354,19 @@ const RULES: Record<Category, string[]> = {
     "doce de",
     "geleia",
     "brigadeiro",
+    "brigad",
     "pudim",
     "gelatina",
     "salgadinho",
     "batata chips",
     "amendoim",
     "pipoca",
+    "milho pipoca",
     "cereal",
     "cereais",
     "sucril",
+    "barrinha",
+    "bar cer",
     "barra de cereal",
     "barra cereais",
     "leite condensado",
@@ -361,7 +389,8 @@ const RULES: Record<Category, string[]> = {
     "hamburguer",
     "empanado",
     "batata palito",
-    "polpa",
+    "polpa cong",
+    "polpa de fruta",
     "acai",
     "sorvete",
     "petit pois",
@@ -373,20 +402,28 @@ const RULES: Record<Category, string[]> = {
     "amaciante",
     "amac",
     "agua sanitaria",
+    "agua sanit",
     "candida",
     "cloro",
     "desinfetante",
+    "desinf",
+    "des",
     "limp",
     "multiuso",
     "alvejante",
     "alv",
     "lustra",
+    "alcool",
+    "alc",
+    "cera",
+    "mop",
     "veja",
     "cif",
     "ajax",
     "esponja",
     "espon",
     "esponj",
+    "esp",
     "scotch",
     "palha de aco",
     "bombril",
@@ -394,18 +431,21 @@ const RULES: Record<Category, string[]> = {
     "saco lixo",
     "embalixo",
     "papel toalha",
+    "toal pap",
     "inseticida",
     "inset",
     "mortein",
     "raid",
-    "desinf",
     "d pato",
+    "d har",
+    "harpic",
     "pinho sol",
     "ariel",
     "desodorizador",
     "pano de chao",
     "tira mancha",
     "lava roupa",
+    "l roupa",
     "omo",
     "ype",
     "downy",
@@ -415,6 +455,7 @@ const RULES: Record<Category, string[]> = {
   ],
   hygiene: [
     "sabonete",
+    "sbt",
     "shampoo",
     "shamp",
     "xampu",
@@ -428,11 +469,14 @@ const RULES: Record<Category, string[]> = {
     "esc dent",
     "desodorante",
     "desod",
-    "gel hig",
+    "d old",
     "old spice",
+    "old spic",
+    "gel hig",
     "absorvente",
     "papel higienico",
     "papel hig",
+    "ph",
     "fralda",
     "algodao",
     "cotonete",
@@ -445,7 +489,12 @@ const RULES: Record<Category, string[]> = {
     "hidratante",
     "protetor solar",
     "enxaguante",
+    "fio",
     "fio dental",
+    "esponja ban",
+    "esponja banho",
+    "masc",
+    "mascara",
     "sh cond",
     "colonia",
     "perfume",
@@ -468,14 +517,22 @@ const RULES: Record<Category, string[]> = {
     "sac assa",
     "sac ass",
     "sco plast",
+    "freezer",
+    "embafreezer",
     "prato",
     "copo",
     "talher",
     "garfo",
     "faca",
     "colher",
+    "peg",
+    "pegador",
     "panela",
+    "pan wok",
+    "wok",
     "frigideira",
+    "assad",
+    "assadeira",
     "pote",
     "pt hermet",
     "hermet",
@@ -486,15 +543,18 @@ const RULES: Record<Category, string[]> = {
     "vassoura",
     "rodo",
     "pa de lixo",
-    "cabide",
     "pilha",
     "bateria",
     "lampada",
     "vela",
     "fosforo",
+    "fosf",
     "isqueiro",
+    "botijao",
+    "gas de cozinha",
     "papel aluminio",
     "filme pvc",
+    "filme",
     "film",
     "luva",
     "fita",
@@ -502,7 +562,10 @@ const RULES: Record<Category, string[]> = {
     "caneta",
     "caderno",
     "prendedor",
+    "cabide",
     "toalha",
+    "toalha banho",
+    "toalbanh",
     "pano",
     "descartavel",
     "palito",
@@ -510,15 +573,61 @@ const RULES: Record<Category, string[]> = {
     "marmitex",
     "guardanapo",
     "guard",
+    "difusor",
+    "essencia",
+    "varetas",
+    "perfume para interiores",
+    "p mant",
+    "papel manteiga",
   ],
   other: [],
 };
 
-// Mirror the prototype's _norm: de-accent, lowercase, punctuation -> space, collapse, pad with spaces
-// so keyword matches are whole-word.
+// Brand names that pin a category even when a misleading generic noun leads the line: "TOMATE
+// POMAROLA" is passata rather than a tomato, "MANT C SAL DAVACA" is butter rather than salt. Only
+// brands that actually resolve such a conflict belong here — anything unambiguous is a plain keyword.
+const BRANDS: Record<string, Category> = {
+  pomarola: "grocery",
+  sococo: "grocery",
+  flococo: "grocery",
+  finna: "grocery",
+  davaca: "dairy_deli",
+  danone: "dairy_deli",
+  molico: "dairy_deli",
+  ninho: "dairy_deli",
+  pant: "hygiene",
+  pantene: "hygiene",
+  els: "hygiene",
+  colg: "hygiene",
+  granado: "hygiene",
+  above: "hygiene",
+  presto: "hygiene",
+};
+
+// A keyword's word count dominates the score, so a specific phrase always beats the single words
+// inside it ("leite coco" > "leite"). Two learned signals break the remaining ties: receipt lines
+// lead with the product noun and trail with brand, size and flavour, so a match at the head outranks
+// one further in ("DET LIQ YPE 500ML CAP LIMAO" is detergent, not lime); and a brand outranks a
+// leading generic noun. Character length is the final tiebreak, then the category order above.
+const WORD_WEIGHT = 1000;
+const BRAND_BONUS = 1200;
+const HEAD_BONUS = 500;
+
+function score(keyword: string, head: boolean, brand: boolean): number {
+  const words = keyword.split(" ").length;
+  return words * WORD_WEIGHT + (brand ? BRAND_BONUS : 0) + (head ? HEAD_BONUS : 0) + keyword.length;
+}
+
+/**
+ * De-accent, lowercase, punctuation -> space, collapse, pad with spaces so keyword matches are
+ * whole-word. Cacau Show lines arrive prefixed with their internal code and NCM
+ * ("#1700900#18069000#TRU PIST 13,5 LC"); those digits carry no signal, so they are dropped before
+ * the head-of-line bonus is computed.
+ */
 function normalize(text: string): string {
   const deaccented = text.normalize("NFKD").replace(/\p{Mn}/gu, "");
   return ` ${deaccented
+    .replace(/^\s*#\d+#\d+#/, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim()} `;
@@ -527,13 +636,23 @@ function normalize(text: string): string {
 export function categorize(description: string): Category {
   const haystack = normalize(description);
   if (haystack.trim() === "") return "other";
-  let best: { category: Category; length: number } | null = null;
-  for (const [category, keywords] of Object.entries(RULES) as [Category, string[]][]) {
-    for (const keyword of keywords) {
-      if (haystack.includes(` ${keyword} `) && (!best || keyword.length > best.length)) {
-        best = { category, length: keyword.length };
-      }
+
+  let best: Category = "other";
+  let bestScore = 0;
+  const consider = (keyword: string, category: Category, brand: boolean) => {
+    const padded = ` ${keyword} `;
+    if (!haystack.includes(padded)) return;
+    const points = score(keyword, haystack.startsWith(padded), brand);
+    if (points > bestScore) {
+      best = category;
+      bestScore = points;
     }
+  };
+
+  for (const [category, keywords] of Object.entries(RULES) as [Category, string[]][]) {
+    for (const keyword of keywords) consider(keyword, category, false);
   }
-  return best?.category ?? "other";
+  for (const [brand, category] of Object.entries(BRANDS)) consider(brand, category, true);
+
+  return best;
 }

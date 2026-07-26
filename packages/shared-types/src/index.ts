@@ -176,6 +176,55 @@ export interface TransferSaveResult {
   purchase: Purchase;
 }
 
+export type ChatErrorCode = "ai_unavailable";
+
+export interface ChatUsage {
+  inputTokens: number;
+  outputTokens: number;
+  /** What the turn would cost on the Anthropic API, in USD. Nominal when the server runs on a Claude subscription. */
+  costUsd: number | null;
+}
+
+/** `POST /chat` streams these as server-sent events; the SSE `event:` field carries `type`. */
+export interface ChatSessionEvent {
+  type: "session";
+  /** Opaque server-side conversation id. Send it back on the next message to continue the conversation. */
+  sessionId: string;
+}
+
+export interface ChatTextEvent {
+  type: "text";
+  /** A chunk of the assistant's answer, in order. Concatenate chunks to render the message. */
+  text: string;
+}
+
+export interface ChatToolEvent {
+  type: "tool";
+  /** The SQL the assistant is running against the ledger database (read-only). */
+  sql: string;
+}
+
+export interface ChatDoneEvent {
+  type: "done";
+  sessionId: string;
+  usage: ChatUsage;
+  durationMs: number;
+}
+
+export interface ChatErrorEvent {
+  type: "error";
+  /** pt-BR, presentable to the owner. */
+  message: string;
+  errorCode: ChatErrorCode;
+}
+
+export type ChatStreamEvent =
+  | ChatSessionEvent
+  | ChatTextEvent
+  | ChatToolEvent
+  | ChatDoneEvent
+  | ChatErrorEvent;
+
 export type PhotoScanErrorCode = "invalid_image" | "ai_unavailable" | "ai_invalid_output";
 
 export type PhotoScanRejectionReason = "no_item" | "unclear_image" | "inappropriate";

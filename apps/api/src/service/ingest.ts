@@ -259,6 +259,8 @@ async function upsertProducts(trx: Trx, items: ParsedItem[]): Promise<Map<string
   }
   if (descriptionByBarcode.size === 0) return new Map();
 
+  // A known product keeps the description it was first filed under, but an unplaced one is allowed
+  // to learn: once anything can categorize this barcode, that answer becomes its memory.
   await trx
     .insertInto("products")
     .values(
@@ -268,7 +270,17 @@ async function upsertProducts(trx: Trx, items: ParsedItem[]): Promise<Map<string
         defaultCategory: item.category,
       })),
     )
-    .onConflict((oc) => oc.column("barcode").doNothing())
+    .onConflict((oc) =>
+      oc
+        .column("barcode")
+        .doUpdateSet({ defaultCategory: (eb) => eb.ref("excluded.defaultCategory") })
+        .where((eb) =>
+          eb.and([
+            eb.or([eb("products.defaultCategory", "is", null), eb("products.defaultCategory", "=", "other")]),
+            eb("excluded.defaultCategory", "!=", "other"),
+          ]),
+        ),
+    )
     .execute();
 
   const rows = await trx

@@ -11,12 +11,14 @@
     "migrate:status": "bun run scripts/migrate.ts status",
     "db:codegen": "kysely-codegen",
     "import:legacy": "bun run scripts/import-legacy.ts",
+    "recategorize": "bun run scripts/recategorize.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "lint": "oxlint src",
     "lint:fix": "oxlint --fix src"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.220",
     "@anthropic-ai/sdk": "^0.111.0",
     "@hono/zod-validator": "^0.7.6",
     "@ledger/nfce": "workspace:*",

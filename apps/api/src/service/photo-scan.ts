@@ -7,8 +7,10 @@ import { type AiRunner, validateImage } from "./ai";
 const MAX_ITEMS = 20;
 
 export const DEFAULT_PHOTO_PROMPT =
-  "Identify every household/grocery item in the picture and map each one to the expected fields, " +
-  "plus a short comment with anything worth noting about what you see.";
+  "The picture shows either household/grocery items themselves or a printed store receipt listing " +
+  "them — both are valid. Identify every item, reading the printed lines when it is a receipt, and " +
+  "map each one to the expected fields, plus a short comment with anything worth noting about what " +
+  "you see.";
 
 const REJECTION_REASONS = ["no_item", "unclear_image", "inappropriate"] as const;
 
@@ -108,14 +110,15 @@ export class PhotoScanService {
       this.deps.prompt,
       "",
       `Valid categories: ${CATEGORIES.join(", ")}.`,
-      `Valid rejection reasons: ${REJECTION_REASONS.join(", ")} — use "no_item" when there is no product in`,
-      `frame, "unclear_image" when it is too blurry/dark/cropped to tell, "inappropriate" for people,`,
-      "documents, or anything that is not a household item.",
+      `Valid rejection reasons: ${REJECTION_REASONS.join(", ")} — use "no_item" when there is neither a`,
+      `product nor a purchase receipt in frame, "unclear_image" when it is too blurry/dark/cropped to tell,`,
+      `"inappropriate" for people or anything that is neither a household item nor a purchase receipt.`,
       "",
       `List one entry per distinct product, most prominent first, at most ${MAX_ITEMS} entries. Several copies of`,
-      "the same product are one entry — the owner fills in the quantity afterwards. Skip anything you cannot",
-      "name with reasonable confidence rather than guessing; if that leaves nothing, refuse instead of",
-      "returning an empty list.",
+      "the same product (or repeated receipt lines) are one entry — the owner fills in the quantity",
+      "afterwards. When reading a receipt, tidy each abbreviated line into a readable product name instead of",
+      "copying it verbatim. Skip anything you cannot name with reasonable confidence rather than guessing; if",
+      "that leaves nothing, refuse instead of returning an empty list.",
       "",
       "Respond with ONLY one JSON object, no markdown fences and no extra text:",
       `- If you can identify at least one item: {"status":"identified","items":[{"description":<string, item`,

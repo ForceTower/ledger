@@ -251,8 +251,9 @@ after any failure below the client must request a fresh challenge (and show the 
 
 ### `POST /scan/photo`
 
-AI item identification: take a photo of one or more items and the server asks Claude to identify and
-categorize them. Body: `multipart/form-data` with an `image` field (JPEG, PNG, or WebP, ≤ 10 MB).
+AI item identification: take a photo of one or more items — or of a printed receipt listing them —
+and the server asks Claude to identify and categorize them. Body: `multipart/form-data` with an
+`image` field (JPEG, PNG, or WebP, ≤ 10 MB).
 
 Server configuration (env vars, shared by every AI read): `ANTHROPIC_API_KEY` (when set, the
 Anthropic API is used; otherwise the server falls back to the local `claude` CLI), `CLAUDE_BIN`

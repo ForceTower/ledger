@@ -6,40 +6,39 @@ struct InsightsView: View {
     let store: StoreOf<InsightsFeature>
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 14) {
-                Text("Insights")
-                    .font(.largeTitle.weight(.bold))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 8)
-
-                if let snapshot = store.snapshot {
-                    DonutCard(snapshot: snapshot)
-                    MonthsCard(snapshot: snapshot)
-                    if let highlight = snapshot.highlight {
-                        HighlightCard(highlight: highlight)
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 14) {
+                    if let snapshot = store.snapshot {
+                        DonutCard(snapshot: snapshot)
+                        MonthsCard(snapshot: snapshot)
+                        if let highlight = snapshot.highlight {
+                            HighlightCard(highlight: highlight)
+                        }
+                        statsGrid(snapshot)
+                        if let radar = snapshot.priceRadar {
+                            PriceRadarCard(radar: radar, window: snapshot.months)
+                        }
+                        if !snapshot.topStores.isEmpty {
+                            TopStoresCard(stores: snapshot.topStores)
+                        }
+                        WeekdayCard(weekdays: snapshot.weekdays, topWeekdayName: snapshot.topWeekdayName)
                     }
-                    statsGrid(snapshot)
-                    if let radar = snapshot.priceRadar {
-                        PriceRadarCard(radar: radar, window: snapshot.months)
-                    }
-                    if !snapshot.topStores.isEmpty {
-                        TopStoresCard(stores: snapshot.topStores)
-                    }
-                    WeekdayCard(weekdays: snapshot.weekdays, topWeekdayName: snapshot.topWeekdayName)
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
-            .padding(16)
-        }
-        .background(Color.appBackground)
-        .overlay {
-            if !store.didLoad {
-                ProgressView()
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.appBackground)
-            } else if store.isEmpty {
-                EmptyInsightsView { store.send(.scanFirstTapped) }
+            .background(Color.appBackground)
+            .navigationTitle("Insights")
+            .overlay {
+                if !store.didLoad {
+                    ProgressView()
+                        .controlSize(.large)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.appBackground)
+                } else if store.isEmpty {
+                    EmptyInsightsView { store.send(.scanFirstTapped) }
+                }
             }
         }
         .task { store.send(.onAppear) }

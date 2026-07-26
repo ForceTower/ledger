@@ -26,7 +26,7 @@ struct ScanResultView: View {
                 }
             case let .product(identified):
                 if store.productSaved {
-                    ProductSavedView(store: store, identified: identified)
+                    ProductSavedView(store: store)
                 } else {
                     ProductResultView(store: store, identified: identified)
                 }
@@ -498,19 +498,26 @@ private struct ErrorResultView: View {
 // MARK: - Product (photo mode)
 
 private struct ProductResultView: View {
-    @Bindable var store: StoreOf<ScanFeature>
+    let store: StoreOf<ScanFeature>
     let identified: PhotoScanIdentified
+
+    private var itemCount: Int { identified.items.count }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                Label("Identificado com IA · \(identified.confidencePercent)%", systemImage: "sparkles")
+                Label(headline, systemImage: "sparkles")
                     .font(.footnote.weight(.bold))
                     .foregroundStyle(Color.appAccent)
                     .padding(.top, 24)
 
-                productCard
-                detailsCard
+                photoCard
+                ForEach(store.productDrafts) { draft in
+                    ProductDraftCard(store: store, draft: draft)
+                }
+                if store.selectedDrafts.count > 1 {
+                    grandTotalCard
+                }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
@@ -518,8 +525,10 @@ private struct ProductResultView: View {
         .scrollIndicators(.hidden)
         .safeAreaInset(edge: .bottom) {
             Button { store.send(.addProductTapped) } label: {
-                PrimaryButtonLabel("Adicionar ao histórico")
+                PrimaryButtonLabel(addTitle)
             }
+            .disabled(store.selectedDrafts.isEmpty)
+            .opacity(store.selectedDrafts.isEmpty ? 0.5 : 1)
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 4)
@@ -527,29 +536,36 @@ private struct ProductResultView: View {
         }
     }
 
-    private var productCard: some View {
+    private var headline: String {
+        itemCount == 1
+            ? "Identificado com IA · \(identified.items[0].confidencePercent)%"
+            : "Identificados com IA · \(itemCount) itens"
+    }
+
+    private var addTitle: String {
+        let selected = store.selectedDrafts.count
+        return selected > 1 ? "Adicionar \(selected) itens ao histórico" : "Adicionar ao histórico"
+    }
+
+    private var photoCard: some View {
         HStack(spacing: 14) {
             CapturedPhotoView(data: store.capturedPhoto, size: 82, cornerRadius: 16)
 
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 6) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(identified.item.category.color)
-                        .frame(width: 8, height: 8)
-                    Text(identified.item.category.label.uppercased())
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.secondary)
-                        .tracking(0.4)
-                }
-                Text(identified.item.description)
-                    .font(.title3.weight(.heavy))
-                    .padding(.top, 7)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(itemCount == 1 ? "1 item na foto" : "\(itemCount) itens na foto")
+                    .font(.headline.weight(.heavy))
                 if !identified.comment.isEmpty {
                     Text(identified.comment)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                        .padding(.top, 3)
                 }
+                Text(
+                    itemCount == 1
+                        ? "Informe o preço para adicionar ao histórico."
+                        : "Marque os itens que entram e informe o preço de cada um."
+                )
+                .font(.caption)
+                .foregroundStyle(Color.label3)
             }
             Spacer(minLength: 0)
         }
@@ -557,66 +573,127 @@ private struct ProductResultView: View {
         .card(cornerRadius: 22)
     }
 
-    private var detailsCard: some View {
+    private var grandTotalCard: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Total geral").font(.subheadline.weight(.bold))
+                Text("\(store.productUnitCount) unidades").font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(Format.brl(store.productTotal))
+                .font(.title3.weight(.heavy))
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14)
+        .card(cornerRadius: 20)
+    }
+}
+
+/// One identified item: the AI's guess, plus the price and quantity the owner fills in.
+private struct ProductDraftCard: View {
+    let store: StoreOf<ScanFeature>
+    let draft: ProductDraft
+
+    var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("DETALHES").font(.caption.weight(.semibold)).foregroundStyle(.secondary).tracking(0.4)
-                Spacer()
+            itemHeader
+            if draft.selected {
+                Divider().padding(.leading, 16)
+                priceRow
+                Divider().padding(.leading, 16)
+                quantityRow
+                totalRow
             }
-            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 10)
-
-            // The AI identifies the item but never prices it — that part is the owner's to fill in.
-            HStack {
-                Text("Preço").font(.subheadline)
-                Spacer()
-                TextField(
-                    "R$ 0,00",
-                    value: $store.productUnitPrice.sending(\.productPriceChanged),
-                    format: .currency(code: "BRL").locale(Locale(identifier: "pt_BR"))
-                )
-                .multilineTextAlignment(.trailing)
-                .font(.subheadline.weight(.bold))
-                #if os(iOS)
-                .keyboardType(.decimalPad)
-                #endif
-                .frame(maxWidth: 120)
-                Text("/un").font(.caption).foregroundStyle(Color.label3)
-            }
-            .padding(.horizontal, 16).padding(.vertical, 11)
-
-            Divider().padding(.leading, 16)
-
-            HStack {
-                Text("Quantidade").font(.subheadline)
-                Spacer()
-                HStack(spacing: 15) {
-                    quantityButton(systemImage: "minus", background: Color.appFill, tint: .primary) {
-                        store.send(.productQuantityChanged(store.productQuantity - 1))
-                    }
-                    Text("\(store.productQuantity)")
-                        .font(.body.weight(.heavy))
-                        .monospacedDigit()
-                        .frame(minWidth: 22)
-                    quantityButton(systemImage: "plus", background: Color.appAccentTint, tint: Color.appAccent) {
-                        store.send(.productQuantityChanged(store.productQuantity + 1))
-                    }
-                }
-            }
-            .padding(.horizontal, 16).padding(.vertical, 9)
-
-            Divider().padding(.leading, 16)
-
-            HStack {
-                Text("Total").font(.subheadline.weight(.bold))
-                Spacer()
-                Text(Format.brl(store.productUnitPrice * Double(store.productQuantity)))
-                    .font(.body.weight(.heavy))
-                    .monospacedDigit()
-            }
-            .padding(.horizontal, 16).padding(.vertical, 13)
-            .background(Color.appFillSubtle)
         }
         .card(cornerRadius: 20)
+    }
+
+    private var itemHeader: some View {
+        Button { store.send(.productSelectionToggled(id: draft.id)) } label: {
+            HStack(spacing: 12) {
+                Image(systemName: draft.selected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 21))
+                    .foregroundStyle(draft.selected ? Color.appAccent : Color.label3)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(draft.item.category.color)
+                            .frame(width: 8, height: 8)
+                        Text(draft.item.category.label.uppercased())
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.secondary)
+                            .tracking(0.4)
+                        Text("· \(draft.item.confidencePercent)%")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Color.label3)
+                    }
+                    Text(draft.item.description)
+                        .font(.callout.weight(.heavy))
+                        .foregroundStyle(draft.selected ? .primary : .secondary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(16)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // The AI identifies the item but never prices it — that part is the owner's to fill in.
+    private var priceRow: some View {
+        HStack {
+            Text("Preço").font(.subheadline)
+            Spacer()
+            TextField(
+                "R$ 0,00",
+                value: Binding(
+                    get: { draft.unitPrice },
+                    set: { store.send(.productPriceChanged(id: draft.id, price: $0)) }
+                ),
+                format: .currency(code: "BRL").locale(Locale(identifier: "pt_BR"))
+            )
+            .multilineTextAlignment(.trailing)
+            .font(.subheadline.weight(.bold))
+            #if os(iOS)
+            .keyboardType(.decimalPad)
+            #endif
+            .frame(maxWidth: 120)
+            Text("/un").font(.caption).foregroundStyle(Color.label3)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 11)
+    }
+
+    private var quantityRow: some View {
+        HStack {
+            Text("Quantidade").font(.subheadline)
+            Spacer()
+            HStack(spacing: 15) {
+                quantityButton(systemImage: "minus", background: Color.appFill, tint: .primary) {
+                    store.send(.productQuantityChanged(id: draft.id, quantity: draft.quantity - 1))
+                }
+                Text("\(draft.quantity)")
+                    .font(.body.weight(.heavy))
+                    .monospacedDigit()
+                    .frame(minWidth: 22)
+                quantityButton(systemImage: "plus", background: Color.appAccentTint, tint: Color.appAccent) {
+                    store.send(.productQuantityChanged(id: draft.id, quantity: draft.quantity + 1))
+                }
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 9)
+    }
+
+    private var totalRow: some View {
+        HStack {
+            Text("Total").font(.subheadline.weight(.bold))
+            Spacer()
+            Text(Format.brl(draft.total))
+                .font(.body.weight(.heavy))
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 16).padding(.vertical, 13)
+        .background(Color.appFillSubtle)
     }
 
     private func quantityButton(
@@ -634,12 +711,12 @@ private struct ProductResultView: View {
         }
         .buttonStyle(.plain)
     }
-
 }
 
 private struct ProductSavedView: View {
     let store: StoreOf<ScanFeature>
-    let identified: PhotoScanIdentified
+
+    private var saved: [ProductDraft] { store.selectedDrafts }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -655,26 +732,15 @@ private struct ProductSavedView: View {
                 .font(.title2.weight(.bold))
                 .multilineTextAlignment(.center)
 
-            Text("Registramos **\(store.productQuantity)× \(identified.item.description)** na sua compra de hoje.")
+            Text(summary)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)
                 .frame(maxWidth: 300)
 
-            HStack(spacing: 13) {
-                CapturedPhotoView(data: store.capturedPhoto, size: 44, cornerRadius: 12)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(identified.item.description).font(.callout.weight(.bold))
-                    Text("\(identified.item.category.label) · hoje").font(.footnote).foregroundStyle(.secondary)
-                }
-                Spacer()
-                Text(Format.brl(store.productUnitPrice * Double(store.productQuantity)))
-                    .font(.callout.weight(.heavy))
-            }
-            .padding(14)
-            .background(Color.appBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .padding(.top, 24)
+            savedCard
+                .padding(.top, 24)
 
             Spacer()
 
@@ -689,6 +755,56 @@ private struct ProductSavedView: View {
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 26)
+    }
+
+    private var summary: String {
+        guard let only = saved.first, saved.count == 1 else {
+            return "Registramos **\(store.productUnitCount) itens** na sua compra de hoje."
+        }
+        return "Registramos **\(only.quantity)× \(only.item.description)** na sua compra de hoje."
+    }
+
+    private var savedCard: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 13) {
+                CapturedPhotoView(data: store.capturedPhoto, size: 44, cornerRadius: 12)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(saved.count == 1 ? (saved.first?.item.description ?? "") : "\(saved.count) produtos")
+                        .font(.callout.weight(.bold))
+                        .lineLimit(1)
+                    Text(subtitle).font(.footnote).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Text(Format.brl(store.productTotal))
+                    .font(.callout.weight(.heavy))
+                    .monospacedDigit()
+            }
+
+            if saved.count > 1 {
+                Divider().padding(.vertical, 11)
+                VStack(spacing: 7) {
+                    ForEach(saved) { draft in
+                        HStack {
+                            Text("\(draft.quantity)× \(draft.item.description)")
+                                .font(.footnote)
+                                .lineLimit(1)
+                            Spacer(minLength: 8)
+                            Text(Format.brl(draft.total))
+                                .font(.footnote.weight(.semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .background(Color.appBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var subtitle: String {
+        guard let only = saved.first, saved.count == 1 else { return "hoje" }
+        return "\(only.item.category.label) · hoje"
     }
 }
 
@@ -858,7 +974,13 @@ private func scanResultStore(phase: ScanFeature.State.Phase, productSaved: Bool 
     var state = ScanFeature.State()
     state.phase = phase
     state.productSaved = productSaved
-    state.productUnitPrice = 8.90
+    if case let .product(identified) = phase {
+        state.productDrafts = IdentifiedArray(
+            uniqueElements: identified.items.enumerated().map {
+                ProductDraft(id: $0.offset, item: $0.element, unitPrice: 8.90)
+            }
+        )
+    }
     return Store(initialState: state) { ScanFeature() }
 }
 
@@ -898,11 +1020,15 @@ private func scanResultStore(phase: ScanFeature.State.Phase, productSaved: Bool 
     ScanResultView(store: scanResultStore(phase: .processing))
 }
 
-#Preview("Produto identificado") {
+#Preview("Itens identificados") {
     ScanResultView(store: scanResultStore(phase: .product(MockData.photoScanIdentified)))
 }
 
-#Preview("Produto adicionado") {
+#Preview("Item identificado") {
+    ScanResultView(store: scanResultStore(phase: .product(MockData.photoScanSingleItem)))
+}
+
+#Preview("Itens adicionados") {
     ScanResultView(store: scanResultStore(phase: .product(MockData.photoScanIdentified), productSaved: true))
 }
 

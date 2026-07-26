@@ -12,12 +12,12 @@ struct ScanView: View {
     private var photoMode: Bool { store.scanMode == .photo }
 
     private var hintTitle: String {
-        if photoMode { return detecting ? "Item reconhecido" : "Fotografe qualquer item" }
+        if photoMode { return detecting ? "Itens reconhecidos" : "Fotografe um ou mais itens" }
         return detecting ? "Nota detectada" : "Aponte para o QR code da nota"
     }
 
     private var hintSubtitle: String {
-        if photoMode { return detecting ? "Identificando com IA…" : "A IA reconhece e adiciona ao histórico" }
+        if photoMode { return detecting ? "Identificando com IA…" : "A IA reconhece os itens e adiciona ao histórico" }
         return detecting ? "Buscando os itens…" : "Salvamos automaticamente ao detectar"
     }
 

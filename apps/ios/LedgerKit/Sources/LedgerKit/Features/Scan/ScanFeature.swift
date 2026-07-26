@@ -8,6 +8,19 @@ enum ScanMode: Equatable, Sendable {
     case receipt, photo
 }
 
+/// One item the AI found in a photo, plus the price and quantity only the owner can supply.
+struct ProductDraft: Equatable, Identifiable, Sendable {
+    /// Position in the AI's list, which is also the row's identity.
+    let id: Int
+    let item: PhotoScanItem
+    var quantity = 1
+    var unitPrice = 0.0
+    /// A photo can pick up items the owner does not want; unticking leaves them out.
+    var selected = true
+
+    var total: Double { unitPrice * Double(quantity) }
+}
+
 @Reducer
 struct ScanFeature {
     @ObservableState
@@ -16,14 +29,25 @@ struct ScanFeature {
         var scanMode: ScanMode = .receipt
         var flashOn = false
         var itemsExpanded = false
-        var productQuantity = 1
-        var productUnitPrice = 0.0
+        /// One editable row per item the AI found in the photo.
+        var productDrafts: IdentifiedArrayOf<ProductDraft> = []
         var productSaved = false
         var photoPickerPresented = false
         /// The still we sent to the AI, echoed back next to its guess.
         var capturedPhoto: Data?
         var cameraAvailable = true
         @Shared(.inMemory("cameraAuthorized")) var cameraAuthorized = true
+
+        var selectedDrafts: [ProductDraft] { productDrafts.filter(\.selected) }
+
+        var productTotal: Double {
+            selectedDrafts.reduce(0) { $0 + $1.total }
+        }
+
+        /// How many units go to the history, counting quantities — not how many rows are ticked.
+        var productUnitCount: Int {
+            selectedDrafts.reduce(0) { $0 + $1.quantity }
+        }
 
         enum Phase: Equatable {
             case idle
@@ -56,8 +80,9 @@ struct ScanFeature {
         case photoCaptured(Data?)
         case photoPicked(Data?)
         case photoScanResponse(Result<PhotoScanResult, PhotoScanFailure>)
-        case productQuantityChanged(Int)
-        case productPriceChanged(Double)
+        case productQuantityChanged(id: ProductDraft.ID, quantity: Int)
+        case productPriceChanged(id: ProductDraft.ID, price: Double)
+        case productSelectionToggled(id: ProductDraft.ID)
         case addProductTapped
         case flashTapped
         case toggleItems
@@ -187,8 +212,9 @@ struct ScanFeature {
 
             case let .photoScanResponse(.success(.identified(identified))):
                 state.phase = .product(identified)
-                state.productQuantity = 1
-                state.productUnitPrice = 0
+                state.productDrafts = IdentifiedArray(
+                    uniqueElements: identified.items.enumerated().map { ProductDraft(id: $0.offset, item: $0.element) }
+                )
                 state.productSaved = false
                 return .none
 
@@ -200,15 +226,20 @@ struct ScanFeature {
                 state.phase = .photoFailure(failure)
                 return .none
 
-            case let .productQuantityChanged(quantity):
-                state.productQuantity = max(1, quantity)
+            case let .productQuantityChanged(id, quantity):
+                state.productDrafts[id: id]?.quantity = max(1, quantity)
                 return .none
 
-            case let .productPriceChanged(price):
-                state.productUnitPrice = max(0, price)
+            case let .productPriceChanged(id, price):
+                state.productDrafts[id: id]?.unitPrice = max(0, price)
+                return .none
+
+            case let .productSelectionToggled(id):
+                state.productDrafts[id: id]?.selected.toggle()
                 return .none
 
             case .addProductTapped:
+                guard !state.selectedDrafts.isEmpty else { return .none }
                 state.productSaved = true
                 return .none
 
@@ -223,8 +254,7 @@ struct ScanFeature {
             case .scanAgainTapped, .sheetDismissed:
                 state.phase = .idle
                 state.itemsExpanded = false
-                state.productQuantity = 1
-                state.productUnitPrice = 0
+                state.productDrafts = []
                 state.productSaved = false
                 state.capturedPhoto = nil
                 return .cancel(id: CancelID.scan)
@@ -250,6 +280,7 @@ struct ScanFeature {
 
             case .showInHistoryTapped:
                 state.phase = .idle
+                state.productDrafts = []
                 state.productSaved = false
                 state.capturedPhoto = nil
                 return .concatenate(

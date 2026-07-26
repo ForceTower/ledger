@@ -152,8 +152,14 @@ struct PhotoScanFeatureTests {
         }
     }
 
+    private static func drafts(of identified: PhotoScanIdentified) -> IdentifiedArrayOf<ProductDraft> {
+        IdentifiedArray(
+            uniqueElements: identified.items.enumerated().map { ProductDraft(id: $0.offset, item: $0.element) }
+        )
+    }
+
     @Test
-    func theShutterCapturesThenIdentifiesTheItem() async {
+    func theShutterCapturesThenIdentifiesTheItems() async {
         let photo = Data("jpeg".utf8)
         let identified = MockData.photoScanIdentified
         let store = Self.photoStore { data in
@@ -166,13 +172,42 @@ struct PhotoScanFeatureTests {
             $0.capturedPhoto = photo
             $0.phase = .processing
         }
-        await store.receive(\.photoScanResponse) { $0.phase = .product(identified) }
+        await store.receive(\.photoScanResponse) {
+            $0.phase = .product(identified)
+            $0.productDrafts = Self.drafts(of: identified)
+        }
 
         await store.send(.scanAgainTapped) {
             $0.phase = .idle
             $0.capturedPhoto = nil
+            $0.productDrafts = []
         }
         await store.finish()
+    }
+
+    /// A photo can hold several products, and each one becomes its own editable row.
+    @Test
+    func everyItemInThePhotoBecomesAnEditableRow() async {
+        let identified = MockData.photoScanIdentified
+        let store = Self.photoStore { _ in .identified(identified) }
+
+        await store.send(.shutterTapped) { $0.phase = .capturing }
+        await store.send(.photoCaptured(Data("jpeg".utf8))) {
+            $0.capturedPhoto = Data("jpeg".utf8)
+            $0.phase = .processing
+        }
+        await store.receive(\.photoScanResponse) {
+            $0.phase = .product(identified)
+            $0.productDrafts = [
+                ProductDraft(id: 0, item: identified.items[0]),
+                ProductDraft(id: 1, item: identified.items[1]),
+                ProductDraft(id: 2, item: identified.items[2]),
+            ]
+        }
+
+        #expect(store.state.productDrafts.count == 3)
+        #expect(store.state.selectedDrafts.count == 3)
+        #expect(store.state.productTotal == 0)
     }
 
     @Test
@@ -227,7 +262,10 @@ struct PhotoScanFeatureTests {
             $0.capturedPhoto = photo
             $0.phase = .processing
         }
-        await store.receive(\.photoScanResponse) { $0.phase = .product(identified) }
+        await store.receive(\.photoScanResponse) {
+            $0.phase = .product(identified)
+            $0.productDrafts = Self.drafts(of: identified)
+        }
     }
 
     @Test
@@ -239,14 +277,62 @@ struct PhotoScanFeatureTests {
         await store.send(.photoPicked(nil)) { $0.phase = .photoFailure(.invalidImage) }
     }
 
-    @Test
-    func theQuantityAndPriceDriveTheTotal() async {
-        let store = TestStore(initialState: ScanFeature.State()) { ScanFeature() }
+    private static func draftStore() -> TestStoreOf<ScanFeature> {
+        var state = ScanFeature.State()
+        state.phase = .product(MockData.photoScanIdentified)
+        state.productDrafts = drafts(of: MockData.photoScanIdentified)
+        return TestStore(initialState: state) { ScanFeature() }
+    }
 
-        await store.send(.productQuantityChanged(3)) { $0.productQuantity = 3 }
-        await store.send(.productQuantityChanged(0)) { $0.productQuantity = 1 }
-        await store.send(.productPriceChanged(8.90)) { $0.productUnitPrice = 8.90 }
-        await store.send(.productPriceChanged(-2)) { $0.productUnitPrice = 0 }
+    @Test
+    func theQuantityAndPriceDriveEachItemTotal() async {
+        let store = Self.draftStore()
+
+        await store.send(.productPriceChanged(id: 0, price: 8.90)) { $0.productDrafts[id: 0]?.unitPrice = 8.90 }
+        await store.send(.productQuantityChanged(id: 0, quantity: 3)) { $0.productDrafts[id: 0]?.quantity = 3 }
+        await store.send(.productPriceChanged(id: 1, price: 4.50)) { $0.productDrafts[id: 1]?.unitPrice = 4.50 }
+
+        #expect(abs(store.state.productTotal - 31.20) < 0.001)
+        #expect(store.state.productUnitCount == 5)
+
+        await store.send(.productQuantityChanged(id: 0, quantity: 0)) { $0.productDrafts[id: 0]?.quantity = 1 }
+        await store.send(.productPriceChanged(id: 1, price: -2)) { $0.productDrafts[id: 1]?.unitPrice = 0 }
+    }
+
+    @Test
+    func untickedItemsStayOutOfTheTotal() async {
+        let store = Self.draftStore()
+
+        await store.send(.productPriceChanged(id: 0, price: 8.90)) { $0.productDrafts[id: 0]?.unitPrice = 8.90 }
+        await store.send(.productPriceChanged(id: 1, price: 4.50)) { $0.productDrafts[id: 1]?.unitPrice = 4.50 }
+        await store.send(.productSelectionToggled(id: 1)) { $0.productDrafts[id: 1]?.selected = false }
+
+        #expect(store.state.selectedDrafts.map(\.id) == [0, 2])
+        #expect(abs(store.state.productTotal - 8.90) < 0.001)
+    }
+
+    @Test
+    func savingWithEveryItemUntickedDoesNothing() async {
+        let store = Self.draftStore()
+
+        for draft in store.state.productDrafts {
+            await store.send(.productSelectionToggled(id: draft.id)) {
+                $0.productDrafts[id: draft.id]?.selected = false
+            }
+        }
+        await store.send(.addProductTapped)
+
+        #expect(store.state.productSaved == false)
+    }
+
+    @Test
+    func savingKeepsTheTickedItems() async {
+        let store = Self.draftStore()
+
+        await store.send(.productSelectionToggled(id: 2)) { $0.productDrafts[id: 2]?.selected = false }
+        await store.send(.addProductTapped) { $0.productSaved = true }
+
+        #expect(store.state.selectedDrafts.count == 2)
     }
 }
 
@@ -282,7 +368,7 @@ struct PhotoScanRepositoryTests {
     @Test
     func aRejectionDecodesFromTheSameEnvelope() async throws {
         let png = try sampleImageData()
-        let rejected = PhotoScanRejected(reason: .multipleItems, comment: "Há vários produtos na foto.")
+        let rejected = PhotoScanRejected(reason: .unclearImage, comment: "A foto está desfocada demais.")
         let result = try await withDependencies {
             $0.apiClient.send = { _ in try envelope(PhotoScanResult.rejected(rejected)) }
         } operation: {

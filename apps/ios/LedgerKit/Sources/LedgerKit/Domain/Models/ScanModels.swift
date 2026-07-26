@@ -55,26 +55,25 @@ public struct PhotoScanItem: Codable, Equatable, Sendable {
     public var category: Category
     /// Model self-assessment, 0..1.
     public var confidence: Double
+
+    public var confidencePercent: Int { Int((confidence * 100).rounded()) }
 }
 
 public struct PhotoScanIdentified: Codable, Equatable, Sendable {
-    public var item: PhotoScanItem
+    /// One entry per distinct product, most prominent first. Never empty.
+    public var items: [PhotoScanItem]
     public var comment: String
-
-    public var confidencePercent: Int { Int((item.confidence * 100).rounded()) }
 }
 
 public enum PhotoScanRejectionReason: String, Codable, Equatable, Sendable {
     case noItem = "no_item"
     case unclearImage = "unclear_image"
-    case multipleItems = "multiple_items"
     case inappropriate
 
     var title: String {
         switch self {
         case .noItem: "Nenhum item na foto"
         case .unclearImage: "Foto pouco nítida"
-        case .multipleItems: "Vários itens na foto"
         case .inappropriate: "Isso não parece um item de compra"
         }
     }
@@ -83,7 +82,6 @@ public enum PhotoScanRejectionReason: String, Codable, Equatable, Sendable {
         switch self {
         case .noItem: "questionmark.circle"
         case .unclearImage: "eye.trianglebadge.exclamationmark"
-        case .multipleItems: "square.stack.3d.up"
         case .inappropriate: "hand.raised"
         }
     }
@@ -91,7 +89,7 @@ public enum PhotoScanRejectionReason: String, Codable, Equatable, Sendable {
 
 public struct PhotoScanRejected: Codable, Equatable, Sendable {
     public var reason: PhotoScanRejectionReason
-    /// Why the AI could not identify the item, in pt-BR.
+    /// Why the AI could not identify anything, in pt-BR.
     public var comment: String
 }
 

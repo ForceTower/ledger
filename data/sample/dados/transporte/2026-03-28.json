@@ -3,9 +3,7 @@
   "trajetos": [
     {
       "meio": "taxi",
-      "destinos": [
-        "Bom Preço Atacado"
-      ],
+      "destinos": ["Bom Preço Atacado"],
       "distancia_km": null,
       "custo_combustivel": null,
       "custo_estacionamento": null,

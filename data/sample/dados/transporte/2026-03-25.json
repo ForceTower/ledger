@@ -3,9 +3,7 @@
   "trajetos": [
     {
       "meio": "uber",
-      "destinos": [
-        "Bom Preço Atacado"
-      ],
+      "destinos": ["Bom Preço Atacado"],
       "distancia_km": null,
       "custo_combustivel": null,
       "custo_estacionamento": null,
@@ -14,9 +12,7 @@
     },
     {
       "meio": "taxi",
-      "destinos": [
-        "Bom Preço Atacado"
-      ],
+      "destinos": ["Bom Preço Atacado"],
       "distancia_km": null,
       "custo_combustivel": null,
       "custo_estacionamento": null,
@@ -25,9 +21,7 @@
     },
     {
       "meio": "uber",
-      "destinos": [
-        "Supermercado Primavera"
-      ],
+      "destinos": ["Supermercado Primavera"],
       "distancia_km": null,
       "custo_combustivel": null,
       "custo_estacionamento": null,
@@ -36,9 +30,7 @@
     },
     {
       "meio": "taxi",
-      "destinos": [
-        "Supermercado Primavera"
-      ],
+      "destinos": ["Supermercado Primavera"],
       "distancia_km": null,
       "custo_combustivel": null,
       "custo_estacionamento": null,

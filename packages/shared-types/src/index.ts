@@ -186,6 +186,10 @@ export interface PhotoScanItem {
   category: Category;
   /** Model self-assessment, 0..1. */
   confidence: number;
+  /** Price for one unit in BRL, read off a price tag or receipt line; null when the photo does not show one. */
+  unitPrice: number | null;
+  /** Whole units of this product, read off the receipt or counted in the photo; null when unsure. */
+  quantity: number | null;
 }
 
 export interface PhotoScanIdentified {

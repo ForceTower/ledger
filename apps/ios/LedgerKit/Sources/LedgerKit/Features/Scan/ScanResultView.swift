@@ -668,6 +668,8 @@ private struct ProductResultView: View {
     let store: StoreOf<ScanFeature>
     let identified: PhotoScanIdentified
 
+    @FocusState private var priceFocus: ProductDraft.ID?
+
     private var itemCount: Int { identified.items.count }
 
     var body: some View {
@@ -680,7 +682,7 @@ private struct ProductResultView: View {
 
                 photoCard
                 ForEach(store.productDrafts) { draft in
-                    ProductDraftCard(store: store, draft: draft)
+                    ProductDraftCard(store: store, draft: draft, priceFocus: $priceFocus)
                 }
                 if store.selectedDrafts.count > 1 {
                     grandTotalCard
@@ -690,6 +692,13 @@ private struct ProductResultView: View {
             .padding(.bottom, 12)
         }
         .scrollIndicators(.hidden)
+        .scrollDismissesKeyboard(.interactively)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Pronto") { priceFocus = nil }
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             Button { store.send(.addProductTapped) } label: {
                 PrimaryButtonLabel(addTitle)
@@ -760,6 +769,7 @@ private struct ProductResultView: View {
 private struct ProductDraftCard: View {
     let store: StoreOf<ScanFeature>
     let draft: ProductDraft
+    let priceFocus: FocusState<ProductDraft.ID?>.Binding
 
     var body: some View {
         VStack(spacing: 0) {
@@ -807,7 +817,7 @@ private struct ProductDraftCard: View {
         .buttonStyle(.plain)
     }
 
-    // The AI identifies the item but never prices it — that part is the owner's to fill in.
+    // Prefilled when the AI could read a price off the photo; the owner has the last word.
     private var priceRow: some View {
         HStack {
             Text("Preço").font(.subheadline)
@@ -822,6 +832,7 @@ private struct ProductDraftCard: View {
             )
             .multilineTextAlignment(.trailing)
             .font(.subheadline.weight(.bold))
+            .focused(priceFocus, equals: draft.id)
             #if os(iOS)
             .keyboardType(.decimalPad)
             #endif
@@ -1517,8 +1528,13 @@ private func scanResultStore(phase: ScanFeature.State.Phase, productSaved: Bool 
     state.productSaved = productSaved
     if case let .product(identified) = phase {
         state.productDrafts = IdentifiedArray(
-            uniqueElements: identified.items.enumerated().map {
-                ProductDraft(id: $0.offset, item: $0.element, unitPrice: 8.90)
+            uniqueElements: identified.items.enumerated().map { index, item in
+                ProductDraft(
+                    id: index,
+                    item: item,
+                    quantity: item.quantity ?? 1,
+                    unitPrice: item.unitPrice ?? 8.90
+                )
             }
         )
     }

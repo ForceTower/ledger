@@ -243,7 +243,9 @@ struct PhotoScanFeatureTests {
 
     private static func drafts(of identified: PhotoScanIdentified) -> IdentifiedArrayOf<ProductDraft> {
         IdentifiedArray(
-            uniqueElements: identified.items.enumerated().map { ProductDraft(id: $0.offset, item: $0.element) }
+            uniqueElements: identified.items.enumerated().map { index, item in
+                ProductDraft(id: index, item: item, quantity: item.quantity ?? 1, unitPrice: item.unitPrice ?? 0)
+            }
         )
     }
 
@@ -274,7 +276,8 @@ struct PhotoScanFeatureTests {
         await store.finish()
     }
 
-    /// A photo can hold several products, and each one becomes its own editable row.
+    /// A photo can hold several products, and each one becomes its own editable row — with the
+    /// price and quantity the AI managed to read already filled in.
     @Test
     func everyItemInThePhotoBecomesAnEditableRow() async {
         let identified = MockData.photoScanIdentified
@@ -289,14 +292,14 @@ struct PhotoScanFeatureTests {
             $0.phase = .product(identified)
             $0.productDrafts = [
                 ProductDraft(id: 0, item: identified.items[0]),
-                ProductDraft(id: 1, item: identified.items[1]),
-                ProductDraft(id: 2, item: identified.items[2]),
+                ProductDraft(id: 1, item: identified.items[1], quantity: 2, unitPrice: 3.50),
+                ProductDraft(id: 2, item: identified.items[2], unitPrice: 2.75),
             ]
         }
 
         #expect(store.state.productDrafts.count == 3)
         #expect(store.state.selectedDrafts.count == 3)
-        #expect(store.state.productTotal == 0)
+        #expect(store.state.productTotal == 9.75)
     }
 
     @Test
@@ -381,8 +384,9 @@ struct PhotoScanFeatureTests {
         await store.send(.productQuantityChanged(id: 0, quantity: 3)) { $0.productDrafts[id: 0]?.quantity = 3 }
         await store.send(.productPriceChanged(id: 1, price: 4.50)) { $0.productDrafts[id: 1]?.unitPrice = 4.50 }
 
-        #expect(abs(store.state.productTotal - 31.20) < 0.001)
-        #expect(store.state.productUnitCount == 5)
+        // 3 × 8.90, plus the AI-prefilled 2 × 4.50 and 1 × 2.75.
+        #expect(abs(store.state.productTotal - 38.45) < 0.001)
+        #expect(store.state.productUnitCount == 6)
 
         await store.send(.productQuantityChanged(id: 0, quantity: 0)) { $0.productDrafts[id: 0]?.quantity = 1 }
         await store.send(.productPriceChanged(id: 1, price: -2)) { $0.productDrafts[id: 1]?.unitPrice = 0 }
@@ -397,7 +401,7 @@ struct PhotoScanFeatureTests {
         await store.send(.productSelectionToggled(id: 1)) { $0.productDrafts[id: 1]?.selected = false }
 
         #expect(store.state.selectedDrafts.map(\.id) == [0, 2])
-        #expect(abs(store.state.productTotal - 8.90) < 0.001)
+        #expect(abs(store.state.productTotal - 11.65) < 0.001)
     }
 
     @Test

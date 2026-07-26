@@ -84,6 +84,10 @@ public struct PhotoScanItem: Codable, Equatable, Sendable {
     public var category: Category
     /// Model self-assessment, 0..1.
     public var confidence: Double
+    /// Price for one unit in BRL, read off a price tag or receipt line; nil when the photo shows none.
+    public var unitPrice: Double? = nil
+    /// Whole units of this product, read off the receipt or counted in the photo; nil when unsure.
+    public var quantity: Int? = nil
 
     public var confidencePercent: Int { Int((confidence * 100).rounded()) }
 }

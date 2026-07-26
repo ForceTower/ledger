@@ -27,7 +27,8 @@ struct CaptchaChallenge: Equatable, Sendable {
     var image: Data
 }
 
-/// One item the AI found in a photo, plus the price and quantity only the owner can supply.
+/// One item the AI found in a photo, plus the price and quantity — prefilled when the AI could
+/// read them off the photo, the owner's to finish.
 struct ProductDraft: Equatable, Identifiable, Sendable {
     /// Position in the AI's list, which is also the row's identity.
     let id: Int
@@ -406,7 +407,14 @@ struct ScanFeature {
             case let .photoScanResponse(.success(.identified(identified))):
                 state.phase = .product(identified)
                 state.productDrafts = IdentifiedArray(
-                    uniqueElements: identified.items.enumerated().map { ProductDraft(id: $0.offset, item: $0.element) }
+                    uniqueElements: identified.items.enumerated().map { index, item in
+                        ProductDraft(
+                            id: index,
+                            item: item,
+                            quantity: max(1, item.quantity ?? 1),
+                            unitPrice: max(0, item.unitPrice ?? 0)
+                        )
+                    }
                 )
                 state.productSaved = false
                 return .none

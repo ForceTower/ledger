@@ -117,8 +117,19 @@ enum MockData {
     static let photoScanIdentified = PhotoScanIdentified(
         items: [
             PhotoScanItem(description: "Mamão Formosa", category: .produce, confidence: 0.96),
-            PhotoScanItem(description: "Iogurte Natural Batavo 170g", category: .dairyDeli, confidence: 0.88),
-            PhotoScanItem(description: "Detergente Ypê Neutro 500ml", category: .cleaning, confidence: 0.74),
+            PhotoScanItem(
+                description: "Iogurte Natural Batavo 170g",
+                category: .dairyDeli,
+                confidence: 0.88,
+                unitPrice: 3.50,
+                quantity: 2
+            ),
+            PhotoScanItem(
+                description: "Detergente Ypê Neutro 500ml",
+                category: .cleaning,
+                confidence: 0.74,
+                unitPrice: 2.75
+            ),
         ],
         comment: "O mamão é vendido por unidade; o iogurte parece ser o pote pequeno."
     )

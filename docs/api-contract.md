@@ -266,9 +266,10 @@ identification instruction; the strict output format is always enforced server-s
 `CLAUDE_TIMEOUT_MS` (default `60000`).
 
 `items` carries one entry per distinct product, most prominent first, and is never empty (several
-copies of the same product are one entry — the app asks the owner for the quantity). At most 20
-entries. A rejection is a normal result, not an error — the AI declines when it cannot identify
-anything:
+copies of the same product are one entry whose `quantity` carries the count). At most 20 entries.
+`unitPrice` and `quantity` are read off price tags and receipt lines, never guessed — both are
+`null` whenever the photo does not show them, and the app asks the owner for whatever is missing.
+A rejection is a normal result, not an error — the AI declines when it cannot identify anything:
 
 ```jsonc
 // 200 — identified
@@ -282,11 +283,15 @@ anything:
         "description": "Café Torrado e Moído 500g", // pt-BR, like a receipt line
         "category": "grocery",
         "confidence": 0.92, // 0..1
+        "unitPrice": 18.9, // BRL per unit, read off a price tag or receipt line; null when not visible
+        "quantity": 2, // whole units read or counted; null when unsure
       },
       {
         "description": "Leite Integral 1L",
         "category": "dairy_deli",
         "confidence": 0.81,
+        "unitPrice": null,
+        "quantity": null,
       },
     ],
     "comment": "O café parece ser da marca Pilão.",

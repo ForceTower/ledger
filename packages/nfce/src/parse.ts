@@ -19,7 +19,7 @@ export function parseReceipt(simpleHtml: string, fullHtml: string): ParsedReceip
   const totals = parseTotals(root);
   const payments = parsePayments(root);
   const single = payments.length === 1 ? payments[0]! : undefined;
-  if (single && isCash(single) && single.amount > totals.totalPaid) {
+  if (single && single.change === undefined && isCash(single) && single.amount > totals.totalPaid) {
     single.change = round2(single.amount - totals.totalPaid);
   }
   const meta = parseMeta(simpleHtml);
@@ -171,12 +171,19 @@ function parseTotals(root: HTMLElement): ParsedReceipt["totals"] {
   };
 }
 
-/** Bahia prefixes the method with its fiscal code ("01 - Dinheiro"); RS prints the name alone. */
+/** Bahia prefixes the method with its fiscal code ("01 - Dinheiro"); RS and SP print the name
+ * alone. SP also renders change as an extra "Troco" row — literally "NaN" when there is none. */
 function parsePayments(root: HTMLElement): ParsedReceipt["payments"] {
   const payments: ParsedReceipt["payments"] = [];
   for (const label of root.querySelectorAll("label.tx")) {
     const text = textOf(label);
     if (!text) continue;
+    if (/^troco\b/i.test(text)) {
+      const change = parseMoney(textOf(label.nextElementSibling));
+      const previous = payments.at(-1);
+      if (previous && Number.isFinite(change) && change > 0) previous.change = change;
+      continue;
+    }
     const coded = /^(\d+)\s*-\s*(.+)$/.exec(text);
     payments.push({
       code: coded ? Number(coded[1]) : null,

@@ -15,6 +15,30 @@ const RS_KEY = "43260811222333000181650130001234571379386587";
 const RS_URL = `https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce?p=${RS_KEY}|2|1|1|A1B2C3`;
 const RS_SIMPLE_HTML = `<html><body><table id="tabResult"><tr id="Item + 1"></tr></table></body></html>`;
 
+const SP_KEY = "35260844555666000177650040000639241986861830";
+const SP_URL = `https://www.nfce.fazenda.sp.gov.br/qrcode?p=${SP_KEY}|2|1|1|A1B2C3`;
+
+const SP_CONSULT_FORM_HTML = `<html><body>
+  <form method="post" action="./ConsultaPublica.aspx" id="ctl00">
+  <input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="spVs" />
+  <input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="spEv" />
+  <input type="hidden" name="ctl00$hdfMsgConfirmacao" value="Deseja prosseguir?" />
+  <input type="hidden" name="rAnDoMh0n3yp0t" />
+  <input name="ctl00$Conteudo$txtChaveAcesso" type="text" id="Conteudo_txtChaveAcesso" />
+  <input name="ctl00$Conteudo$ctlCaptcha$txCodigo" type="text" id="Conteudo_ctlCaptcha_txCodigo" />
+  </form>
+</body></html>`;
+const SP_RESUMIDA_HTML = `<html><body>
+  <form method="post" action="ConsultaResponsiva/ConsultaResumidaRJFrame_v400.aspx" id="ctl00">
+  <input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="spVs2" />
+  <table id="tabResult"><tr id="Item + 1"></tr></table>
+  <input type="button" name="btnVisualizarAbas" id="btnVisualizarAbas" />
+  </form>
+</body></html>`;
+const SP_WRONG_CAPTCHA_HTML = `<html><body><script>
+  mostraMsgErro('Captcha informado incorretamente. Favor tentar novamente.'); $(function(){openDialog('divErroMaster');});
+</script></body></html>`;
+
 const SIMPLE_HTML = `<html><body>
   <input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="vs123" />
   <input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="ev456" />
@@ -217,6 +241,28 @@ describe("fetchReceipt — SVRS (RS)", () => {
   });
 });
 
+describe("fetchReceipt — SP", () => {
+  test("fetches only the simplified page and returns an empty detailed page", async () => {
+    const link = validateNfceUrl(SP_URL);
+    const { fetchImpl, calls, at } = makeStub([html(RS_SIMPLE_HTML)]);
+
+    const result = await fetchReceipt(link, { fetchImpl });
+
+    expect(result.accessKey).toBe(SP_KEY);
+    expect(result.simpleHtml).toContain("tabResult");
+    expect(result.fullHtml).toBe("");
+
+    expect(calls).toHaveLength(1);
+    expect(at(0).url).toContain("%7C");
+  });
+
+  test("throws expired when the QR page has no items table", async () => {
+    const link = validateNfceUrl(SP_URL);
+    const { fetchImpl } = makeStub([html("<html>nota nao encontrada</html>")]);
+    await expectNfce(() => fetchReceipt(link, { fetchImpl }), "expired");
+  });
+});
+
 describe("startKeyConsult", () => {
   test("refuses a key from a portal without the captcha consultation flow", async () => {
     const { fetchImpl, calls } = makeStub([]);
@@ -251,6 +297,65 @@ describe("startKeyConsult", () => {
   test("throws unavailable when SEFAZ does not serve the form", async () => {
     const { fetchImpl } = makeStub([html("<html>maintenance</html>")]);
     await expectNfce(() => startKeyConsult(VALID_KEY, { fetchImpl }), "unavailable");
+  });
+});
+
+describe("startKeyConsult — SP", () => {
+  test("captures the consultation form (with anti-bot fields) and the captcha image", async () => {
+    const { fetchImpl, calls, at } = makeStub([
+      html(SP_CONSULT_FORM_HTML, { setCookie: ["ASP.NET_SessionId=sp1; path=/; HttpOnly"] }),
+      new Response(CAPTCHA_BYTES),
+    ]);
+
+    const challenge = await startKeyConsult(SP_KEY, { fetchImpl });
+
+    expect(calls).toHaveLength(2);
+    expect(at(0).url).toBe("https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaPublica.aspx");
+    expect(at(1).url).toContain("Captcha/RandomImageHandler.ashx?r=");
+    expect(at(1).headers.get("cookie")).toContain("ASP.NET_SessionId=sp1");
+    expect(at(1).headers.get("user-agent")).toContain("Macintosh");
+
+    expect(challenge.captchaImage).toEqual(CAPTCHA_BYTES);
+    expect(challenge.session.fields.get("__VIEWSTATE")).toBe("spVs");
+    expect(challenge.session.fields.get("ctl00$hdfMsgConfirmacao")).toBe("Deseja prosseguir?");
+    expect(challenge.session.fields.has("rAnDoMh0n3yp0t")).toBe(true);
+  });
+});
+
+describe("completeKeyConsult — SP", () => {
+  async function makeSpSession() {
+    const { fetchImpl } = makeStub([html(SP_CONSULT_FORM_HTML), new Response(CAPTCHA_BYTES)]);
+    return (await startKeyConsult(SP_KEY, { fetchImpl })).session;
+  }
+
+  test("posts the key and captcha, then replays the abas postback for the detailed page", async () => {
+    const session = await makeSpSession();
+    const { fetchImpl, calls, at } = makeStub([html(SP_RESUMIDA_HTML), html(FULL_HTML)]);
+
+    const result = await completeKeyConsult(session, " ab12 ", { fetchImpl });
+
+    expect(result.accessKey).toBe(SP_KEY);
+    expect(result.simpleHtml).toContain("tabResult");
+    expect(result.fullHtml).toContain("EAN");
+
+    expect(calls).toHaveLength(2);
+    expect(at(0).method).toBe("POST");
+    expect(at(0).url).toContain("ConsultaPublica.aspx");
+    expect(at(0).body).toContain(`txtChaveAcesso=${SP_KEY}`);
+    expect(at(0).body).toContain("txCodigo=ab12");
+    expect(at(0).body).toContain("btnConsultaResumida=Consultar");
+    expect(at(0).body).toContain("rAnDoMh0n3yp0t=");
+
+    expect(at(1).method).toBe("POST");
+    expect(at(1).url).toContain("ConsultaResponsiva/ConsultaResumidaRJFrame_v400.aspx");
+    expect(at(1).body).toContain("__EVENTTARGET=btnVisualizarAbas");
+    expect(at(1).body).toContain("__VIEWSTATE=spVs2");
+  });
+
+  test("throws captcha_rejected on SP's error dialog", async () => {
+    const session = await makeSpSession();
+    const { fetchImpl } = makeStub([html(SP_WRONG_CAPTCHA_HTML)]);
+    await expectNfce(() => completeKeyConsult(session, "WRONG", { fetchImpl }), "captcha_rejected");
   });
 });
 

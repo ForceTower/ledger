@@ -1,0 +1,44 @@
+{
+  "source": "nfce",
+  "date": "2026-08-03",
+  "time": "14:47:28",
+  "store": {
+    "name": "Padaria Paulista Com. Alim. Ltda",
+    "legalName": "Padaria Paulista Com. Alim. Ltda",
+    "cnpj": "44.555.666/0001-77",
+    "address": "R. das Flores, 100, Centro, Osasco, SP"
+  },
+  "receipt": {
+    "number": 63924,
+    "series": 4,
+    "accessKey": "35260844555666000177650040000639241986861830"
+  },
+  "items": [
+    {
+      "seq": 1,
+      "description": "PAO ARTESANAL FERMENTO NAT",
+      "code": "20605",
+      "barcode": "7908427002214",
+      "quantity": 2,
+      "unit": "un",
+      "unitPrice": 4.99,
+      "total": 9.98,
+      "category": "bakery"
+    }
+  ],
+  "totals": {
+    "itemCount": 1,
+    "gross": 9.98,
+    "discount": 0,
+    "totalPaid": 9.98
+  },
+  "payments": [
+    {
+      "code": null,
+      "method": "Vale Alimentação",
+      "amount": 9.98
+    }
+  ],
+  "taxesTotal": 2.54,
+  "warnings": []
+}

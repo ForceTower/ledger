@@ -6,6 +6,10 @@ import { validateAccessKey } from "./sefaz";
 // SEFAZ blocks generic clients; the prototype impersonates mobile Safari and it works.
 const USER_AGENT =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+// SP's consultation is validated against the desktop rendering (the mobile one strips the
+// "Visualizar em Abas" postback the detailed page depends on).
+const DESKTOP_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 const DEFAULT_TIMEOUT_MS = 60_000;
 const MAX_REDIRECTS = 5;
 
@@ -22,9 +26,14 @@ export interface FetchOptions {
  * portal's SEFAZ speaks (`portal.flow`).
  */
 export async function fetchReceipt(link: NfceLink, options?: FetchOptions): Promise<FetchedReceipt> {
-  return link.portal.flow === "svrs"
-    ? await fetchSvrsReceipt(link, options)
-    : await fetchWebformsReceipt(link, options);
+  switch (link.portal.flow) {
+    case "svrs":
+      return await fetchSvrsReceipt(link, options);
+    case "sp":
+      return await fetchSpReceipt(link, options);
+    default:
+      return await fetchBaReceipt(link, options);
+  }
 }
 
 /**
@@ -34,7 +43,7 @@ export async function fetchReceipt(link: NfceLink, options?: FetchOptions): Prom
  *      reveal the detailed tabs.
  *   3. GET the print page — it carries the per-item EAN the simplified page lacks.
  */
-async function fetchWebformsReceipt(link: NfceLink, options?: FetchOptions): Promise<FetchedReceipt> {
+async function fetchBaReceipt(link: NfceLink, options?: FetchOptions): Promise<FetchedReceipt> {
   const fetchImpl = options?.fetchImpl ?? fetch;
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const danfeUrl = `${link.portal.consultBase}NFCEC_consulta_danfe.aspx`;
@@ -74,16 +83,7 @@ async function fetchSvrsReceipt(link: NfceLink, options?: FetchOptions): Promise
   const base = link.portal.consultBase;
   const cookies = new Map<string, string>();
 
-  const simpleHtml = await sefazRequest(fetchImpl, link.url.replace(/\|/g, "%7C"), {
-    referer: base,
-    cookies,
-    timeoutMs,
-  });
-  // `tabResult` is the items table of the national DANFE layout — its absence means the portal
-  // answered with an error page instead of the receipt.
-  if (!simpleHtml.includes("tabResult")) {
-    throw new NfceError("expired", "SEFAZ did not return the receipt (link expired or not found)");
-  }
+  const simpleHtml = await fetchSimplifiedDanfe(fetchImpl, link, cookies, timeoutMs);
 
   const consultUrl = `${base}Dfe/ConsultaPublicaDfe`;
   await sefazRequest(fetchImpl, consultUrl, { referer: base, cookies, timeoutMs });
@@ -107,6 +107,39 @@ async function fetchSvrsReceipt(link: NfceLink, options?: FetchOptions): Promise
   return { accessKey: link.accessKey, simpleHtml, fullHtml };
 }
 
+/**
+ * SP's QR flow: the scanned URL serves only the simplified page — the detailed one is behind the
+ * captcha-gated key consultation (`startKeyConsult`), which cannot run inside a one-shot fetch.
+ * The parser handles an empty detailed page — the receipt just carries no item bar codes.
+ */
+async function fetchSpReceipt(link: NfceLink, options?: FetchOptions): Promise<FetchedReceipt> {
+  const fetchImpl = options?.fetchImpl ?? fetch;
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const cookies = new Map<string, string>();
+
+  const simpleHtml = await fetchSimplifiedDanfe(fetchImpl, link, cookies, timeoutMs);
+  return { accessKey: link.accessKey, simpleHtml, fullHtml: "" };
+}
+
+/** GET the scanned QR URL and validate it rendered the national DANFE layout's items table
+ * (`tabResult`) — its absence means the portal answered with an error page instead of the receipt. */
+async function fetchSimplifiedDanfe(
+  fetchImpl: FetchImpl,
+  link: NfceLink,
+  cookies: Map<string, string>,
+  timeoutMs: number,
+): Promise<string> {
+  const simpleHtml = await sefazRequest(fetchImpl, link.url.replace(/\|/g, "%7C"), {
+    referer: link.portal.consultBase,
+    cookies,
+    timeoutMs,
+  });
+  if (!simpleHtml.includes("tabResult")) {
+    throw new NfceError("expired", "SEFAZ did not return the receipt (link expired or not found)");
+  }
+  return simpleHtml;
+}
+
 /** A live SEFAZ cookie session opened by `startKeyConsult`, waiting for the captcha answer. The
  * API holds it between the challenge and completion requests; it is process-local state. */
 export interface KeyConsultSession {
@@ -127,18 +160,33 @@ export interface KeyConsultChallenge {
 /**
  * Open the portal's consulta-por-chave form and grab its anti-robot captcha.
  *
- * This is the fallback for `qr_rejected` links: the portal serves any authorized receipt by bare
- * access key, but gates that flow behind an image captcha only the owner can read. The captcha
- * answer is minted server-side when the image is requested and stored in the ASP.NET session, so
- * the image GET must reuse the form's cookies — and `completeKeyConsult` must reuse both.
+ * For BA this is the fallback for `qr_rejected` links; for SP it is the only way to reach the
+ * detailed page (per-item EANs). Both portals serve any authorized receipt by bare access key but
+ * gate that flow behind an image captcha only the owner can read. The captcha answer is minted
+ * server-side when the image is requested and stored in the ASP.NET session, so the image GET must
+ * reuse the form's cookies — and `completeKeyConsult` must reuse both.
  */
 export async function startKeyConsult(rawAccessKey: string, options?: FetchOptions): Promise<KeyConsultChallenge> {
   const { accessKey, portal } = validateAccessKey(rawAccessKey);
-  // The captcha-gated key consultation is a WebForms construct; SVRS receipts need their QR payload
-  // (the consultation serves only the detailed page, not the simplified one the parser is built on).
-  if (portal.flow !== "webforms") {
-    throw new NfceError("unavailable", `Access-key consultation is not supported for ${portal.uf} — scan the QR code`);
+  switch (portal.flow) {
+    case "ba":
+      return await startBaKeyConsult(accessKey, portal, options);
+    case "sp":
+      return await startSpKeyConsult(accessKey, portal, options);
+    default:
+      // SVRS needs no captcha — its detailed page already comes with the QR flow.
+      throw new NfceError(
+        "unavailable",
+        `Access-key consultation is not supported for ${portal.uf} — scan the QR code`,
+      );
   }
+}
+
+async function startBaKeyConsult(
+  accessKey: string,
+  portal: SefazPortal,
+  options?: FetchOptions,
+): Promise<KeyConsultChallenge> {
   const fetchImpl = options?.fetchImpl ?? fetch;
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const consultUrl = `${portal.consultBase}NFCEC_consulta_chave_acesso.aspx`;
@@ -159,6 +207,49 @@ export async function startKeyConsult(rawAccessKey: string, options?: FetchOptio
   return { session: { accessKey, portal, cookies, fields: hiddenFields(formHtml) }, captchaImage };
 }
 
+// SP's consultation lives under this module path; the flow was reverse-engineered against it. The
+// desktop user agent matters: the mobile rendering strips the "Visualizar em Abas" postback.
+const SP_CONSULT_PATH = "NFCeConsultaPublica/Paginas/ConsultaPublica.aspx";
+const SP_FRAME_PATH = "NFCeConsultaPublica/Paginas/ConsultaResponsiva/ConsultaResumidaRJFrame_v400.aspx";
+const SP_CAPTCHA_PATH = "NFCeConsultaPublica/Captcha/RandomImageHandler.ashx";
+
+async function startSpKeyConsult(
+  accessKey: string,
+  portal: SefazPortal,
+  options?: FetchOptions,
+): Promise<KeyConsultChallenge> {
+  const fetchImpl = options?.fetchImpl ?? fetch;
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const consultUrl = `${portal.consultBase}${SP_CONSULT_PATH}`;
+  const cookies = new Map<string, string>();
+
+  const formHtml = await sefazRequest(fetchImpl, consultUrl, {
+    referer: consultUrl,
+    cookies,
+    timeoutMs,
+    userAgent: DESKTOP_USER_AGENT,
+  });
+  if (!formHtml.includes("txtChaveAcesso")) {
+    throw new NfceError("unavailable", "SEFAZ did not return the access-key consultation form");
+  }
+
+  const captchaUrl = `${portal.consultBase}${SP_CAPTCHA_PATH}?r=${Math.random()}`;
+  const captchaResponse = await sefazFetch(fetchImpl, captchaUrl, {
+    referer: consultUrl,
+    cookies,
+    timeoutMs,
+    userAgent: DESKTOP_USER_AGENT,
+  });
+  const captchaImage = new Uint8Array(await captchaResponse.arrayBuffer());
+  if (captchaImage.length === 0) {
+    throw new NfceError("unavailable", "SEFAZ returned an empty captcha image");
+  }
+
+  // SP's form carries anti-bot hidden fields beyond the `__*` set (including one with a randomized
+  // name); the whole set must be replayed on completion.
+  return { session: { accessKey, portal, cookies, fields: allHiddenFields(formHtml) }, captchaImage };
+}
+
 /**
  * Answer the captcha and download the receipt pages, mirroring `fetchReceipt`'s output.
  *
@@ -167,6 +258,16 @@ export async function startKeyConsult(rawAccessKey: string, options?: FetchOptio
  * throws `expired` — same meaning as the QR flow's "not found".
  */
 export async function completeKeyConsult(
+  session: KeyConsultSession,
+  captchaAnswer: string,
+  options?: FetchOptions,
+): Promise<FetchedReceipt> {
+  return session.portal.flow === "sp"
+    ? await completeSpKeyConsult(session, captchaAnswer, options)
+    : await completeBaKeyConsult(session, captchaAnswer, options);
+}
+
+async function completeBaKeyConsult(
   session: KeyConsultSession,
   captchaAnswer: string,
   options?: FetchOptions,
@@ -208,6 +309,71 @@ function keyConsultError(html: string): NfceError {
   return new NfceError("unavailable", `SEFAZ refused the access-key consultation: ${reason || "unknown reason"}`);
 }
 
+/**
+ * SP's completion: POST key + captcha to the consultation form, then replay the "Visualizar em
+ * Abas" postback to reach the detailed tabs. The consultation answers with the simplified receipt
+ * (same national layout the QR page serves), so this yields both pages from a bare access key.
+ *
+ * SEFAZ rotates the session cookie during these hops — `sefazFetch` captures every `Set-Cookie`
+ * into the session's jar, which is what keeps the captcha blessing attached to later requests.
+ */
+async function completeSpKeyConsult(
+  session: KeyConsultSession,
+  captchaAnswer: string,
+  options?: FetchOptions,
+): Promise<FetchedReceipt> {
+  const fetchImpl = options?.fetchImpl ?? fetch;
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const consultUrl = `${session.portal.consultBase}${SP_CONSULT_PATH}`;
+
+  const fields = new Map(session.fields);
+  fields.set("__EVENTTARGET", "");
+  fields.set("__EVENTARGUMENT", "");
+  fields.set("ctl00$Conteudo$txtChaveAcesso", session.accessKey);
+  fields.set("ctl00$Conteudo$ctlCaptcha$txCodigo", captchaAnswer.trim());
+  fields.set("ctl00$Conteudo$btnConsultaResumida", "Consultar");
+
+  const landing = await sefazRequest(fetchImpl, consultUrl, {
+    body: new URLSearchParams([...fields]).toString(),
+    referer: consultUrl,
+    cookies: session.cookies,
+    timeoutMs,
+    userAgent: DESKTOP_USER_AGENT,
+  });
+  if (!landing.includes("tabResult")) {
+    throw spKeyConsultError(landing);
+  }
+
+  const abasFields = allHiddenFields(landing);
+  abasFields.set("__EVENTTARGET", "btnVisualizarAbas");
+  abasFields.set("__EVENTARGUMENT", "");
+  // The postback 302s back into the consultation page, which now renders the detailed tabs.
+  const fullHtml = await sefazRequest(fetchImpl, `${session.portal.consultBase}${SP_FRAME_PATH}`, {
+    body: new URLSearchParams([...abasFields]).toString(),
+    referer: consultUrl,
+    cookies: session.cookies,
+    timeoutMs,
+    userAgent: DESKTOP_USER_AGENT,
+  });
+  if (!fullHtml.includes("EAN")) {
+    throw new NfceError("unavailable", "SEFAZ detailed page returned no products");
+  }
+
+  return { accessKey: session.accessKey, simpleHtml: landing, fullHtml };
+}
+
+// SP reports failures by injecting the message into a jQuery error dialog.
+function spKeyConsultError(html: string): NfceError {
+  const reason = /\('([^']+)'\);\s*\$\(function\(\)\s*\{\s*openDialog\('divErroMaster'\)/.exec(html)?.[1]?.trim() ?? "";
+  if (/captcha informado incorretamente/i.test(reason)) {
+    return new NfceError("captcha_rejected", "SEFAZ refused the captcha answer");
+  }
+  if (/não\s+(foi\s+)?(encontrada|localizada)/i.test(reason)) {
+    return new NfceError("expired", "SEFAZ has no receipt under this access key (yet)");
+  }
+  return new NfceError("unavailable", `SEFAZ refused the access-key consultation: ${reason || "unknown reason"}`);
+}
+
 /** The back half both flows share: reveal the detailed tabs, then grab the print page. */
 async function fetchDetailPages(
   fetchImpl: FetchImpl,
@@ -240,6 +406,7 @@ interface RequestState {
   referer: string;
   cookies: Map<string, string>;
   timeoutMs: number;
+  userAgent?: string;
 }
 
 async function sefazRequest(fetchImpl: FetchImpl, url: string, state: RequestState): Promise<string> {
@@ -255,7 +422,7 @@ async function sefazFetch(fetchImpl: FetchImpl, url: string, state: RequestState
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const sendBody = hop === 0 ? body : undefined;
-    const headers: Record<string, string> = { "User-Agent": USER_AGENT, Referer: referer };
+    const headers: Record<string, string> = { "User-Agent": state.userAgent ?? USER_AGENT, Referer: referer };
     if (sendBody !== undefined) headers["Content-Type"] = "application/x-www-form-urlencoded";
     if (cookies.size > 0) headers.Cookie = serializeCookies(cookies);
 
@@ -309,6 +476,16 @@ function hiddenFields(html: string): Map<string, string> {
     const name = match[1];
     const value = match[2];
     if (name !== undefined && value !== undefined) fields.set(name, decodeHtml(value));
+  }
+  return fields;
+}
+
+/** Every hidden input, valued or not — SP validates fields beyond the `__*` set. */
+function allHiddenFields(html: string): Map<string, string> {
+  const fields = new Map<string, string>();
+  for (const match of html.matchAll(/<input[^>]*type="hidden"[^>]*name="([^"]+)"[^>]*?(?:value="([^"]*)")?\s*\/?>/g)) {
+    const name = match[1];
+    if (name !== undefined) fields.set(name, decodeHtml(match[2] ?? ""));
   }
   return fields;
 }

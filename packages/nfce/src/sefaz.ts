@@ -10,8 +10,9 @@ export interface SefazPortal {
   /** Allowlisted hosts. Validating against these is also the SSRF guard: the API only ever fetches
    * a URL whose host appears here. */
   hosts: string[];
-  /** Which fetch strategy the portal speaks — see `fetchReceipt` in fetch.ts. */
-  flow: "webforms" | "svrs";
+  /** Which portal family's flows this state speaks — QR fetch and key consultation strategies are
+   * both keyed off this; see `fetchReceipt` and `startKeyConsult` in fetch.ts. */
+  flow: "ba" | "svrs" | "sp";
   /** Base URL the flow derives its consultation endpoints from. */
   consultBase: string;
 }
@@ -25,7 +26,7 @@ export const SEFAZ_PORTALS: SefazPortal[] = [
     cUF: "29",
     name: "Bahia",
     hosts: ["nfe.sefaz.ba.gov.br"],
-    flow: "webforms",
+    flow: "ba",
     consultBase: "http://nfe.sefaz.ba.gov.br/servicos/nfce/modulos/geral/",
   },
   {
@@ -35,6 +36,16 @@ export const SEFAZ_PORTALS: SefazPortal[] = [
     hosts: ["dfe-portal.svrs.rs.gov.br"],
     flow: "svrs",
     consultBase: "https://dfe-portal.svrs.rs.gov.br/",
+  },
+  {
+    // SP's QR page serves only the simplified receipt (no item bar codes); the detailed page is
+    // behind the captcha-gated key consultation, available through `startKeyConsult`.
+    uf: "SP",
+    cUF: "35",
+    name: "São Paulo",
+    hosts: ["www.nfce.fazenda.sp.gov.br"],
+    flow: "sp",
+    consultBase: "https://www.nfce.fazenda.sp.gov.br/",
   },
 ];
 

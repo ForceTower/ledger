@@ -12,7 +12,7 @@ function loadFixture(stem: string) {
   return { simple, full, expected };
 }
 
-const FIXTURE_STEMS = ["supermarket_weighted", "cash_with_change", "split_payment", "rs_debit_card"];
+const FIXTURE_STEMS = ["supermarket_weighted", "cash_with_change", "split_payment", "rs_debit_card", "sp_food_voucher"];
 
 describe("parseReceipt — fixture equivalence", () => {
   for (const stem of FIXTURE_STEMS) {
@@ -91,6 +91,24 @@ describe("parseReceipt — totals and payments", () => {
     const { simple, full } = loadFixture("rs_debit_card");
     const receipt = parseReceipt(simple, full);
     expect(receipt.payments).toEqual([{ code: null, method: "Cartão de Débito", amount: 59.47 }]);
+  });
+
+  test("ignores SP's literal-NaN Troco row", () => {
+    const { simple, full } = loadFixture("sp_food_voucher");
+    const receipt = parseReceipt(simple, full);
+    expect(receipt.payments).toEqual([{ code: null, method: "Vale Alimentação", amount: 9.98 }]);
+  });
+
+  test("records an explicit Troco amount as change on the payment before it", () => {
+    const simple = `<html><body>
+      <div id="totalNota">
+        <div id="linhaTotal"><label>Qtd. total de itens:</label><span>0</span></div>
+        <div id="linhaTotal"><label>Valor a pagar R$:</label><span>10,00</span></div>
+        <div id="linhaTotal"><label class="tx">Dinheiro</label><span>50,00</span></div>
+        <div id="linhaTotal"><label class="tx">Troco </label><span>40,00</span></div>
+      </div></body></html>`;
+    const receipt = parseReceipt(simple, "");
+    expect(receipt.payments).toEqual([{ code: null, method: "Dinheiro", amount: 50, change: 40 }]);
   });
 
   test("computes change for a cash payment identified by name alone", () => {

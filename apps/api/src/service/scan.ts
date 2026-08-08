@@ -49,7 +49,6 @@ export class ScanService {
       cache: CacheClient;
       purchase: PurchaseService;
       categorizer: CategorizerService;
-      sefazBaseUrl: string;
     },
   ) {}
 

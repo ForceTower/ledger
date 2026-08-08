@@ -20,7 +20,6 @@ const envVarsSchema = z.object({
   DATABASE_URL: z.string(),
   REDIS_URL: z.string().default("redis://localhost:6379"),
   API_TOKEN: z.string().min(1),
-  SEFAZ_BASE_URL: z.string().default("http://nfe.sefaz.ba.gov.br/servicos/nfce/modulos/geral/"),
   // Optional: base64 Firebase service account JSON. When unset, push notifications are disabled.
   FIREBASE_SERVICE_ACCOUNT_BASE64: z.string().optional(),
   // AI (scans, the last-resort categorizer, and chat). The one-shot reads use the Anthropic API
@@ -107,7 +106,7 @@ export async function getEnv(): Promise<LedgerEnv> {
     prompt: vars.CLAUDE_CATEGORIZE_PROMPT,
     spend,
   });
-  const scan = new ScanService({ db, cache, purchase, categorizer, sefazBaseUrl: vars.SEFAZ_BASE_URL });
+  const scan = new ScanService({ db, cache, purchase, categorizer });
   const photoScan = new PhotoScanService({ ai, prompt: vars.CLAUDE_PHOTO_PROMPT, spend });
   const entry = new EntryService({ ai, prompt: vars.CLAUDE_ENTRY_PROMPT, timeZone: vars.LEDGER_TIME_ZONE, spend });
   const transfer = new TransferService({ db, cache, ai, purchase, prompt: vars.CLAUDE_TRANSFER_PROMPT, spend });

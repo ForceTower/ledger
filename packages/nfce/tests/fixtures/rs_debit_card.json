@@ -1,0 +1,77 @@
+{
+  "source": "nfce",
+  "date": "2026-08-06",
+  "time": "18:31:04",
+  "store": {
+    "name": "MERCADO GAUCHO LTDA",
+    "legalName": "MERCADO GAUCHO LTDA",
+    "cnpj": "11.222.333/0001-81",
+    "address": "Rua dos Andradas, 1001, Centro, Porto Alegre, RS"
+  },
+  "receipt": {
+    "number": 123457,
+    "series": 13,
+    "accessKey": "43260811222333000181650130001234571379386587"
+  },
+  "items": [
+    {
+      "seq": 1,
+      "description": "ESPETO DE MADEIRA",
+      "code": "1000208",
+      "barcode": "7898930672157",
+      "quantity": 1,
+      "unit": "UN",
+      "unitPrice": 13.9,
+      "total": 13.9,
+      "category": "other"
+    },
+    {
+      "seq": 2,
+      "description": "PIZZA SALAMINHO",
+      "code": "69397",
+      "barcode": null,
+      "quantity": 0.544,
+      "unit": "KG",
+      "unitPrice": 49.9,
+      "total": 27.15,
+      "category": "other"
+    },
+    {
+      "seq": 3,
+      "description": "REFRIGERANTE COLA 2LT",
+      "code": "1002121",
+      "barcode": "7894900027013",
+      "quantity": 1,
+      "unit": "UN",
+      "unitPrice": 10.89,
+      "total": 10.89,
+      "category": "beverages"
+    },
+    {
+      "seq": 4,
+      "description": "AGUA MINERAL 500ML",
+      "code": "1128055",
+      "barcode": "7896098900468",
+      "quantity": 12,
+      "unit": "UN",
+      "unitPrice": 0.69,
+      "total": 8.28,
+      "category": "beverages"
+    }
+  ],
+  "totals": {
+    "itemCount": 4,
+    "gross": 60.22,
+    "discount": 0.75,
+    "totalPaid": 59.47
+  },
+  "payments": [
+    {
+      "code": null,
+      "method": "Cartão de Débito",
+      "amount": 59.47
+    }
+  ],
+  "taxesTotal": 12.34,
+  "warnings": []
+}

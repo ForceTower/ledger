@@ -11,6 +11,10 @@ import {
 const VALID_KEY = "29261111111111111111650010000000011123456780";
 const VALID_URL = `http://nfe.sefaz.ba.gov.br/servicos/nfce/modulos/geral/NFCEC_consulta_chave_acesso.aspx?p=${VALID_KEY}|2|1|1|A1B2C3`;
 
+const RS_KEY = "43260811222333000181650130001234571379386587";
+const RS_URL = `https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce?p=${RS_KEY}|2|1|1|A1B2C3`;
+const RS_SIMPLE_HTML = `<html><body><table id="tabResult"><tr id="Item + 1"></tr></table></body></html>`;
+
 const SIMPLE_HTML = `<html><body>
   <input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="vs123" />
   <input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="ev456" />
@@ -167,7 +171,59 @@ describe("fetchReceipt", () => {
   });
 });
 
+describe("fetchReceipt — SVRS (RS)", () => {
+  test("gets the QR page, opens the consultation session, and posts the access key", async () => {
+    const link = validateNfceUrl(RS_URL);
+    const { fetchImpl, calls, at } = makeStub([
+      html(RS_SIMPLE_HTML),
+      html("<html>consultation form</html>", { setCookie: ["ASP.NET_SessionId=svrs1; path=/; HttpOnly"] }),
+      html(FULL_HTML),
+    ]);
+
+    const result = await fetchReceipt(link, { fetchImpl });
+
+    expect(result.accessKey).toBe(RS_KEY);
+    expect(result.simpleHtml).toContain("tabResult");
+    expect(result.fullHtml).toContain("EAN");
+
+    expect(calls).toHaveLength(3);
+    expect(at(0).url).toContain("%7C");
+    expect(at(0).url).not.toContain("|");
+
+    expect(at(1).method).toBe("GET");
+    expect(at(1).url).toBe("https://dfe-portal.svrs.rs.gov.br/Dfe/ConsultaPublicaDfe");
+
+    expect(at(2).method).toBe("POST");
+    expect(at(2).url).toBe("https://dfe-portal.svrs.rs.gov.br/Nfce/ConsultaPublicaDfe");
+    expect(at(2).body).toContain(`ChaveAcessoDfe=${RS_KEY}`);
+    expect(at(2).body).toContain("EhConsultaPublicaSiteSefaz=True");
+    expect(at(2).headers.get("cookie")).toContain("ASP.NET_SessionId=svrs1");
+  });
+
+  test("throws expired when the QR page has no items table", async () => {
+    const link = validateNfceUrl(RS_URL);
+    const { fetchImpl } = makeStub([html("<html>documento nao encontrado</html>")]);
+    await expectNfce(() => fetchReceipt(link, { fetchImpl }), "expired");
+  });
+
+  test("throws unavailable when the consultation returns no products", async () => {
+    const link = validateNfceUrl(RS_URL);
+    const { fetchImpl } = makeStub([
+      html(RS_SIMPLE_HTML),
+      html("<html>consultation form</html>"),
+      html("<html>captcha wall</html>"),
+    ]);
+    await expectNfce(() => fetchReceipt(link, { fetchImpl }), "unavailable");
+  });
+});
+
 describe("startKeyConsult", () => {
+  test("refuses a key from a portal without the captcha consultation flow", async () => {
+    const { fetchImpl, calls } = makeStub([]);
+    await expectNfce(() => startKeyConsult(RS_KEY, { fetchImpl }), "unavailable");
+    expect(calls).toHaveLength(0);
+  });
+
   test("captures the form session and the captcha image", async () => {
     const { fetchImpl, calls, at } = makeStub([
       html(CONSULT_FORM_HTML, { setCookie: ["ASP.NET_SessionId=key1; path=/; HttpOnly"] }),

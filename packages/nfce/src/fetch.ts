@@ -18,15 +18,23 @@ export interface FetchOptions {
 }
 
 /**
- * Download the simplified + detailed receipt HTML for a validated QR link.
- *
- * SEFAZ is ASP.NET WebForms, so this is a three-step dance over ONE cookie session:
+ * Download the simplified + detailed receipt HTML for a validated QR link, using the fetch flow the
+ * portal's SEFAZ speaks (`portal.flow`).
+ */
+export async function fetchReceipt(link: NfceLink, options?: FetchOptions): Promise<FetchedReceipt> {
+  return link.portal.flow === "svrs"
+    ? await fetchSvrsReceipt(link, options)
+    : await fetchWebformsReceipt(link, options);
+}
+
+/**
+ * Bahia's flow. SEFAZ-BA is ASP.NET WebForms, so this is a three-step dance over ONE cookie session:
  *   1. GET the scanned QR URL — the simplified receipt.
  *   2. Replay the page's hidden `__*` inputs as a postback (`__EVENTTARGET=btn_visualizar_abas`) to
  *      reveal the detailed tabs.
  *   3. GET the print page — it carries the per-item EAN the simplified page lacks.
  */
-export async function fetchReceipt(link: NfceLink, options?: FetchOptions): Promise<FetchedReceipt> {
+async function fetchWebformsReceipt(link: NfceLink, options?: FetchOptions): Promise<FetchedReceipt> {
   const fetchImpl = options?.fetchImpl ?? fetch;
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const danfeUrl = `${link.portal.consultBase}NFCEC_consulta_danfe.aspx`;
@@ -50,6 +58,53 @@ export async function fetchReceipt(link: NfceLink, options?: FetchOptions): Prom
   }
 
   return await fetchDetailPages(fetchImpl, link.portal, cookies, timeoutMs, link.accessKey, simpleHtml);
+}
+
+/**
+ * SVRS (Sefaz Virtual RS) flow. The QR URL serves the simplified receipt directly, and the public
+ * consultation answers with the detailed page (per-item EANs) for a bare access key — no postbacks,
+ * no captcha:
+ *   1. GET the scanned QR URL — the simplified receipt in the national DANFE layout.
+ *   2. GET the consultation form to open the cookie session the POST below requires.
+ *   3. POST the access key to the NFC-e consultation — the detailed page.
+ */
+async function fetchSvrsReceipt(link: NfceLink, options?: FetchOptions): Promise<FetchedReceipt> {
+  const fetchImpl = options?.fetchImpl ?? fetch;
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const base = link.portal.consultBase;
+  const cookies = new Map<string, string>();
+
+  const simpleHtml = await sefazRequest(fetchImpl, link.url.replace(/\|/g, "%7C"), {
+    referer: base,
+    cookies,
+    timeoutMs,
+  });
+  // `tabResult` is the items table of the national DANFE layout — its absence means the portal
+  // answered with an error page instead of the receipt.
+  if (!simpleHtml.includes("tabResult")) {
+    throw new NfceError("expired", "SEFAZ did not return the receipt (link expired or not found)");
+  }
+
+  const consultUrl = `${base}Dfe/ConsultaPublicaDfe`;
+  await sefazRequest(fetchImpl, consultUrl, { referer: base, cookies, timeoutMs });
+
+  const body = new URLSearchParams({
+    sistema: "Dfe",
+    EhConsultaPublicaSiteSefaz: "True",
+    Ambiente: "1",
+    ChaveAcessoDfe: link.accessKey,
+  }).toString();
+  const fullHtml = await sefazRequest(fetchImpl, `${base}Nfce/ConsultaPublicaDfe`, {
+    body,
+    referer: consultUrl,
+    cookies,
+    timeoutMs,
+  });
+  if (!fullHtml.includes("EAN")) {
+    throw new NfceError("unavailable", "SEFAZ detailed page returned no products");
+  }
+
+  return { accessKey: link.accessKey, simpleHtml, fullHtml };
 }
 
 /** A live SEFAZ cookie session opened by `startKeyConsult`, waiting for the captcha answer. The
@@ -79,6 +134,11 @@ export interface KeyConsultChallenge {
  */
 export async function startKeyConsult(rawAccessKey: string, options?: FetchOptions): Promise<KeyConsultChallenge> {
   const { accessKey, portal } = validateAccessKey(rawAccessKey);
+  // The captcha-gated key consultation is a WebForms construct; SVRS receipts need their QR payload
+  // (the consultation serves only the detailed page, not the simplified one the parser is built on).
+  if (portal.flow !== "webforms") {
+    throw new NfceError("unavailable", `Access-key consultation is not supported for ${portal.uf} — scan the QR code`);
+  }
   const fetchImpl = options?.fetchImpl ?? fetch;
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const consultUrl = `${portal.consultBase}NFCEC_consulta_chave_acesso.aspx`;

@@ -18,8 +18,9 @@ export function parseReceipt(simpleHtml: string, fullHtml: string): ParsedReceip
 
   const totals = parseTotals(root);
   const payments = parsePayments(root);
-  if (payments.length === 1 && payments[0]!.code === 1 && payments[0]!.amount > totals.totalPaid) {
-    payments[0]!.change = round2(payments[0]!.amount - totals.totalPaid);
+  const single = payments.length === 1 ? payments[0]! : undefined;
+  if (single && isCash(single) && single.amount > totals.totalPaid) {
+    single.change = round2(single.amount - totals.totalPaid);
   }
   const meta = parseMeta(simpleHtml);
 
@@ -170,18 +171,24 @@ function parseTotals(root: HTMLElement): ParsedReceipt["totals"] {
   };
 }
 
+/** Bahia prefixes the method with its fiscal code ("01 - Dinheiro"); RS prints the name alone. */
 function parsePayments(root: HTMLElement): ParsedReceipt["payments"] {
   const payments: ParsedReceipt["payments"] = [];
   for (const label of root.querySelectorAll("label.tx")) {
-    const match = /^\s*(\d+)\s*-\s*(.+?)\s*$/.exec(textOf(label));
-    if (!match) continue;
+    const text = textOf(label);
+    if (!text) continue;
+    const coded = /^(\d+)\s*-\s*(.+)$/.exec(text);
     payments.push({
-      code: Number(match[1]),
-      method: match[2]!,
+      code: coded ? Number(coded[1]) : null,
+      method: coded ? coded[2]! : text,
       amount: parseMoney(textOf(label.nextElementSibling)),
     });
   }
   return payments;
+}
+
+function isCash(payment: ParsedReceipt["payments"][number]): boolean {
+  return payment.code === 1 || /^dinheiro$/i.test(payment.method);
 }
 
 function parseMeta(simpleHtml: string) {

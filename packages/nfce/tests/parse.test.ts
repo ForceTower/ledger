@@ -12,7 +12,7 @@ function loadFixture(stem: string) {
   return { simple, full, expected };
 }
 
-const FIXTURE_STEMS = ["supermarket_weighted", "cash_with_change", "split_payment"];
+const FIXTURE_STEMS = ["supermarket_weighted", "cash_with_change", "split_payment", "rs_debit_card"];
 
 describe("parseReceipt — fixture equivalence", () => {
   for (const stem of FIXTURE_STEMS) {
@@ -85,6 +85,23 @@ describe("parseReceipt — totals and payments", () => {
     const receipt = parseReceipt(simple, full);
     expect(receipt.payments).toHaveLength(2);
     expect(receipt.payments.every((payment) => payment.change === undefined)).toBe(true);
+  });
+
+  test("accepts the RS payment label without the fiscal code prefix", () => {
+    const { simple, full } = loadFixture("rs_debit_card");
+    const receipt = parseReceipt(simple, full);
+    expect(receipt.payments).toEqual([{ code: null, method: "Cartão de Débito", amount: 59.47 }]);
+  });
+
+  test("computes change for a cash payment identified by name alone", () => {
+    const simple = `<html><body>
+      <div id="totalNota">
+        <div id="linhaTotal"><label>Qtd. total de itens:</label><span>0</span></div>
+        <div id="linhaTotal"><label>Valor a pagar R$:</label><span>10,00</span></div>
+        <div id="linhaTotal"><label class="tx">Dinheiro</label><span>20,00</span></div>
+      </div></body></html>`;
+    const receipt = parseReceipt(simple, "");
+    expect(receipt.payments[0]).toMatchObject({ code: null, method: "Dinheiro", change: 10 });
   });
 });
 

@@ -6,6 +6,10 @@ const VALID_KEY = "29261111111111111111650010000000011123456780";
 const BA_BASE = "http://nfe.sefaz.ba.gov.br/servicos/nfce/modulos/geral/NFCEC_consulta_chave_acesso.aspx";
 const VALID_URL = `${BA_BASE}?p=${VALID_KEY}|2|1|1|A1B2C3`;
 
+// Synthetic RS key: cUF 43, dummy CNPJ/series/number, check digit (7) computed for this body.
+const RS_KEY = "43260811222333000181650130001234571379386587";
+const RS_URL = `https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce?p=${RS_KEY}|2|1|1|A1B2C3`;
+
 function expectInvalidUrl(fn: () => unknown) {
   try {
     fn();
@@ -23,6 +27,17 @@ describe("validateNfceUrl", () => {
     expect(link.accessKey).toBe(VALID_KEY);
     expect(link.portal.uf).toBe("BA");
     expect(link.url).toBe(VALID_URL);
+  });
+
+  test("accepts a well-formed RS (SVRS) NFC-e URL", () => {
+    const link = validateNfceUrl(RS_URL);
+    expect(link.accessKey).toBe(RS_KEY);
+    expect(link.portal.uf).toBe("RS");
+    expect(link.portal.flow).toBe("svrs");
+  });
+
+  test("rejects an RS key served from another state's host", () => {
+    expectInvalidUrl(() => validateNfceUrl(`${BA_BASE}?p=${RS_KEY}|2|1|1|A1B2C3`));
   });
 
   test("trims surrounding whitespace", () => {

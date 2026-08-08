@@ -1,7 +1,8 @@
 # @ledger/nfce
 
-The NFC-e fetch + parse + categorize library — the reusable core of ledger. Given a scanned SEFAZ-BA
-QR URL it returns a structured, validated, categorized purchase. No HTTP server, no database.
+The NFC-e fetch + parse + categorize library — the reusable core of ledger. Given a scanned SEFAZ
+QR URL (Bahia and Rio Grande do Sul portals) it returns a structured, validated, categorized
+purchase. No HTTP server, no database.
 
 ```ts
 import { fetchReceipt, parseReceipt, categorize } from "@ledger/nfce";

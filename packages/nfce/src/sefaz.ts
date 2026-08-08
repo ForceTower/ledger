@@ -10,19 +10,31 @@ export interface SefazPortal {
   /** Allowlisted hosts. Validating against these is also the SSRF guard: the API only ever fetches
    * a URL whose host appears here. */
   hosts: string[];
-  /** Base URL of the state's NFC-e "geral" module, used to derive the DANFE and print endpoints. */
+  /** Which fetch strategy the portal speaks — see `fetchReceipt` in fetch.ts. */
+  flow: "webforms" | "svrs";
+  /** Base URL the flow derives its consultation endpoints from. */
   consultBase: string;
 }
 
-// Bahia only, for now. Other states use different portals and fetch flows; add them here once their
-// flow is implemented and tested.
+// Each state runs its own portal with its own fetch flow; add entries here once their flow is
+// implemented and tested. SVRS (Sefaz Virtual RS) hosts NFC-e for several states, so more of them
+// can likely reuse the "svrs" flow with their own cUF.
 export const SEFAZ_PORTALS: SefazPortal[] = [
   {
     uf: "BA",
     cUF: "29",
     name: "Bahia",
     hosts: ["nfe.sefaz.ba.gov.br"],
+    flow: "webforms",
     consultBase: "http://nfe.sefaz.ba.gov.br/servicos/nfce/modulos/geral/",
+  },
+  {
+    uf: "RS",
+    cUF: "43",
+    name: "Rio Grande do Sul",
+    hosts: ["dfe-portal.svrs.rs.gov.br"],
+    flow: "svrs",
+    consultBase: "https://dfe-portal.svrs.rs.gov.br/",
   },
 ];
 
